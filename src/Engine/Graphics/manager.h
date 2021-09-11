@@ -25,6 +25,7 @@ namespace Graphics {
 		typedef unsigned int	mesh_handle;
 		typedef unsigned int	material_handle;
 		typedef unsigned int	texture_handle;
+		typedef unsigned int	framebuffer_handle;
 
 		//////////////////////////////////////////////////////
 		//			OpenGL Graphics Assets Data
@@ -128,7 +129,21 @@ namespace Graphics {
 
 		std::unordered_map<texture_handle, texture_info>	m_texture_info_map;
 
+		//////////////////////////////////////////////////////
+		//				Framebuffer Data
+		//////////////////////////////////////////////////////
+
 	public:
+
+		struct framebuffer_info
+		{
+			GLuint	m_gl_object;
+			GLenum	m_target = GL_INVALID_ENUM;
+		};
+
+		framebuffer_handle		m_framebuffer_handle_counter = 1;
+
+		std::unordered_map<framebuffer_handle, framebuffer_info>			m_framebuffer_info_map;
 
 		//////////////////////////////////////////////////////
 		//				OpenGL Shader Data
@@ -221,6 +236,21 @@ namespace Graphics {
 		texture_info set_texture_target_and_bind(texture_handle _texture_handle, GLenum _target);
 
 		/*
+		* Framebuffer Methods
+		*/
+
+	public:
+
+		framebuffer_handle	CreateFramebuffer();
+		void				DeleteFramebuffer(framebuffer_handle _framebuffer);
+		framebuffer_info	BindFramebuffer(framebuffer_handle _framebuffer) const;
+		void				UnbindFramebuffer(GLenum _framebuffer_target = GL_FRAMEBUFFER) const;
+		void				AttachTextureToFramebuffer(framebuffer_handle _framebuffer, GLenum _attachment_point, texture_handle _texture);
+		void				DrawFramebuffers(framebuffer_handle _framebuffer, unsigned int _arr_size, GLenum const* _arr_attachment_points) const;
+
+	private:
+
+		/*
 		* OpenGL shader management methods
 		*/
 
@@ -270,6 +300,7 @@ namespace Graphics {
 		void delete_buffers(std::vector<buffer_handle> const& _buffers);
 		void delete_materials(std::vector<material_handle> const& _materials);
 		void delete_textures(std::vector<texture_handle> const& _textures);
+		void delete_framebuffers(std::vector<framebuffer_handle> const& _framebuffers);
 		void delete_shaders(std::vector<shader_handle> _shaders);
 		void delete_programs(std::vector<shader_program_handle> _programs);
 	};

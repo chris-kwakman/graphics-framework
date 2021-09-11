@@ -469,6 +469,10 @@ namespace Graphics {
 		return true;
 	}
 
+	//////////////////////////////////////////////////////////////////
+	//					Texture Methods
+	//////////////////////////////////////////////////////////////////
+
 	/*
 	* Creates a new texture object in graphics manager.
 	* @return	texture_handle
@@ -583,6 +587,62 @@ namespace Graphics {
 		input_texture_info.m_target = _target;
 		GfxCall(glBindTexture(input_texture_info.m_target, input_texture_info.m_gl_source_id));
 		return iter->second;
+	}
+
+	//////////////////////////////////////////////////////////////////
+	//						Framebuffer Methods
+	//////////////////////////////////////////////////////////////////
+
+	ResourceManager::framebuffer_handle ResourceManager::CreateFramebuffer()
+	{
+		GLuint framebuffer_object = 0;
+		glGenFramebuffers(1, &framebuffer_object);
+		framebuffer_handle const new_framebuffer_handle = m_framebuffer_handle_counter++;
+		framebuffer_info new_framebuffer_info;
+		new_framebuffer_info.m_gl_object = framebuffer_object;
+		new_framebuffer_info.m_target = GL_FRAMEBUFFER;
+		m_framebuffer_info_map.emplace(new_framebuffer_handle, new_framebuffer_info);
+		return new_framebuffer_handle;
+	}
+
+	void ResourceManager::DeleteFramebuffer(framebuffer_handle _framebuffer)
+	{
+		auto iter = m_framebuffer_info_map.find(_framebuffer);
+		Engine::Utils::assert_print_error(iter != m_framebuffer_info_map.end(), "Invalid framebuffer handle.");
+		framebuffer_info const framebuffer_info = iter->second;
+		m_framebuffer_info_map.erase(iter);
+		glDeleteFramebuffers(1, & framebuffer_info.m_gl_object);
+	}
+
+	ResourceManager::framebuffer_info ResourceManager::BindFramebuffer(framebuffer_handle _framebuffer) const
+	{
+		auto iter = m_framebuffer_info_map.find(_framebuffer);
+		Engine::Utils::assert_print_error(iter != m_framebuffer_info_map.end(), "Invalid framebuffer handle.");
+		framebuffer_info const framebuffer_info = iter->second;
+		glBindFramebuffer(framebuffer_info.m_target, framebuffer_info.m_gl_object);
+		return framebuffer_info;
+	}
+
+	void ResourceManager::UnbindFramebuffer(GLenum _framebuffer_target)
+	{
+		glBindFramebuffer(_framebuffer_target, 0);
+	}
+
+
+	void ResourceManager::AttachTextureToFramebuffer(framebuffer_handle _framebuffer, GLenum _attachment_point, texture_handle _texture)
+	{
+		framebuffer_info const framebuffer_info = BindFramebuffer(_framebuffer);
+		texture_info const texture_info = m_texture_info_map.at(_texture);
+		assert(texture_info.m_target == GL_TEXTURE_2D);
+		glFramebufferTexture2D(framebuffer_info.m_target, _attachment_point, texture_info.m_target, texture_info.m_gl_source_id, 0);
+		assert(glCheckFramebufferStatus(framebuffer_info.m_target) == GL_FRAMEBUFFER_COMPLETE);
+	}
+
+	void ResourceManager::DrawFramebuffers(framebuffer_handle _framebuffer, unsigned int _arr_size, GLenum const* _arr_attachment_points) const
+	{
+		framebuffer_info const info = BindFramebuffer(_framebuffer);
+		GfxCall(glDrawBuffers((GLsizei)_arr_size, _arr_attachment_points));
+		UnbindFramebuffer(info.m_target);
 	}
 
 	//////////////////////////////////////////////////////////////////
@@ -952,18 +1012,21 @@ namespace Graphics {
 		std::vector<mesh_handle> mesh_handles;
 		std::vector<buffer_handle> buffer_handles;
 		std::vector<texture_handle> texture_handles;
+		std::vector<framebuffer_handle> framebuffer_handles;
 		std::vector<shader_handle> shader_handles;
 		std::vector<shader_program_handle> shader_program_handles;
 
 		collect_keys(m_mesh_primitives_map, mesh_handles);
 		collect_keys(m_buffer_info_map, buffer_handles);
 		collect_keys(m_texture_info_map, texture_handles);
+		collect_keys(m_framebuffer_info_map, framebuffer_handles);
 		collect_keys(m_shader_info_map, shader_handles);
 		collect_keys(m_shader_program_info_map, shader_program_handles);
 
 		delete_meshes(mesh_handles);
 		delete_buffers(buffer_handles);
 		delete_textures(texture_handles);
+		delete_framebuffers(framebuffer_handles);
 		delete_shaders(shader_handles);
 		delete_programs(shader_program_handles);
 
@@ -976,6 +1039,7 @@ namespace Graphics {
 		m_buffer_handle_counter = 1;
 		m_material_handle_counter = 1;
 		m_texture_handle_counter = 1;
+		m_framebuffer_handle_counter = 1;
 		m_shader_handle_counter = 1;
 		m_shader_program_handle_counter = 1;
 	}
@@ -1050,6 +1114,21 @@ namespace Graphics {
 		// Delete all gl texture objects simultaneously
 		if (!gl_texture_objects.empty())
 			GfxCall(glDeleteTextures((GLsizei)gl_texture_objects.size(), &gl_texture_objects[0]));
+	}
+
+	void ResourceManager::delete_framebuffers(std::vector<framebuffer_handle> const& _framebuffers)
+	{
+		// Collect all gl framebuffer objects
+		std::vector<GLuint> gl_objects;
+		for (unsigned int i = 0; i < _framebuffers.size(); ++i)
+		{
+			auto info_iter = m_framebuffer_info_map.find(_framebuffers[i]);
+			gl_objects.push_back(info_iter->second.m_gl_object);
+			m_framebuffer_info_map.erase(_framebuffers[i]);
+		}
+		// Delete all gl framebuffer objects simultaneously
+		if (!gl_objects.empty())
+			GfxCall(glDeleteFramebuffers((GLsizei)gl_objects.size(), &gl_objects[0]));
 	}
 
 	void ResourceManager::delete_shaders(std::vector<shader_handle> _shaders)
