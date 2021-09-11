@@ -45,7 +45,7 @@ void update_loop()
 		sdl_manager.update();
 
 		char window_title[128];
-		snprintf(window_title, sizeof(window_title), "CS562 | Chris Kwakman | FPS: %.2f", 1000.0f / (float)frametime.count());
+		snprintf(window_title, sizeof(window_title), "c.kwakman | FPS: %.2f", 1000.0f / (float)frametime.count());
 		SDL_SetWindowTitle(sdl_manager.m_window, window_title);
 
 		Sandbox::Update();
