@@ -75,21 +75,29 @@ namespace Graphics {
 	bool ResourceManager::LoadModel(const char* _filepath)
 	{
 		std::filesystem::path const path(_filepath);
+		Engine::Utils::print_base("Resource Manager", "Loading model \"%s\"...", path.string().c_str());
 		std::error_code err;
 		bool success = std::filesystem::exists(path, err);
 		if (success)
 		{
 			success = false;
 			std::filesystem::path const extension = path.extension();
-			if(extension == ".gltf")
+			if (extension == ".gltf")
 				success = load_gltf_model(_filepath);
 			else
-				printf("Extension \"%s\" is not supported.\n", extension.u8string().c_str());
+			{
+				success = false;
+				Engine::Utils::print_base("Resource Manager", "Extension \"%s\" is not supported.\n", extension.u8string().c_str());
+			}
+
+			if (!success)
+				Engine::Utils::print_base("Resource Manager", "ERROR: Error occurred while loading model.");
+			else
+				Engine::Utils::print_base("Resource Manager", "Model \"%s\" loaded successfully.", path.string().c_str());
 		}
 		else
-		{
-			printf("Error reading file: %s.\n", err.message().c_str());
-		}
+			Engine::Utils::print_base("Resource Manager", "ERROR: Model at path \"%s\" does not exist.", path.string().c_str());
+
 		return success;
 	}
 
@@ -105,15 +113,15 @@ namespace Graphics {
 		bool success = loader.LoadASCIIFromFile(&model, &error, &warning, _filepath);
 
 		if (!warning.empty()) {
-			printf("[TinyGLTF] Warn: %s\n", warning.c_str());
+			Engine::Utils::print_base("TinyGLTF", "Warning: %s", warning.c_str());
 		}
 
 		if (!error.empty()) {
-			printf("[TinyGLTF] Error: %s\n", error.c_str());
+			Engine::Utils::print_base("TinyGLTF", "Error: %s", error.c_str());
 		}
 
 		if (!success) {
-			printf("[TinyGLTF] Failed to parse glTF\n");
+			Engine::Utils::print_base("TinyGLTF", "Failed to parse glTF.");
 			return false;
 		}
 
