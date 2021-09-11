@@ -469,6 +469,122 @@ namespace Graphics {
 		return true;
 	}
 
+	/*
+	* Creates a new texture object in graphics manager.
+	* @return	texture_handle
+	*/
+	ResourceManager::texture_handle ResourceManager::CreateTexture()
+	{
+		GLuint gl_texture_object = 0;
+		glGenTextures(1, &gl_texture_object);
+		texture_info new_texture_info;
+		texture_handle const new_texture_handle = m_texture_handle_counter++;
+		new_texture_info.m_gl_source_id = gl_texture_object;
+		new_texture_info.m_target = GL_INVALID_ENUM;
+		m_texture_info_map.emplace(new_texture_handle, new_texture_info);
+		return new_texture_handle;
+	}
+
+	/*
+	* Deletes texture object corresponding to given texture handle.
+	*/
+	void ResourceManager::DeleteTexture(texture_handle _texture_handle)
+	{
+		auto iter = m_texture_info_map.find(_texture_handle);
+		glDeleteTextures(1, &iter->second.m_gl_source_id);
+		m_texture_info_map.erase(iter);
+	}
+
+	/*
+	* Bind texture object corresponding to given texture handle.
+	*/
+	void ResourceManager::BindTexture(texture_handle _texture_handle) const
+	{
+		auto iter = m_texture_info_map.find(_texture_handle);
+		Engine::Utils::assert_print_error(iter != m_texture_info_map.end(), "Texture handle is invalid.");
+		Engine::Utils::assert_print_error(iter->second.m_target != GL_INVALID_ENUM, "Texture has no target assigned.");
+		glBindTexture(iter->second.m_target, iter->second.m_gl_source_id);
+	}
+
+	/*
+	* Specify layout of texture object corresponding to given texture handle
+	* @param	texture_handle
+	* @param	GLint			Format that object will use internally (i.e. GL_R, GL_RGBA, etc...)
+	* @param	glm::uvec2		Size of object in terms of texels.
+	* @param	uint			Mipmap level of texture
+	*/
+	void ResourceManager::SpecifyTexture2D(texture_handle _texture_handle, GLint _internal_format, glm::uvec2 _size, unsigned int _mipmap_level)
+	{
+		SpecifyAndUploadTexture2D(
+			_texture_handle, _internal_format, _size, _mipmap_level,
+			GL_RGBA, GL_UNSIGNED_BYTE, nullptr
+		);
+	}
+
+	/*
+	* Specify layout AND upload data to texture object corresponding to given texture handle
+	* @param	texture_handle
+	* @param	GLint			Format that object will use internally (i.e. GL_R, GL_RGBA, etc...)
+	* @param	glm::uvec2		Size of object in terms of texels.
+	* @param	uint			Mipmap level of texture
+	* @param	GLenum			Input format that data will be given in (i.e. GL_R, GL_RGBA, etc...)
+	* @param	GLenum			Input format component type (i.e. GL_UNSIGNED_BYTE, etc...)
+	* @param	void *			Pointer to texture data that will be uploaded. Can be nullptr.
+	*/
+	void ResourceManager::SpecifyAndUploadTexture2D(
+		texture_handle _texture_handle, GLint _internal_format, glm::uvec2 _size, unsigned int _mipmap_level, 
+		GLenum _input_format, GLenum _input_component_type, void* _data
+	)
+	{
+		texture_info const tex_info = set_texture_target_and_bind(_texture_handle, GL_TEXTURE_2D);
+		GfxCall(glTexImage2D(
+			tex_info.m_target, _mipmap_level,
+			_internal_format, (GLsizei)_size.x, (GLsizei)_size.y, 0, 
+			_input_format, _input_component_type, _data
+		));
+	}
+
+	/*
+	* Sets texture parameters of given texture.
+	* @param	texture_handle		Given texture to set parameters of.
+	* @param	texture_parameters	Parameters to set.
+	*/
+	void ResourceManager::SetTextureParameters(texture_handle _texture_handle, texture_parameters _params)
+	{
+		auto iter = m_texture_info_map.find(_texture_handle);
+		Engine::Utils::assert_print_error(iter != m_texture_info_map.end(), "Invalid texture handle.");
+		texture_info const tex_info = iter->second;
+		GfxCall(glBindTexture(tex_info.m_target, tex_info.m_gl_source_id));
+		switch (tex_info.m_target)
+		{
+		case GL_TEXTURE_3D:	
+			GfxCall(glTexParameteri(tex_info.m_target, GL_TEXTURE_WRAP_S, _params.m_wrap_r)); 
+			[[fallthrough]];
+		case GL_TEXTURE_2D:	
+			GfxCall(glTexParameteri(tex_info.m_target, GL_TEXTURE_WRAP_S, _params.m_wrap_t)); 
+			[[fallthrough]];
+		case GL_TEXTURE_1D: 
+			GfxCall(glTexParameteri(tex_info.m_target, GL_TEXTURE_WRAP_S, _params.m_wrap_s)); 
+		}
+		GfxCall(glTexParameteri(tex_info.m_target, GL_TEXTURE_MAG_FILTER, _params.m_mag_filter));
+		GfxCall(glTexParameteri(tex_info.m_target, GL_TEXTURE_MIN_FILTER, _params.m_min_filter));
+	}
+
+	/*
+	* Set target of texture.
+	* @param	texture_handle		Given texture to set target of.
+	* @param	GLenum				Target to assign to texture object.
+	*/
+	ResourceManager::texture_info ResourceManager::set_texture_target_and_bind(texture_handle _texture_handle, GLenum _target)
+	{
+		auto iter = m_texture_info_map.find(_texture_handle);
+		Engine::Utils::assert_print_error(iter != m_texture_info_map.end(), "Invalid texture handle.");
+		texture_info& input_texture_info = iter->second;
+		input_texture_info.m_target = _target;
+		GfxCall(glBindTexture(input_texture_info.m_target, input_texture_info.m_gl_source_id));
+		return iter->second;
+	}
+
 	//////////////////////////////////////////////////////////////////
 	//						Shader Methods
 	//////////////////////////////////////////////////////////////////

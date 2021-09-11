@@ -65,22 +65,6 @@ namespace Graphics {
 		std::unordered_map<buffer_handle, buffer_info>						m_buffer_info_map;
 		std::unordered_map<buffer_handle, index_buffer_info>				m_index_buffer_info_map;
 
-		//////////////////////////////////////////////////////
-		//					Texture Data
-		//////////////////////////////////////////////////////
-
-	public:
-
-		struct texture_info
-		{
-			GLuint	m_gl_source_id;
-			GLuint	m_target;
-			//TODO: Texture ref count?
-		};
-
-		texture_handle			m_texture_handle_counter = 1;
-
-		std::unordered_map<texture_handle, texture_info>	m_texture_info_map;
 
 		//////////////////////////////////////////////////////
 		//					Material Data
@@ -126,6 +110,25 @@ namespace Graphics {
 
 		material_handle		m_material_handle_counter = 1;
 		std::unordered_map<material_handle, material_data>	m_material_data_map;
+
+		//////////////////////////////////////////////////////
+		//					Texture Data
+		//////////////////////////////////////////////////////
+
+	public:
+
+		struct texture_info
+		{
+			GLuint	m_gl_source_id;
+			GLuint	m_target = GL_INVALID_ENUM;
+			//TODO: Texture ref count?
+		};
+
+		texture_handle			m_texture_handle_counter = 1;
+
+		std::unordered_map<texture_handle, texture_info>	m_texture_info_map;
+
+	public:
 
 		//////////////////////////////////////////////////////
 		//				OpenGL Shader Data
@@ -186,6 +189,36 @@ namespace Graphics {
 		static unsigned int get_glTF_type_component_count(int _attributeType);
 
 		bool load_gltf_model(const char * _filepath);
+
+		/*
+		* Texture methods
+		*/
+
+	public:
+
+		struct texture_parameters
+		{
+			int m_wrap_s = GL_REPEAT;
+			int m_wrap_t = GL_REPEAT;
+			int m_wrap_r = GL_REPEAT;
+			int m_mag_filter = GL_LINEAR;
+			int m_min_filter = GL_LINEAR;
+		};
+
+
+		texture_handle	CreateTexture();
+		void			DeleteTexture(texture_handle _texture_handle);
+		void			BindTexture(texture_handle _texture_handle) const;
+		void SpecifyTexture2D(texture_handle _texture_handle, GLint	_internal_format, glm::uvec2 _size, unsigned int _mipmap_level = 0);
+		void SpecifyAndUploadTexture2D(
+			texture_handle _texture_handle, GLint _internal_format, glm::uvec2 _size, unsigned int _mipmap_level,
+			GLenum _input_format, GLenum _input_component_type, void * _data
+		);
+		void SetTextureParameters(texture_handle _texture_handle, texture_parameters _params);
+
+	private:
+
+		texture_info set_texture_target_and_bind(texture_handle _texture_handle, GLenum _target);
 
 		/*
 		* OpenGL shader management methods
