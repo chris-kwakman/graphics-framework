@@ -75,6 +75,7 @@ namespace Graphics {
 		{
 			GLuint	m_gl_source_id;
 			GLuint	m_target;
+			//TODO: Texture ref count?
 		};
 
 		texture_handle			m_texture_handle_counter = 1;
@@ -187,18 +188,6 @@ namespace Graphics {
 		bool load_gltf_model(const char * _filepath);
 
 		/*
-		* Graphics asset management methods
-		*/
-
-	public:
-
-		void DeleteGraphicsResources();
-
-	private:
-
-		//void delete_textures(std::vector<texture_handle>)
-
-		/*
 		* OpenGL shader management methods
 		*/
 
@@ -230,6 +219,26 @@ namespace Graphics {
 		static GLuint			create_program_and_link_gl_shaders(std::vector<GLuint> const& _gl_shader_objects, bool * _success);
 		static void				attach_gl_program_shaders(GLuint _gl_program_object, std::vector<GLuint> const& _gl_shader_objects);
 		static bool				link_gl_program_shaders(GLuint _gl_program_object);
+
+		/*
+		* Graphics asset management methods
+		*/
+
+	public:
+
+		void Reset();
+		void DeleteAllGraphicsResources();
+
+	private:
+
+		void reset_counters();
+
+		void delete_meshes(std::vector<mesh_handle> const& _meshes);
+		void delete_buffers(std::vector<buffer_handle> const& _buffers);
+		void delete_materials(std::vector<material_handle> const& _materials);
+		void delete_textures(std::vector<texture_handle> const& _textures);
+		void delete_shaders(std::vector<shader_handle> _shaders);
+		void delete_programs(std::vector<shader_program_handle> _programs);
 	};
 
 }

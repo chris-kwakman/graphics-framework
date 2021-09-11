@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <cassert>
 #include <set>
+#include <algorithm>
 
 #include <glm/gtc/type_ptr.hpp>
 #include <SDL2/SDL.h>
@@ -12,7 +13,6 @@
 
 #include <STB/stb_image.h>
 #include <tiny_glft/tiny_gltf.h>
-
 
 namespace Engine {
 namespace Graphics {
@@ -459,7 +459,6 @@ namespace Graphics {
 		m_buffer_handle_counter += (unsigned int)new_buffer_info_map.size();
 		m_material_handle_counter += (unsigned int)new_material_data_map.size();
 		m_texture_handle_counter += (unsigned int)new_texture_info_map.size();
-		//TODO: Save 
 
 		m_buffer_info_map.merge(std::move(new_buffer_info_map));
 		m_index_buffer_info_map.merge(std::move(new_index_buffer_info_map));
@@ -812,6 +811,173 @@ namespace Graphics {
 			return false;
 		}
 		return true;
+	}
+
+	//////////////////////////////////////////////////////////////////
+	//					Graphics Resource Management
+	//////////////////////////////////////////////////////////////////
+
+	void ResourceManager::Reset()
+	{
+		DeleteAllGraphicsResources();
+		reset_counters();
+	}
+
+	void ResourceManager::DeleteAllGraphicsResources()
+	{
+		auto collect_keys = [](auto const& map, auto& output) {
+			std::transform(
+				map.begin(), map.end(), std::back_inserter(output),
+				[](auto iter)->mesh_handle {return iter.first; }
+			);
+		};
+
+		// Collect all mesh handles
+		std::vector<mesh_handle> mesh_handles;
+		std::vector<buffer_handle> buffer_handles;
+		std::vector<texture_handle> texture_handles;
+		std::vector<shader_handle> shader_handles;
+		std::vector<shader_program_handle> shader_program_handles;
+
+		collect_keys(m_mesh_primitives_map, mesh_handles);
+		collect_keys(m_buffer_info_map, buffer_handles);
+		collect_keys(m_texture_info_map, texture_handles);
+		collect_keys(m_shader_info_map, shader_handles);
+		collect_keys(m_shader_program_info_map, shader_program_handles);
+
+		delete_meshes(mesh_handles);
+		delete_buffers(buffer_handles);
+		delete_textures(texture_handles);
+		delete_shaders(shader_handles);
+		delete_programs(shader_program_handles);
+
+		m_material_data_map.clear();
+	}
+
+	void ResourceManager::reset_counters()
+	{
+		m_mesh_handle_counter = 1;
+		m_buffer_handle_counter = 1;
+		m_material_handle_counter = 1;
+		m_texture_handle_counter = 1;
+		m_shader_handle_counter = 1;
+		m_shader_program_handle_counter = 1;
+	}
+
+	void ResourceManager::delete_meshes(std::vector<mesh_handle> const& _meshes)
+	{
+		// Collect all gl vertex array objects
+		std::vector<GLuint> gl_vertex_array_objects;
+
+		// Iterate over all meshes
+		for (unsigned int i = 0; i < _meshes.size(); ++i)
+		{
+			auto mesh_iter = m_mesh_primitives_map.find(_meshes[i]);
+			// Each mesh has a list of primitives, each of which contains a VAO
+			for (mesh_primitive_data primitive_data : mesh_iter->second)
+			{
+				gl_vertex_array_objects.push_back(primitive_data.m_vao_gl_id);
+			}
+			m_mesh_primitives_map.erase(mesh_iter);
+		}
+
+		// Delete all gl texture objects simultaneously
+		if (!gl_vertex_array_objects.empty())
+			GfxCall(glDeleteVertexArrays((GLsizei)gl_vertex_array_objects.size(), &gl_vertex_array_objects[0]));
+	}
+
+	/*
+	* Delete instances of buffer info and their corresponding gl objects
+	* @param	std::vector<buffer_handle> const &		List of buffers to delete
+	*/
+	void ResourceManager::delete_buffers(std::vector<buffer_handle> const& _buffers)
+	{
+		// Collect all gl buffer objects
+		std::vector<GLuint> gl_buffer_objects;
+		for (unsigned int i = 0; i < _buffers.size(); ++i)
+		{
+			m_index_buffer_info_map.erase(_buffers[i]);
+			auto buffer_info_iter = m_buffer_info_map.find(_buffers[i]);
+			gl_buffer_objects.push_back(buffer_info_iter->second.m_gl_id);
+			m_buffer_info_map.erase(_buffers[i]);
+		}
+		// Delete all gl buffer objects simultaneously
+		if (!gl_buffer_objects.empty())
+			GfxCall(glDeleteBuffers((GLsizei)gl_buffer_objects.size(), &gl_buffer_objects[0]));
+	}
+
+	/*
+	* Delete instances of material information.
+	* @param	std::vector<material_handle> const &	List of materials to delete
+	* @detail	Materials do not have GL objects to delete.
+	*/
+	void ResourceManager::delete_materials(std::vector<material_handle> const& _materials)
+	{
+		for (unsigned int i = 0; i < _materials.size(); ++i)
+			m_material_data_map.erase(_materials[i]);
+	}
+
+	/*
+	* Delete instances of texture information and thei corresponding GL objects
+	* @param	std::vector<texture_handle> const &		List of textures to delete
+	*/
+	void ResourceManager::delete_textures(std::vector<texture_handle> const& _textures)
+	{
+		// Collect all gl texture objects
+		std::vector<GLuint> gl_texture_objects;
+		for (unsigned int i = 0; i < _textures.size(); ++i)
+		{
+			auto texture_info_iter = m_buffer_info_map.find(_textures[i]);
+			gl_texture_objects.push_back(texture_info_iter->second.m_gl_id);
+			m_texture_info_map.erase(_textures[i]);
+		}
+		// Delete all gl texture objects simultaneously
+		if (!gl_texture_objects.empty())
+			GfxCall(glDeleteTextures((GLsizei)gl_texture_objects.size(), &gl_texture_objects[0]));
+	}
+
+	void ResourceManager::delete_shaders(std::vector<shader_handle> _shaders)
+	{
+		// Remove entry in name to shader map
+		std::sort(_shaders.begin(), _shaders.end());
+		auto iter = m_filepath_shader_map.begin();
+		while (iter != m_filepath_shader_map.end())
+		{
+			if (std::binary_search(_shaders.begin(), _shaders.end(), iter->second))
+				iter = m_filepath_shader_map.erase(iter);
+			else
+				++iter;
+		}
+		// Remove entry in shader info map
+		for (unsigned int i = 0; i < _shaders.size(); ++i)
+		{
+			shader_handle shader = _shaders[i];
+			auto iter = m_shader_info_map.find(shader);
+			GfxCall(glDeleteShader(iter->second.m_gl_shader_object));
+			m_shader_info_map.erase(iter);
+		}
+	}
+
+	void ResourceManager::delete_programs(std::vector<shader_program_handle>  _programs)
+	{
+		// Remove entry in name to shader map
+		std::sort(_programs.begin(), _programs.end());
+		auto iter = m_named_shader_program_map.begin();
+		while (iter != m_named_shader_program_map.end())
+		{
+			if (std::binary_search(_programs.begin(), _programs.end(), iter->second))
+				iter = m_named_shader_program_map.erase(iter);
+			else
+				++iter;
+		}
+		// Remove entry in shader program info map
+		for (unsigned int i = 0; i < _programs.size(); ++i)
+		{
+			shader_program_handle program = _programs[i];
+			auto iter = m_shader_program_info_map.find(_programs[i]);
+			GfxCall(glDeleteProgram(iter->second.m_gl_program_object));
+			m_shader_program_info_map.erase(iter);
+		}
 	}
 
 

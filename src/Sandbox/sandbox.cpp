@@ -41,6 +41,7 @@ namespace Sandbox
 	bool Initialize()
 	{
 		Engine::Graphics::ResourceManager & system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
+		system_resource_manager.Reset();
 
 		bool success = system_resource_manager.LoadModel(
 			"data/gltf/sponza/Sponza.gltf"
@@ -177,5 +178,6 @@ namespace Sandbox
 
 	void Shutdown()
 	{
+		Singleton<Engine::Graphics::ResourceManager>().DeleteAllGraphicsResources();
 	}
 }
