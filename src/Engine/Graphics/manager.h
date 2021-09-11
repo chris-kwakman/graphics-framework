@@ -16,33 +16,23 @@ namespace Graphics {
 	{
 
 		//////////////////////////////////////////////////////
+		//			Defined Handle Types
+		//////////////////////////////////////////////////////
+
+	public:
+
+		typedef unsigned int	buffer_handle;	// Equivalent to buffer_view handle in glTF.
+		typedef unsigned int	mesh_handle;
+		typedef unsigned int	material_handle;
+		typedef unsigned int	texture_handle;
+		typedef unsigned int	texture_source_handle;
+
+		//////////////////////////////////////////////////////
 		//			OpenGL Graphics Assets Data
 		//////////////////////////////////////////////////////
 
 	public:
 
-		/*typedef unsigned int	scene_handle;
-		typedef unsigned int	node_handle;*/
-		typedef unsigned int	buffer_handle;	// Equivalent to buffer_view handle in glTF.
-		typedef unsigned int	mesh_handle;
-		typedef unsigned int	primitive_handle;
-		typedef unsigned int	material_handle;
-
-		/*struct scene_data
-		{
-			std::string					m_name;
-			std::vector<node_handle>	m_scene_nodes;
-		};
-
-		struct node_data
-		{
-			enum EContains : bool {eMesh = false, eCamera = true};
-			std::string					m_name;
-			Engine::Math::transform3D	m_transform;
-			EContains					m_contained_data;
-			std::vector<node_handle>	m_child_nodes;
-		};*/
-	
 
 		// Mesh data
 		struct mesh_primitive_data
@@ -52,9 +42,6 @@ namespace Graphics {
 			material_handle m_material_handle;
 			unsigned char	m_render_mode = GL_TRIANGLES; // Default according to specification
 		};
-
-		// struct texture_occlusion {};
-		// struct texture_emissive {};
 
 		// Defines information for both vertex buffers and index buffers
 		struct buffer_info
@@ -72,18 +59,8 @@ namespace Graphics {
 		};
 
 		// Handle counters
-		//scene_handle		m_scene_handle_counter = 1;
-		//node_handle			m_node_handle_counter = 1;
 		mesh_handle			m_mesh_handle_counter = 1;
 		buffer_handle		m_buffer_handle_counter = 1;
-
-		// Scene data
-		//std::unordered_map<scene_handle, scene_data>						m_scenes_map;
-
-		// Node data
-		//std::unordered_map<node_handle, node_data>							m_node_data_map;
-		//std::unordered_map<node_handle, mesh_handle>						m_node_mesh_map;
-		//std::unordered_map<node_handle, camera_handle> m_node_camera;
 
 		std::unordered_map<mesh_handle, std::vector<mesh_primitive_data>>	m_mesh_primitives_map;
 		std::unordered_map<buffer_handle, buffer_info>						m_buffer_info_map;
@@ -95,35 +72,16 @@ namespace Graphics {
 
 	public:
 
-		typedef unsigned int texture_handle;
-		typedef unsigned int texture_sampler_handle;
-		typedef unsigned int texture_source_handle;
-
 		struct texture_info
 		{
 			texture_source_handle	m_source_handle;
 		};
-
-		//struct texture_sampler_info
-		//{
-		//	// Defaults are according to specification of glTF
-		//	GLenum m_mag_filter_enum =	GL_INVALID_ENUM;
-		//	GLenum m_min_filter_enum =	GL_INVALID_ENUM;
-		//	GLenum m_wrap_s_enum =		GL_REPEAT;
-		//	GLenum m_wrap_t_enum =		GL_REPEAT;
-		//};
 
 		struct texture_source_info
 		{
 			GLuint	m_gl_source_id;
 			GLuint	m_target;
 		};
-
-		//struct texture_normal
-		//{
-		//	float			m_normal_scale;
-		//	texture_info	m_normal_texture;
-		//};
 
 		texture_handle			m_texture_handle_counter = 1;
 		texture_source_handle	m_texture_source_handle_counter = 1;

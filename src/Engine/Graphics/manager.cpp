@@ -282,24 +282,9 @@ namespace Graphics {
 		{
 			texture_info new_texture_info;
 			tinygltf::Texture const & read_texture = model.textures[i];
-			//new_texture_info.m_sampler_handle = m_texture_sampler_handle_counter + read_texture.sampler;
 			new_texture_info.m_source_handle = m_texture_source_handle_counter + read_texture.source;
 			new_texture_info_map.emplace(m_texture_handle_counter + i, new_texture_info);
 		}
-
-		// Add glTF sampler information into internal map.
-		/*decltype(m_texture_sampler_info_map) new_texture_sampler_info_map;
-		for (unsigned int i = 0; i < model.samplers.size(); ++i)
-		{
-			texture_sampler_info new_texture_sampler_info;
-			tinygltf::Sampler const read_texture_sampler = model.samplers[i];
-			new_texture_sampler_info.m_wrap_s_enum = read_texture_sampler.wrapS;
-			new_texture_sampler_info.m_wrap_t_enum = read_texture_sampler.wrapT;
-			new_texture_sampler_info.m_mag_filter_enum = read_texture_sampler.magFilter;
-			new_texture_sampler_info.m_min_filter_enum = read_texture_sampler.minFilter;
-			new_texture_sampler_info_map.emplace(m_texture_sampler_handle_counter + i, new_texture_sampler_info);
-		}
-		*/
 
 		// Add glTF source information into internal map.
 		decltype(m_texture_source_info_map) new_texture_source_info_map;
@@ -459,83 +444,14 @@ namespace Graphics {
 			new_material_data_map.emplace(new_material_handle, new_material_data);
 		}
 
-
-		/*
-		* Load Nodes & corresponding data
-		*/
-		
-		//unsigned int new_meshes = 0;
-
-		//for (unsigned int i = 0; i < model.nodes.size(); ++i)
-		//{
-		//	node_handle const curr_new_node_handle = m_node_handle_counter + i;
-
-		//	tinygltf::Node const& read_node = model.nodes[i];
-		//	node_data new_data;
-
-		//	new_data.m_name = read_node.name;
-
-		//	// Copy child node handles for currently read nodes
-		//	new_data.m_child_nodes.resize(read_node.children.size());
-		//	for (unsigned int j = 0; j < read_node.children.size(); ++j)
-		//		new_data.m_child_nodes[j] = m_node_handle_counter + read_node.children[j];
-
-		//	// Set type of data that is contained in new node, and add to respective map.
-		//	if (read_node.mesh != -1)
-		//	{
-		//		new_data.m_contained_data = node_data::eMesh;
-		//		new_node_mesh_map.emplace(curr_new_node_handle, m_mesh_handle_counter + read_node.mesh);
-		//		new_meshes++;
-		//	}
-		//	//else if (read_node.camera != -1)
-		//	//{
-		//	//	new_data.m_contained_data = node_data::eCamera;
-		//	//	new_node_camera_map.emplace(curr_new_node_handle, new_camera_first_handle + read_node.camera);
-		//	//}
-		//	else
-		//		assert(true && "Node type not supported.");
-		//	
-		//	// Set node transform (if found)
-		//	if (read_node.matrix.empty())
-		//	{
-		//		if (!read_node.translation.empty())
-		//		{
-		//			new_data.m_transform.position.x = (float)read_node.translation[0];
-		//			new_data.m_transform.position.y = (float)read_node.translation[1];
-		//			new_data.m_transform.position.z = (float)read_node.translation[2];
-
-		//		}
-		//		if (!read_node.scale.empty())
-		//		{
-		//			new_data.m_transform.scale.x = (float)read_node.scale[0];
-		//			new_data.m_transform.scale.y = (float)read_node.scale[1];
-		//			new_data.m_transform.scale.z = (float)read_node.scale[2];
-		//		}
-		//		if (!read_node.rotation.empty())
-		//		{
-		//			new_data.m_transform.quaternion.x = (float)read_node.rotation[0];
-		//			new_data.m_transform.quaternion.y = (float)read_node.rotation[1];
-		//			new_data.m_transform.quaternion.z = (float)read_node.rotation[2];
-		//			new_data.m_transform.quaternion.w = (float)read_node.rotation[3];
-		//		}
-		//	}
-		//	else
-		//	{
-		//		assert(true && "GLTF model loading does not support decomposable matrix transforms right now.");
-		//	}
-
-		//	new_node_data_map.emplace(curr_new_node_handle, std::move(new_data));
-		//}
-
-		//TODO: Load scene data into new map
-
-		
+		// Update all handle counters at the end
+		// This is done so we can safely offset tinygltf resource indices based on original handle counters.
 		m_mesh_handle_counter += (unsigned int)new_mesh_primitives_map.size();
 		m_buffer_handle_counter += (unsigned int)new_buffer_info_map.size();
 		m_material_handle_counter += (unsigned int)new_material_data_map.size();
 		m_texture_handle_counter += (unsigned int)new_texture_info_map.size();
 		m_texture_source_handle_counter += (unsigned int)new_texture_source_info_map.size();
-		//m_node_handle_counter += (unsigned int)model.nodes.size();
+		//TODO: Save 
 
 		m_buffer_info_map.merge(std::move(new_buffer_info_map));
 		m_index_buffer_info_map.merge(std::move(new_index_buffer_info_map));
@@ -543,8 +459,6 @@ namespace Graphics {
 		m_material_data_map.merge(new_material_data_map);
 		m_texture_info_map.merge(new_texture_info_map);
 		m_texture_source_info_map.merge(new_texture_source_info_map);
-		//m_node_data_map.merge(new_node_data_map);
-		//m_node_mesh_map.merge(new_node_mesh_map);
 
 		return true;
 	}
