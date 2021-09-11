@@ -8,12 +8,35 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <STB/stb_image_write.h>
+
 #include <math.h>
 
 # define MATH_PI           3.14159265358979323846f
 
 namespace Sandbox
 {
+
+	// Saves the front framebuffer to an image with the specified filename
+	// Call it after swapping buffers to make sure you save the last frame rendered
+	void SaveScreenShot(const char* _filename)
+	{
+		GLint viewport[4];
+		glGetIntegerv(GL_VIEWPORT, viewport);
+
+		int x = viewport[0];
+		int y = viewport[1];
+		int width = viewport[2];
+		int height = viewport[3];
+
+		std::vector<unsigned char> imageData(width * height * 4, 0);
+
+		glPixelStorei(GL_PACK_ALIGNMENT, 1);
+		glReadBuffer(GL_FRONT);
+		glReadPixels(x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, imageData.data());
+		stbi_flip_vertically_on_write(true);
+		stbi_write_png(_filename, width, height, 4, imageData.data(), 0);
+	}
 
 	bool Initialize()
 	{
