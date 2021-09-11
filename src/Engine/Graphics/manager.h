@@ -25,7 +25,6 @@ namespace Graphics {
 		typedef unsigned int	mesh_handle;
 		typedef unsigned int	material_handle;
 		typedef unsigned int	texture_handle;
-		typedef unsigned int	texture_source_handle;
 
 		//////////////////////////////////////////////////////
 		//			OpenGL Graphics Assets Data
@@ -74,20 +73,13 @@ namespace Graphics {
 
 		struct texture_info
 		{
-			texture_source_handle	m_source_handle;
-		};
-
-		struct texture_source_info
-		{
 			GLuint	m_gl_source_id;
 			GLuint	m_target;
 		};
 
 		texture_handle			m_texture_handle_counter = 1;
-		texture_source_handle	m_texture_source_handle_counter = 1;
 
-		std::unordered_map<texture_handle, texture_info>					m_texture_info_map;
-		std::unordered_map<texture_source_handle, texture_source_info>		m_texture_source_info_map;
+		std::unordered_map<texture_handle, texture_info>	m_texture_info_map;
 
 		//////////////////////////////////////////////////////
 		//					Material Data
@@ -193,6 +185,18 @@ namespace Graphics {
 		static unsigned int get_glTF_type_component_count(int _attributeType);
 
 		bool load_gltf_model(const char * _filepath);
+
+		/*
+		* Graphics asset management methods
+		*/
+
+	public:
+
+		void DeleteGraphicsResources();
+
+	private:
+
+		//void delete_textures(std::vector<texture_handle>)
 
 		/*
 		* OpenGL shader management methods

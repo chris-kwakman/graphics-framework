@@ -133,11 +133,9 @@ namespace Sandbox
 				// If no texture handle exists, ignore
 				if (_texture == 0)
 					return;
-				auto texture_source = system_resource_manager.m_texture_source_info_map.at(
-					system_resource_manager.m_texture_info_map.at(_texture).m_source_handle
-				);
+				auto texture_info = system_resource_manager.m_texture_info_map.at(_texture);
 				glActiveTexture(GL_TEXTURE0 + _active_texture_index);
-				glBindTexture(texture_source.m_target, texture_source.m_gl_source_id);
+				glBindTexture(texture_info.m_target, texture_info.m_gl_source_id);
 
 				system_resource_manager.SetBoundProgramUniform(_shader_sampler_uniform_location, (int)_active_texture_index);
 			};

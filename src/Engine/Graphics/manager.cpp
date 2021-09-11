@@ -284,18 +284,8 @@ namespace Graphics {
 		* Textures / Images / Samplers
 		*/
 
-		// Insert glTF texture information into internal map.
-		decltype(m_texture_info_map) new_texture_info_map;
-		for (unsigned int i = 0; i < model.textures.size(); ++i)
-		{
-			texture_info new_texture_info;
-			tinygltf::Texture const & read_texture = model.textures[i];
-			new_texture_info.m_source_handle = m_texture_source_handle_counter + read_texture.source;
-			new_texture_info_map.emplace(m_texture_handle_counter + i, new_texture_info);
-		}
-
 		// Add glTF source information into internal map.
-		decltype(m_texture_source_info_map) new_texture_source_info_map;
+		decltype(m_texture_info_map) new_texture_info_map;
 
 		// Generate openGL textures beforehand
 		std::vector<GLuint> new_gl_texture_objects;
@@ -304,10 +294,11 @@ namespace Graphics {
 
 		for (unsigned int i = 0; i < model.images.size(); ++i)
 		{
-			texture_source_info new_texture_source_info;
+			texture_handle const current_texture = m_texture_handle_counter + i;
 			tinygltf::Image & read_texture_source = model.images[i];
-			new_texture_source_info.m_gl_source_id = new_gl_texture_objects[i];
-			new_texture_source_info.m_target = GL_TEXTURE_2D; // Assume all glTF textures are 2D.
+			texture_info new_texture_info;
+			new_texture_info.m_gl_source_id = new_gl_texture_objects[i];
+			new_texture_info.m_target = GL_TEXTURE_2D; // Assume all glTF textures are 2D.
 
 			// First, texture data must be loaded into memory
 
@@ -352,7 +343,7 @@ namespace Graphics {
 			}
 
 			// Bind texture source and set parameters
-			GfxCall(glBindTexture(GL_TEXTURE_2D, new_texture_source_info.m_gl_source_id));
+			GfxCall(glBindTexture(GL_TEXTURE_2D, new_texture_info.m_gl_source_id));
 			GLenum source_format;
 			GLenum pixel_component_type;
 			switch (read_texture_source.component)
@@ -387,19 +378,18 @@ namespace Graphics {
 			if(image_data)
 				stbi_image_free(image_data);
 
-			new_texture_source_info_map.emplace(m_texture_source_handle_counter + i, new_texture_source_info);
+			new_texture_info_map.emplace(current_texture, new_texture_info);
 		}
 
-		// Go through textures from samplers one more time and set parameters properly.
+		// Go through textures one more time and set parameters properly.
 		for (unsigned int i = 0; i < model.textures.size(); ++i)
 		{
 			tinygltf::Texture const& read_texture = model.textures[i];
 			tinygltf::Sampler const& read_sampler = model.samplers[read_texture.sampler];
 
-			texture_handle current_texture = m_texture_handle_counter + i;
-			texture_source_handle current_source = new_texture_info_map.at(current_texture).m_source_handle;
-			texture_source_info current_source_info = new_texture_source_info_map.at(current_source);
-			glBindTexture(GL_TEXTURE_2D, current_source_info.m_gl_source_id);
+			texture_handle const current_texture = m_texture_handle_counter + read_texture.source;
+			texture_info current_texture_info = new_texture_info_map.at(current_texture);
+			glBindTexture(GL_TEXTURE_2D, current_texture_info.m_gl_source_id);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, read_sampler.wrapS);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, read_sampler.wrapT);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, read_sampler.minFilter);
@@ -428,16 +418,27 @@ namespace Graphics {
 				&read_pbr_mr.baseColorFactor.front(), 
 				sizeof(pbr_metallic_roughness_data::m_base_color_factor)
 			);
+
+			auto get_source_of_texture_index = [&](unsigned int _index)->unsigned int
+			{
+				return model.textures[_index].source;
+			};
+
+			auto determine_texture_handle = [&](int _texture_index)->texture_handle
+			{
+				return _texture_index == -1 ? 0 : m_texture_handle_counter + get_source_of_texture_index(_texture_index);
+			};
+
 			new_pbr_mrd.m_metallic_factor = read_pbr_mr.metallicFactor;
 			new_pbr_mrd.m_roughness_factor = read_pbr_mr.roughnessFactor;
-			new_pbr_mrd.m_texture_base_color = m_texture_handle_counter + read_pbr_mr.baseColorTexture.index;
-			new_pbr_mrd.m_texture_metallic_roughness = m_texture_handle_counter + read_pbr_mr.metallicRoughnessTexture.index;
+			new_pbr_mrd.m_texture_base_color = determine_texture_handle(read_pbr_mr.baseColorTexture.index);
+			new_pbr_mrd.m_texture_metallic_roughness = determine_texture_handle(read_pbr_mr.metallicRoughnessTexture.index);
 
 			// Setup material data
 			new_material_data.m_pbr_metallic_roughness = new_pbr_mrd;
-			new_material_data.m_texture_normal = m_texture_handle_counter + read_material.normalTexture.index;
-			new_material_data.m_texture_occlusion = m_texture_handle_counter + read_material.occlusionTexture.index;
-			new_material_data.m_texture_emissive = m_texture_handle_counter + read_material.emissiveTexture.index;
+			new_material_data.m_texture_normal = determine_texture_handle(read_material.normalTexture.index);
+			new_material_data.m_texture_occlusion = determine_texture_handle(read_material.occlusionTexture.index);
+			new_material_data.m_texture_emissive = determine_texture_handle(read_material.emissiveTexture.index);
 
 			using material_alpha_mode = material_data::alpha_mode;
 			material_alpha_mode new_material_alpha_mode = material_alpha_mode::eOPAQUE;
@@ -458,7 +459,6 @@ namespace Graphics {
 		m_buffer_handle_counter += (unsigned int)new_buffer_info_map.size();
 		m_material_handle_counter += (unsigned int)new_material_data_map.size();
 		m_texture_handle_counter += (unsigned int)new_texture_info_map.size();
-		m_texture_source_handle_counter += (unsigned int)new_texture_source_info_map.size();
 		//TODO: Save 
 
 		m_buffer_info_map.merge(std::move(new_buffer_info_map));
@@ -466,7 +466,6 @@ namespace Graphics {
 		m_mesh_primitives_map.merge(new_mesh_primitives_map);
 		m_material_data_map.merge(new_material_data_map);
 		m_texture_info_map.merge(new_texture_info_map);
-		m_texture_source_info_map.merge(new_texture_source_info_map);
 
 		return true;
 	}
