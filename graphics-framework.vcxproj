@@ -161,6 +161,7 @@
     <ClCompile Include="src\Engine\Graphics\sdl_window.cpp" />
     <ClCompile Include="src\Engine\Graphics\stb.cc" />
     <ClCompile Include="src\Engine\Graphics\tiny_gltf.cc" />
+    <ClCompile Include="src\Engine\Managers\input.cpp" />
     <ClCompile Include="src\Engine\Math\Transform.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\Sandbox\sandbox.cpp" />
@@ -169,6 +170,7 @@
     <ClInclude Include="src\Engine\Graphics\camera.h" />
     <ClInclude Include="src\Engine\Graphics\manager.h" />
     <ClInclude Include="src\Engine\Graphics\sdl_window.h" />
+    <ClInclude Include="src\Engine\Managers\input.h" />
     <ClInclude Include="src\Engine\Math\Transform.h" />
     <ClInclude Include="src\Engine\Utils\logging.h" />
     <ClInclude Include="src\Engine\Utils\singleton.h" />

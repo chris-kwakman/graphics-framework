@@ -1,5 +1,7 @@
 #include "sdl_window.h"
 #include <GL/glew.h>
+#include <Engine/Utils/singleton.h>
+#include <Engine/Managers/input.h>
 
 namespace Engine
 {
@@ -61,6 +63,7 @@ namespace Engine
 	void sdl_manager::update()
 	{
 		SDL_Event event;
+		Singleton<Engine::Managers::InputManager>().UpdateKeyboardState();
 		while (SDL_PollEvent(&event))
 		{
 			switch (event.type)
