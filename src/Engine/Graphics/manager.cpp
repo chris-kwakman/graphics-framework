@@ -1063,7 +1063,9 @@ namespace Graphics {
 
 		// Delete all gl texture objects simultaneously
 		if (!gl_vertex_array_objects.empty())
+		{
 			GfxCall(glDeleteVertexArrays((GLsizei)gl_vertex_array_objects.size(), &gl_vertex_array_objects[0]));
+		}
 	}
 
 	/*
@@ -1083,7 +1085,9 @@ namespace Graphics {
 		}
 		// Delete all gl buffer objects simultaneously
 		if (!gl_buffer_objects.empty())
+		{
 			GfxCall(glDeleteBuffers((GLsizei)gl_buffer_objects.size(), &gl_buffer_objects[0]));
+		}
 	}
 
 	/*
@@ -1107,13 +1111,15 @@ namespace Graphics {
 		std::vector<GLuint> gl_texture_objects;
 		for (unsigned int i = 0; i < _textures.size(); ++i)
 		{
-			auto texture_info_iter = m_buffer_info_map.find(_textures[i]);
-			gl_texture_objects.push_back(texture_info_iter->second.m_gl_id);
+			auto texture_info_iter = m_texture_info_map.find(_textures[i]);
+			gl_texture_objects.push_back(texture_info_iter->second.m_gl_source_id);
 			m_texture_info_map.erase(_textures[i]);
 		}
 		// Delete all gl texture objects simultaneously
 		if (!gl_texture_objects.empty())
+		{
 			GfxCall(glDeleteTextures((GLsizei)gl_texture_objects.size(), &gl_texture_objects[0]));
+		}
 	}
 
 	void ResourceManager::delete_framebuffers(std::vector<framebuffer_handle> const& _framebuffers)
@@ -1128,7 +1134,9 @@ namespace Graphics {
 		}
 		// Delete all gl framebuffer objects simultaneously
 		if (!gl_objects.empty())
+		{
 			GfxCall(glDeleteFramebuffers((GLsizei)gl_objects.size(), &gl_objects[0]));
+		}
 	}
 
 	void ResourceManager::delete_shaders(std::vector<shader_handle> _shaders)
