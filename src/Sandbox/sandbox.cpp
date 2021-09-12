@@ -154,6 +154,7 @@ namespace Sandbox
 	unsigned int frame_counter = 0;
 	float const CAM_MOVE_SPEED = 200.0f;
 	float const CAM_ROTATE_SPEED = MATH_PI * 0.75f;
+	float const MOUSE_SENSITIVITY = 0.05f;
 
 	void control_camera()
 	{
@@ -169,11 +170,22 @@ namespace Sandbox
 		rotate_down = input_manager.GetKeyboardButtonState(SDL_SCANCODE_DOWN);
 		rotate_left = input_manager.GetKeyboardButtonState(SDL_SCANCODE_LEFT);
 		rotate_right = input_manager.GetKeyboardButtonState(SDL_SCANCODE_RIGHT);
-
+		// Arrow key control rotation accumulation
 		accum_rotate_horizontal += 1.0f * (rotate_left == button_state::eDown);
 		accum_rotate_horizontal -= 1.0f * (rotate_right == button_state::eDown);
 		accum_rotate_vertical += 1.0f * (rotate_up == button_state::eDown);
 		accum_rotate_vertical -= 1.0f * (rotate_down == button_state::eDown);
+
+		// Mouse button control rotation accumulation
+		button_state left_mouse_down = input_manager.GetMouseButtonState(0);
+		if (left_mouse_down == button_state::eDown)
+		{
+			glm::ivec2 const mouse_delta = input_manager.GetMouseDelta();
+			glm::vec2 mouse_rotation_delta = MOUSE_SENSITIVITY * glm::vec2(mouse_delta);
+			accum_rotate_horizontal += mouse_rotation_delta.x;
+			accum_rotate_vertical += mouse_rotation_delta.y;
+		}
+
 
 		glm::quat const quat_identity(1.0f, 0.0f, 0.0f, 0.0f);
 		glm::quat quat_rotate_around_y = glm::rotate(

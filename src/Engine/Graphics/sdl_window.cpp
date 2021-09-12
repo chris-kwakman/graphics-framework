@@ -63,7 +63,6 @@ namespace Engine
 	void sdl_manager::update()
 	{
 		SDL_Event event;
-		Singleton<Engine::Managers::InputManager>().UpdateKeyboardState();
 		while (SDL_PollEvent(&event))
 		{
 			switch (event.type)
@@ -77,6 +76,8 @@ namespace Engine
 				break;
 			}
 		}
+		Singleton<Engine::Managers::InputManager>().UpdateKeyboardState();
+		Singleton<Engine::Managers::InputManager>().UpdateMouseState();
 	}
 
 	void sdl_manager::shutdown()
