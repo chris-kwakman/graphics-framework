@@ -720,6 +720,9 @@ namespace Graphics {
 			new_filepath_shader_map.emplace(path_str, new_shader_handle);
 			output_shader_handles.push_back(new_shader_handle);
 
+			// Attach debug name to shader object
+			glObjectLabel(GL_SHADER, new_shader_info.m_gl_shader_object, (GLsizei)path_str.size(), path_str.c_str());
+
 			unload_shader_data(loaded_shader_data);
 		}
 
@@ -731,7 +734,7 @@ namespace Graphics {
 		return output_shader_handles;
 	}
 
-	ResourceManager::shader_program_handle ResourceManager::LoadShaderProgram(std::vector<std::filesystem::path> _shader_filepaths)
+	ResourceManager::shader_program_handle ResourceManager::LoadShaderProgram(std::string _program_name, std::vector<std::filesystem::path> _shader_filepaths)
 	{
 		// Get shader handles corresponding to given shader filepaths from internal map
 		std::vector<shader_handle> shader_handles;
@@ -739,7 +742,51 @@ namespace Graphics {
 		for (unsigned int i = 0; i < _shader_filepaths.size(); ++i)
 			shader_handles[i] = m_filepath_shader_map.at(_shader_filepaths[i].string());
 
-		return LoadShaderProgram(shader_handles);
+		return LoadShaderProgram(_program_name, shader_handles);
+	}
+
+	ResourceManager::shader_program_handle ResourceManager::FindShaderProgram(std::string _program_name) const
+	{
+		auto iter = m_named_shader_program_map.find(_program_name);
+		return iter == m_named_shader_program_map.end() ? 0 : iter->second;
+	}
+
+	ResourceManager::shader_program_handle ResourceManager::LoadShaderProgram(std::string _program_name, std::vector<shader_handle> _shader_handles)
+	{
+
+		// Convert shader handles to gl shader objects
+		std::vector<GLuint> gl_shader_objects;
+		gl_shader_objects.resize(_shader_handles.size());
+		for (unsigned int i = 0; i < _shader_handles.size(); ++i)
+		{
+			shader_info& shader_info = m_shader_info_map.at(_shader_handles[i]);
+			gl_shader_objects[i] = shader_info.m_gl_shader_object;
+		}
+
+		// Create shader program & link with input shader objects
+		bool success = false;
+		GLuint gl_shader_program_object = create_program_and_link_gl_shaders(gl_shader_objects, &success);
+
+		// Insert shader program into map.
+		shader_program_info new_program_info;
+		new_program_info.m_gl_program_object = gl_shader_program_object;
+		new_program_info.m_linked_shader_handles = _shader_handles;
+		shader_program_handle new_shader_program_handle = m_shader_program_handle_counter;
+		m_shader_program_handle_counter++;
+		m_shader_program_info_map.emplace(new_shader_program_handle, new_program_info);
+		m_named_shader_program_map.emplace(_program_name, new_shader_program_handle);
+
+		// Add program handle to shader info map's "using programs map"
+		for (unsigned int i = 0; i < _shader_handles.size(); ++i)
+		{
+			shader_info& shader_info = m_shader_info_map.at(_shader_handles[i]);
+			shader_info.m_programs_using_shader.push_back(new_shader_program_handle);
+		}
+
+		// Attach debug name to shader program
+		glObjectLabel(GL_PROGRAM, new_program_info.m_gl_program_object, (GLsizei)_program_name.size(), _program_name.c_str());
+
+		return new_shader_program_handle;
 	}
 
 	void ResourceManager::RefreshShaders()
@@ -830,40 +877,6 @@ namespace Graphics {
 	void ResourceManager::SetBoundProgramUniform(unsigned int _uniform_location, glm::mat4 const & _uniform_value)
 	{
 		glProgramUniformMatrix4fv(m_bound_gl_program_object, _uniform_location, 1, false, glm::value_ptr(_uniform_value));
-	}
-
-	ResourceManager::shader_program_handle ResourceManager::LoadShaderProgram(std::vector<shader_handle> _shader_handles)
-	{
-
-		// Convert shader handles to gl shader objects
-		std::vector<GLuint> gl_shader_objects;
-		gl_shader_objects.resize(_shader_handles.size());
-		for (unsigned int i = 0; i < _shader_handles.size(); ++i)
-		{
-			shader_info& shader_info = m_shader_info_map.at(_shader_handles[i]);
-			gl_shader_objects[i] = shader_info.m_gl_shader_object;
-		}
-
-		// Create shader program & link with input shader objects
-		bool success = false;
-		GLuint gl_shader_program_object = create_program_and_link_gl_shaders(gl_shader_objects, &success);
-
-		// Insert shader program into map.
-		shader_program_info new_program_info;
-		new_program_info.m_gl_program_object = gl_shader_program_object;
-		new_program_info.m_linked_shader_handles = _shader_handles;
-		shader_program_handle new_shader_program_handle = m_shader_program_handle_counter;
-		m_shader_program_handle_counter++;
-		m_shader_program_info_map.emplace(new_shader_program_handle, new_program_info);
-
-		// Add program handle to shader info map's "using programs map"
-		for (unsigned int i = 0; i < _shader_handles.size(); ++i)
-		{
-			shader_info& shader_info = m_shader_info_map.at(_shader_handles[i]);
-			shader_info.m_programs_using_shader.push_back(new_shader_program_handle);
-		}
-
-		return new_shader_program_handle;
 	}
 
 	GLenum ResourceManager::get_extension_shader_type(filepath_string const & _extension)
@@ -1186,6 +1199,15 @@ namespace Graphics {
 		{
 			shader_program_handle program = _programs[i];
 			auto iter = m_shader_program_info_map.find(_programs[i]);
+
+			// If a deleted program is bound, unbind it.
+			if (m_bound_program == program)
+			{
+				glUseProgram(0);
+				m_bound_program = 0;
+				m_bound_gl_program_object = 0;
+			}
+
 			GfxCall(glDeleteProgram(iter->second.m_gl_program_object));
 			m_shader_program_info_map.erase(iter);
 		}

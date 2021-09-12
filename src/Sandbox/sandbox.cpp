@@ -58,9 +58,7 @@ namespace Sandbox
 		};
 		std::vector<Engine::Graphics::ResourceManager::shader_handle> output_shader_handles;
 		system_resource_manager.LoadShaders(shader_paths);
-		shader_program_handle program = system_resource_manager.LoadShaderProgram(shader_paths);
-
-
+		system_resource_manager.LoadShaderProgram("draw_gbuffer", shader_paths);
 
 		SDL_Surface const* surface = Singleton<Engine::sdl_manager>().m_surface;
 		glm::uvec2 const surface_size(surface->w, surface->h);
@@ -138,7 +136,8 @@ namespace Sandbox
 		Engine::Graphics::ResourceManager& system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
 		using shader_program_handle = Engine::Graphics::ResourceManager::shader_program_handle;
 
-		shader_program_handle program = system_resource_manager.m_shader_program_info_map.begin()->first;
+		shader_program_handle const program_draw_gbuffer = system_resource_manager.FindShaderProgram("draw_gbuffer");
+		assert(program_draw_gbuffer != 0);
 
 		SDL_Surface const* surface = Singleton<Engine::sdl_manager>().m_surface;
 		float const ar = (float)surface->w / (float)surface->h;
@@ -148,7 +147,7 @@ namespace Sandbox
 
 		system_resource_manager.RefreshShaders();
 
-		system_resource_manager.UseProgram(program);
+		system_resource_manager.UseProgram(program_draw_gbuffer);
 		system_resource_manager.SetBoundProgramUniform(5, mvp);
 		system_resource_manager.SetBoundProgramUniform(6, glm::transpose(mv.GetInvMatrix()));
 

@@ -257,8 +257,9 @@ namespace Graphics {
 	public:
 
 		std::vector<shader_handle>	LoadShaders(std::vector<std::filesystem::path> _shader_paths);
-		shader_program_handle		LoadShaderProgram(std::vector<shader_handle> _shader_handles);
-		shader_program_handle		LoadShaderProgram(std::vector<std::filesystem::path> _shader_filepaths);
+		shader_program_handle		LoadShaderProgram(std::string _program_name, std::vector<shader_handle> _shader_handles);
+		shader_program_handle		LoadShaderProgram(std::string _program_name, std::vector<std::filesystem::path> _shader_filepaths);
+		shader_program_handle		FindShaderProgram(std::string _program_name) const;
 		void						RefreshShaders();
 
 		void UseProgram(shader_program_handle _program_handle);
