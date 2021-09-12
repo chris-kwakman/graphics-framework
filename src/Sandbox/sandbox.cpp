@@ -38,10 +38,55 @@ namespace Sandbox
 		stbi_write_png(_filename, width, height, 4, imageData.data(), 0);
 	}
 
+	using framebuffer_handle = Engine::Graphics::ResourceManager::framebuffer_handle;
+	using texture_handle = Engine::Graphics::ResourceManager::texture_handle;
+
+	static framebuffer_handle s_framebuffer;
+
 	bool Initialize()
 	{
 		Engine::Graphics::ResourceManager & system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
 		system_resource_manager.Reset();
+
+		using shader_program_handle = Engine::Graphics::ResourceManager::shader_program_handle;
+
+		std::vector<std::filesystem::path> shader_paths = {
+			//"data/shaders/default.vert",
+			//"data/shaders/default.frag"
+			"data/shaders/default.vert",
+			"data/shaders/deferred.frag"
+		};
+		std::vector<Engine::Graphics::ResourceManager::shader_handle> output_shader_handles;
+		system_resource_manager.LoadShaders(shader_paths);
+		shader_program_handle program = system_resource_manager.LoadShaderProgram(shader_paths);
+
+
+
+		SDL_Surface const* surface = Singleton<Engine::sdl_manager>().m_surface;
+		glm::uvec2 const surface_size(surface->w, surface->h);
+
+		// Create framebuffer & textures.
+		s_framebuffer = system_resource_manager.CreateFramebuffer();
+
+		texture_handle const fb_texture_depth = system_resource_manager.CreateTexture();
+		texture_handle const fb_texture_base_color = system_resource_manager.CreateTexture();
+		texture_handle const fb_texture_normal = system_resource_manager.CreateTexture();
+		texture_handle const fb_texture_metallic_roughness = system_resource_manager.CreateTexture();
+
+		//TODO: Incomplete texture when using GL_DEPTH_COMPONENT and GL_R32F
+		//system_resource_manager.SpecifyTexture2D(fb_texture_depth, GL_R32F, surface_size);
+		system_resource_manager.SpecifyAndUploadTexture2D(fb_texture_depth, GL_DEPTH_COMPONENT, surface_size, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+		system_resource_manager.SpecifyTexture2D(fb_texture_base_color, GL_RGB, surface_size);
+		system_resource_manager.SpecifyTexture2D(fb_texture_metallic_roughness, GL_RG, surface_size);
+		system_resource_manager.SpecifyTexture2D(fb_texture_normal, GL_RGB16F, surface_size);
+
+		// Attach textures to framebuffer.
+		system_resource_manager.BindFramebuffer(s_framebuffer);
+		system_resource_manager.AttachTextureToFramebuffer(s_framebuffer, GL_DEPTH_ATTACHMENT, fb_texture_depth);
+		system_resource_manager.AttachTextureToFramebuffer(s_framebuffer, GL_COLOR_ATTACHMENT0, fb_texture_base_color);
+		system_resource_manager.AttachTextureToFramebuffer(s_framebuffer, GL_COLOR_ATTACHMENT1, fb_texture_metallic_roughness);
+		system_resource_manager.AttachTextureToFramebuffer(s_framebuffer, GL_COLOR_ATTACHMENT2, fb_texture_normal);
+
 
 		bool success = system_resource_manager.LoadModel(
 			"data/gltf/sponza/Sponza.gltf"
@@ -51,19 +96,8 @@ namespace Sandbox
 			printf("Asset loaded successfully.\n");
 		else
 			printf("Failed to load asset.\n");
-
-		using shader_program_handle = Engine::Graphics::ResourceManager::shader_program_handle;
-
-		std::vector<std::filesystem::path> shader_paths = {
-			"data/shaders/default.vert",
-			"data/shaders/default.frag"
-		};
-		std::vector<Engine::Graphics::ResourceManager::shader_handle> output_shader_handles;
-		system_resource_manager.LoadShaders(shader_paths);
-		shader_program_handle program = system_resource_manager.LoadShaderProgram(shader_paths);
-
+		
 		GfxCall(glDepthRange(-1.0f, 1.0f));
-		GfxCall(glViewport(0, 0, Singleton<Engine::sdl_manager>().m_surface->w, Singleton<Engine::sdl_manager>().m_surface->h));
 
 		return true;
 	}
@@ -82,6 +116,7 @@ namespace Sandbox
 		glEnable(GL_CULL_FACE);
 		glEnable(GL_DEPTH_TEST);
 		glDepthFunc(GL_LEQUAL);
+		GfxCall(glViewport(0, 0, Singleton<Engine::sdl_manager>().m_surface->w, Singleton<Engine::sdl_manager>().m_surface->h));
 
 		using index_buffer_handle = Engine::Graphics::ResourceManager::buffer_handle;
 		using namespace Engine::Graphics;
@@ -118,6 +153,10 @@ namespace Sandbox
 		system_resource_manager.SetBoundProgramUniform(6, glm::transpose(mv.GetInvMatrix()));
 
 		auto const& mesh_primitives = (system_resource_manager.m_mesh_primitives_map.begin())->second;
+
+		system_resource_manager.BindFramebuffer(s_framebuffer);
+		GLenum attachment_points[] = { GL_NONE, GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+		system_resource_manager.DrawFramebuffers(s_framebuffer, sizeof(attachment_points) / sizeof(GLenum), attachment_points);
 
 		for (unsigned int i = 0; i < mesh_primitives.size(); ++i)
 		{
@@ -174,6 +213,8 @@ namespace Sandbox
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 			
 		}
+
+		system_resource_manager.UnbindFramebuffer();
 	}
 
 	void Shutdown()

@@ -63,4 +63,7 @@
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="working_dir\data\shaders\deferred.frag" />
+  </ItemGroup>
 </Project>

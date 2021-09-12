@@ -623,7 +623,7 @@ namespace Graphics {
 		return framebuffer_info;
 	}
 
-	void ResourceManager::UnbindFramebuffer(GLenum _framebuffer_target)
+	void ResourceManager::UnbindFramebuffer(GLenum _framebuffer_target) const
 	{
 		glBindFramebuffer(_framebuffer_target, 0);
 	}
@@ -634,15 +634,23 @@ namespace Graphics {
 		framebuffer_info const framebuffer_info = BindFramebuffer(_framebuffer);
 		texture_info const texture_info = m_texture_info_map.at(_texture);
 		assert(texture_info.m_target == GL_TEXTURE_2D);
-		glFramebufferTexture2D(framebuffer_info.m_target, _attachment_point, texture_info.m_target, texture_info.m_gl_source_id, 0);
-		assert(glCheckFramebufferStatus(framebuffer_info.m_target) == GL_FRAMEBUFFER_COMPLETE);
+		GfxCall(glFramebufferTexture2D(framebuffer_info.m_target, _attachment_point, texture_info.m_target, texture_info.m_gl_source_id, 0));
+		GLuint const complete_status = glCheckFramebufferStatus(framebuffer_info.m_target);
+		Engine::Utils::assert_print_error(
+			complete_status == GL_FRAMEBUFFER_COMPLETE,
+			"Framebuffer is not complete. Status 0x%X.", complete_status
+		);
 	}
 
 	void ResourceManager::DrawFramebuffers(framebuffer_handle _framebuffer, unsigned int _arr_size, GLenum const* _arr_attachment_points) const
 	{
 		framebuffer_info const info = BindFramebuffer(_framebuffer);
 		GfxCall(glDrawBuffers((GLsizei)_arr_size, _arr_attachment_points));
-		UnbindFramebuffer(info.m_target);
+		GLuint const complete_status = glCheckFramebufferStatus(info.m_target);
+		Engine::Utils::assert_print_error(
+			complete_status == GL_FRAMEBUFFER_COMPLETE,
+			"Framebuffer is not complete. Status 0x%X.", complete_status
+		);
 	}
 
 	//////////////////////////////////////////////////////////////////
