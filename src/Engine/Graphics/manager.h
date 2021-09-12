@@ -25,7 +25,7 @@ namespace Graphics {
 		typedef unsigned int	mesh_handle;
 		typedef unsigned int	material_handle;
 		typedef unsigned int	texture_handle;
-		typedef unsigned int	texture_source_handle;
+		typedef unsigned int	framebuffer_handle;
 
 		//////////////////////////////////////////////////////
 		//			OpenGL Graphics Assets Data
@@ -66,28 +66,6 @@ namespace Graphics {
 		std::unordered_map<buffer_handle, buffer_info>						m_buffer_info_map;
 		std::unordered_map<buffer_handle, index_buffer_info>				m_index_buffer_info_map;
 
-		//////////////////////////////////////////////////////
-		//					Texture Data
-		//////////////////////////////////////////////////////
-
-	public:
-
-		struct texture_info
-		{
-			texture_source_handle	m_source_handle;
-		};
-
-		struct texture_source_info
-		{
-			GLuint	m_gl_source_id;
-			GLuint	m_target;
-		};
-
-		texture_handle			m_texture_handle_counter = 1;
-		texture_source_handle	m_texture_source_handle_counter = 1;
-
-		std::unordered_map<texture_handle, texture_info>					m_texture_info_map;
-		std::unordered_map<texture_source_handle, texture_source_info>		m_texture_source_info_map;
 
 		//////////////////////////////////////////////////////
 		//					Material Data
@@ -133,6 +111,39 @@ namespace Graphics {
 
 		material_handle		m_material_handle_counter = 1;
 		std::unordered_map<material_handle, material_data>	m_material_data_map;
+
+		//////////////////////////////////////////////////////
+		//					Texture Data
+		//////////////////////////////////////////////////////
+
+	public:
+
+		struct texture_info
+		{
+			GLuint	m_gl_source_id;
+			GLuint	m_target = GL_INVALID_ENUM;
+			//TODO: Texture ref count?
+		};
+
+		texture_handle			m_texture_handle_counter = 1;
+
+		std::unordered_map<texture_handle, texture_info>	m_texture_info_map;
+
+		//////////////////////////////////////////////////////
+		//				Framebuffer Data
+		//////////////////////////////////////////////////////
+
+	public:
+
+		struct framebuffer_info
+		{
+			GLuint	m_gl_object;
+			GLenum	m_target = GL_INVALID_ENUM;
+		};
+
+		framebuffer_handle		m_framebuffer_handle_counter = 1;
+
+		std::unordered_map<framebuffer_handle, framebuffer_info>			m_framebuffer_info_map;
 
 		//////////////////////////////////////////////////////
 		//				OpenGL Shader Data
@@ -195,14 +206,60 @@ namespace Graphics {
 		bool load_gltf_model(const char * _filepath);
 
 		/*
+		* Texture methods
+		*/
+
+	public:
+
+		struct texture_parameters
+		{
+			int m_wrap_s = GL_REPEAT;
+			int m_wrap_t = GL_REPEAT;
+			int m_wrap_r = GL_REPEAT;
+			int m_mag_filter = GL_LINEAR;
+			int m_min_filter = GL_LINEAR;
+		};
+
+
+		texture_handle	CreateTexture();
+		void			DeleteTexture(texture_handle _texture_handle);
+		void			BindTexture(texture_handle _texture_handle) const;
+		void SpecifyTexture2D(texture_handle _texture_handle, GLint	_internal_format, glm::uvec2 _size, unsigned int _mipmap_level = 0);
+		void SpecifyAndUploadTexture2D(
+			texture_handle _texture_handle, GLint _internal_format, glm::uvec2 _size, unsigned int _mipmap_level,
+			GLenum _input_format, GLenum _input_component_type, void * _data
+		);
+		void SetTextureParameters(texture_handle _texture_handle, texture_parameters _params);
+
+	private:
+
+		texture_info set_texture_target_and_bind(texture_handle _texture_handle, GLenum _target);
+
+		/*
+		* Framebuffer Methods
+		*/
+
+	public:
+
+		framebuffer_handle	CreateFramebuffer();
+		void				DeleteFramebuffer(framebuffer_handle _framebuffer);
+		framebuffer_info	BindFramebuffer(framebuffer_handle _framebuffer) const;
+		void				UnbindFramebuffer(GLenum _framebuffer_target = GL_FRAMEBUFFER) const;
+		void				AttachTextureToFramebuffer(framebuffer_handle _framebuffer, GLenum _attachment_point, texture_handle _texture);
+		void				DrawFramebuffers(framebuffer_handle _framebuffer, unsigned int _arr_size, GLenum const* _arr_attachment_points) const;
+
+	private:
+
+		/*
 		* OpenGL shader management methods
 		*/
 
 	public:
 
 		std::vector<shader_handle>	LoadShaders(std::vector<std::filesystem::path> _shader_paths);
-		shader_program_handle		LoadShaderProgram(std::vector<shader_handle> _shader_handles);
-		shader_program_handle		LoadShaderProgram(std::vector<std::filesystem::path> _shader_filepaths);
+		shader_program_handle		LoadShaderProgram(std::string _program_name, std::vector<shader_handle> _shader_handles);
+		shader_program_handle		LoadShaderProgram(std::string _program_name, std::vector<std::filesystem::path> _shader_filepaths);
+		shader_program_handle		FindShaderProgram(std::string _program_name) const;
 		void						RefreshShaders();
 
 		void UseProgram(shader_program_handle _program_handle);
@@ -226,6 +283,27 @@ namespace Graphics {
 		static GLuint			create_program_and_link_gl_shaders(std::vector<GLuint> const& _gl_shader_objects, bool * _success);
 		static void				attach_gl_program_shaders(GLuint _gl_program_object, std::vector<GLuint> const& _gl_shader_objects);
 		static bool				link_gl_program_shaders(GLuint _gl_program_object);
+
+		/*
+		* Graphics asset management methods
+		*/
+
+	public:
+
+		void Reset();
+		void DeleteAllGraphicsResources();
+
+	private:
+
+		void reset_counters();
+
+		void delete_meshes(std::vector<mesh_handle> const& _meshes);
+		void delete_buffers(std::vector<buffer_handle> const& _buffers);
+		void delete_materials(std::vector<material_handle> const& _materials);
+		void delete_textures(std::vector<texture_handle> const& _textures);
+		void delete_framebuffers(std::vector<framebuffer_handle> const& _framebuffers);
+		void delete_shaders(std::vector<shader_handle> _shaders);
+		void delete_programs(std::vector<shader_program_handle> _programs);
 	};
 
 }

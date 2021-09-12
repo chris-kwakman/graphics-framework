@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <cassert>
 #include <set>
+#include <algorithm>
 
 #include <glm/gtc/type_ptr.hpp>
 #include <SDL2/SDL.h>
@@ -12,7 +13,6 @@
 
 #include <STB/stb_image.h>
 #include <tiny_glft/tiny_gltf.h>
-
 
 namespace Engine {
 namespace Graphics {
@@ -284,18 +284,8 @@ namespace Graphics {
 		* Textures / Images / Samplers
 		*/
 
-		// Insert glTF texture information into internal map.
-		decltype(m_texture_info_map) new_texture_info_map;
-		for (unsigned int i = 0; i < model.textures.size(); ++i)
-		{
-			texture_info new_texture_info;
-			tinygltf::Texture const & read_texture = model.textures[i];
-			new_texture_info.m_source_handle = m_texture_source_handle_counter + read_texture.source;
-			new_texture_info_map.emplace(m_texture_handle_counter + i, new_texture_info);
-		}
-
 		// Add glTF source information into internal map.
-		decltype(m_texture_source_info_map) new_texture_source_info_map;
+		decltype(m_texture_info_map) new_texture_info_map;
 
 		// Generate openGL textures beforehand
 		std::vector<GLuint> new_gl_texture_objects;
@@ -304,10 +294,11 @@ namespace Graphics {
 
 		for (unsigned int i = 0; i < model.images.size(); ++i)
 		{
-			texture_source_info new_texture_source_info;
+			texture_handle const current_texture = m_texture_handle_counter + i;
 			tinygltf::Image & read_texture_source = model.images[i];
-			new_texture_source_info.m_gl_source_id = new_gl_texture_objects[i];
-			new_texture_source_info.m_target = GL_TEXTURE_2D; // Assume all glTF textures are 2D.
+			texture_info new_texture_info;
+			new_texture_info.m_gl_source_id = new_gl_texture_objects[i];
+			new_texture_info.m_target = GL_TEXTURE_2D; // Assume all glTF textures are 2D.
 
 			// First, texture data must be loaded into memory
 
@@ -352,7 +343,7 @@ namespace Graphics {
 			}
 
 			// Bind texture source and set parameters
-			GfxCall(glBindTexture(GL_TEXTURE_2D, new_texture_source_info.m_gl_source_id));
+			GfxCall(glBindTexture(GL_TEXTURE_2D, new_texture_info.m_gl_source_id));
 			GLenum source_format;
 			GLenum pixel_component_type;
 			switch (read_texture_source.component)
@@ -387,19 +378,18 @@ namespace Graphics {
 			if(image_data)
 				stbi_image_free(image_data);
 
-			new_texture_source_info_map.emplace(m_texture_source_handle_counter + i, new_texture_source_info);
+			new_texture_info_map.emplace(current_texture, new_texture_info);
 		}
 
-		// Go through textures from samplers one more time and set parameters properly.
+		// Go through textures one more time and set parameters properly.
 		for (unsigned int i = 0; i < model.textures.size(); ++i)
 		{
 			tinygltf::Texture const& read_texture = model.textures[i];
 			tinygltf::Sampler const& read_sampler = model.samplers[read_texture.sampler];
 
-			texture_handle current_texture = m_texture_handle_counter + i;
-			texture_source_handle current_source = new_texture_info_map.at(current_texture).m_source_handle;
-			texture_source_info current_source_info = new_texture_source_info_map.at(current_source);
-			glBindTexture(GL_TEXTURE_2D, current_source_info.m_gl_source_id);
+			texture_handle const current_texture = m_texture_handle_counter + read_texture.source;
+			texture_info current_texture_info = new_texture_info_map.at(current_texture);
+			glBindTexture(GL_TEXTURE_2D, current_texture_info.m_gl_source_id);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, read_sampler.wrapS);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, read_sampler.wrapT);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, read_sampler.minFilter);
@@ -428,16 +418,27 @@ namespace Graphics {
 				&read_pbr_mr.baseColorFactor.front(), 
 				sizeof(pbr_metallic_roughness_data::m_base_color_factor)
 			);
+
+			auto get_source_of_texture_index = [&](unsigned int _index)->unsigned int
+			{
+				return model.textures[_index].source;
+			};
+
+			auto determine_texture_handle = [&](int _texture_index)->texture_handle
+			{
+				return _texture_index == -1 ? 0 : m_texture_handle_counter + get_source_of_texture_index(_texture_index);
+			};
+
 			new_pbr_mrd.m_metallic_factor = read_pbr_mr.metallicFactor;
 			new_pbr_mrd.m_roughness_factor = read_pbr_mr.roughnessFactor;
-			new_pbr_mrd.m_texture_base_color = m_texture_handle_counter + read_pbr_mr.baseColorTexture.index;
-			new_pbr_mrd.m_texture_metallic_roughness = m_texture_handle_counter + read_pbr_mr.metallicRoughnessTexture.index;
+			new_pbr_mrd.m_texture_base_color = determine_texture_handle(read_pbr_mr.baseColorTexture.index);
+			new_pbr_mrd.m_texture_metallic_roughness = determine_texture_handle(read_pbr_mr.metallicRoughnessTexture.index);
 
 			// Setup material data
 			new_material_data.m_pbr_metallic_roughness = new_pbr_mrd;
-			new_material_data.m_texture_normal = m_texture_handle_counter + read_material.normalTexture.index;
-			new_material_data.m_texture_occlusion = m_texture_handle_counter + read_material.occlusionTexture.index;
-			new_material_data.m_texture_emissive = m_texture_handle_counter + read_material.emissiveTexture.index;
+			new_material_data.m_texture_normal = determine_texture_handle(read_material.normalTexture.index);
+			new_material_data.m_texture_occlusion = determine_texture_handle(read_material.occlusionTexture.index);
+			new_material_data.m_texture_emissive = determine_texture_handle(read_material.emissiveTexture.index);
 
 			using material_alpha_mode = material_data::alpha_mode;
 			material_alpha_mode new_material_alpha_mode = material_alpha_mode::eOPAQUE;
@@ -458,17 +459,199 @@ namespace Graphics {
 		m_buffer_handle_counter += (unsigned int)new_buffer_info_map.size();
 		m_material_handle_counter += (unsigned int)new_material_data_map.size();
 		m_texture_handle_counter += (unsigned int)new_texture_info_map.size();
-		m_texture_source_handle_counter += (unsigned int)new_texture_source_info_map.size();
-		//TODO: Save 
 
 		m_buffer_info_map.merge(std::move(new_buffer_info_map));
 		m_index_buffer_info_map.merge(std::move(new_index_buffer_info_map));
 		m_mesh_primitives_map.merge(new_mesh_primitives_map);
 		m_material_data_map.merge(new_material_data_map);
 		m_texture_info_map.merge(new_texture_info_map);
-		m_texture_source_info_map.merge(new_texture_source_info_map);
 
 		return true;
+	}
+
+	//////////////////////////////////////////////////////////////////
+	//					Texture Methods
+	//////////////////////////////////////////////////////////////////
+
+	/*
+	* Creates a new texture object in graphics manager.
+	* @return	texture_handle
+	*/
+	ResourceManager::texture_handle ResourceManager::CreateTexture()
+	{
+		GLuint gl_texture_object = 0;
+		glGenTextures(1, &gl_texture_object);
+		texture_info new_texture_info;
+		texture_handle const new_texture_handle = m_texture_handle_counter++;
+		new_texture_info.m_gl_source_id = gl_texture_object;
+		new_texture_info.m_target = GL_INVALID_ENUM;
+		m_texture_info_map.emplace(new_texture_handle, new_texture_info);
+		return new_texture_handle;
+	}
+
+	/*
+	* Deletes texture object corresponding to given texture handle.
+	*/
+	void ResourceManager::DeleteTexture(texture_handle _texture_handle)
+	{
+		auto iter = m_texture_info_map.find(_texture_handle);
+		glDeleteTextures(1, &iter->second.m_gl_source_id);
+		m_texture_info_map.erase(iter);
+	}
+
+	/*
+	* Bind texture object corresponding to given texture handle.
+	*/
+	void ResourceManager::BindTexture(texture_handle _texture_handle) const
+	{
+		auto iter = m_texture_info_map.find(_texture_handle);
+		Engine::Utils::assert_print_error(iter != m_texture_info_map.end(), "Texture handle is invalid.");
+		Engine::Utils::assert_print_error(iter->second.m_target != GL_INVALID_ENUM, "Texture has no target assigned.");
+		glBindTexture(iter->second.m_target, iter->second.m_gl_source_id);
+	}
+
+	/*
+	* Specify layout of texture object corresponding to given texture handle
+	* @param	texture_handle
+	* @param	GLint			Format that object will use internally (i.e. GL_R, GL_RGBA, etc...)
+	* @param	glm::uvec2		Size of object in terms of texels.
+	* @param	uint			Mipmap level of texture
+	*/
+	void ResourceManager::SpecifyTexture2D(texture_handle _texture_handle, GLint _internal_format, glm::uvec2 _size, unsigned int _mipmap_level)
+	{
+		SpecifyAndUploadTexture2D(
+			_texture_handle, _internal_format, _size, _mipmap_level,
+			GL_RGBA, GL_UNSIGNED_BYTE, nullptr
+		);
+	}
+
+	/*
+	* Specify layout AND upload data to texture object corresponding to given texture handle
+	* @param	texture_handle
+	* @param	GLint			Format that object will use internally (i.e. GL_R, GL_RGBA, etc...)
+	* @param	glm::uvec2		Size of object in terms of texels.
+	* @param	uint			Mipmap level of texture
+	* @param	GLenum			Input format that data will be given in (i.e. GL_R, GL_RGBA, etc...)
+	* @param	GLenum			Input format component type (i.e. GL_UNSIGNED_BYTE, etc...)
+	* @param	void *			Pointer to texture data that will be uploaded. Can be nullptr.
+	*/
+	void ResourceManager::SpecifyAndUploadTexture2D(
+		texture_handle _texture_handle, GLint _internal_format, glm::uvec2 _size, unsigned int _mipmap_level, 
+		GLenum _input_format, GLenum _input_component_type, void* _data
+	)
+	{
+		texture_info const tex_info = set_texture_target_and_bind(_texture_handle, GL_TEXTURE_2D);
+		GfxCall(glTexImage2D(
+			tex_info.m_target, _mipmap_level,
+			_internal_format, (GLsizei)_size.x, (GLsizei)_size.y, 0, 
+			_input_format, _input_component_type, _data
+		));
+		GfxCall(glGenerateMipmap(tex_info.m_target));
+	}
+
+	/*
+	* Sets texture parameters of given texture.
+	* @param	texture_handle		Given texture to set parameters of.
+	* @param	texture_parameters	Parameters to set.
+	*/
+	void ResourceManager::SetTextureParameters(texture_handle _texture_handle, texture_parameters _params)
+	{
+		auto iter = m_texture_info_map.find(_texture_handle);
+		Engine::Utils::assert_print_error(iter != m_texture_info_map.end(), "Invalid texture handle.");
+		texture_info const tex_info = iter->second;
+		GfxCall(glBindTexture(tex_info.m_target, tex_info.m_gl_source_id));
+		switch (tex_info.m_target)
+		{
+		case GL_TEXTURE_3D:	
+			GfxCall(glTexParameteri(tex_info.m_target, GL_TEXTURE_WRAP_S, _params.m_wrap_r)); 
+			[[fallthrough]];
+		case GL_TEXTURE_2D:	
+			GfxCall(glTexParameteri(tex_info.m_target, GL_TEXTURE_WRAP_S, _params.m_wrap_t)); 
+			[[fallthrough]];
+		case GL_TEXTURE_1D: 
+			GfxCall(glTexParameteri(tex_info.m_target, GL_TEXTURE_WRAP_S, _params.m_wrap_s)); 
+		}
+		GfxCall(glTexParameteri(tex_info.m_target, GL_TEXTURE_MAG_FILTER, _params.m_mag_filter));
+		GfxCall(glTexParameteri(tex_info.m_target, GL_TEXTURE_MIN_FILTER, _params.m_min_filter));
+	}
+
+	/*
+	* Set target of texture.
+	* @param	texture_handle		Given texture to set target of.
+	* @param	GLenum				Target to assign to texture object.
+	*/
+	ResourceManager::texture_info ResourceManager::set_texture_target_and_bind(texture_handle _texture_handle, GLenum _target)
+	{
+		auto iter = m_texture_info_map.find(_texture_handle);
+		Engine::Utils::assert_print_error(iter != m_texture_info_map.end(), "Invalid texture handle.");
+		texture_info& input_texture_info = iter->second;
+		input_texture_info.m_target = _target;
+		GfxCall(glBindTexture(input_texture_info.m_target, input_texture_info.m_gl_source_id));
+		return iter->second;
+	}
+
+	//////////////////////////////////////////////////////////////////
+	//						Framebuffer Methods
+	//////////////////////////////////////////////////////////////////
+
+	ResourceManager::framebuffer_handle ResourceManager::CreateFramebuffer()
+	{
+		GLuint framebuffer_object = 0;
+		glGenFramebuffers(1, &framebuffer_object);
+		framebuffer_handle const new_framebuffer_handle = m_framebuffer_handle_counter++;
+		framebuffer_info new_framebuffer_info;
+		new_framebuffer_info.m_gl_object = framebuffer_object;
+		new_framebuffer_info.m_target = GL_FRAMEBUFFER;
+		m_framebuffer_info_map.emplace(new_framebuffer_handle, new_framebuffer_info);
+		return new_framebuffer_handle;
+	}
+
+	void ResourceManager::DeleteFramebuffer(framebuffer_handle _framebuffer)
+	{
+		auto iter = m_framebuffer_info_map.find(_framebuffer);
+		Engine::Utils::assert_print_error(iter != m_framebuffer_info_map.end(), "Invalid framebuffer handle.");
+		framebuffer_info const framebuffer_info = iter->second;
+		m_framebuffer_info_map.erase(iter);
+		glDeleteFramebuffers(1, & framebuffer_info.m_gl_object);
+	}
+
+	ResourceManager::framebuffer_info ResourceManager::BindFramebuffer(framebuffer_handle _framebuffer) const
+	{
+		auto iter = m_framebuffer_info_map.find(_framebuffer);
+		Engine::Utils::assert_print_error(iter != m_framebuffer_info_map.end(), "Invalid framebuffer handle.");
+		framebuffer_info const framebuffer_info = iter->second;
+		glBindFramebuffer(framebuffer_info.m_target, framebuffer_info.m_gl_object);
+		return framebuffer_info;
+	}
+
+	void ResourceManager::UnbindFramebuffer(GLenum _framebuffer_target) const
+	{
+		glBindFramebuffer(_framebuffer_target, 0);
+	}
+
+
+	void ResourceManager::AttachTextureToFramebuffer(framebuffer_handle _framebuffer, GLenum _attachment_point, texture_handle _texture)
+	{
+		framebuffer_info const framebuffer_info = BindFramebuffer(_framebuffer);
+		texture_info const texture_info = m_texture_info_map.at(_texture);
+		assert(texture_info.m_target == GL_TEXTURE_2D);
+		GfxCall(glFramebufferTexture2D(framebuffer_info.m_target, _attachment_point, texture_info.m_target, texture_info.m_gl_source_id, 0));
+		GLuint const complete_status = glCheckFramebufferStatus(framebuffer_info.m_target);
+		Engine::Utils::assert_print_error(
+			complete_status == GL_FRAMEBUFFER_COMPLETE,
+			"Framebuffer is not complete. Status 0x%X.", complete_status
+		);
+	}
+
+	void ResourceManager::DrawFramebuffers(framebuffer_handle _framebuffer, unsigned int _arr_size, GLenum const* _arr_attachment_points) const
+	{
+		framebuffer_info const info = BindFramebuffer(_framebuffer);
+		GfxCall(glDrawBuffers((GLsizei)_arr_size, _arr_attachment_points));
+		GLuint const complete_status = glCheckFramebufferStatus(info.m_target);
+		Engine::Utils::assert_print_error(
+			complete_status == GL_FRAMEBUFFER_COMPLETE,
+			"Framebuffer is not complete. Status 0x%X.", complete_status
+		);
 	}
 
 	//////////////////////////////////////////////////////////////////
@@ -486,7 +669,7 @@ namespace Graphics {
 		for (unsigned int i = 0; i < _shader_paths.size(); ++i)
 		{
 			// Initialize new shader handle as invalid handle.
-			shader_handle curr_output_shader_handle = std::numeric_limits<shader_handle>::max();
+			shader_handle curr_output_shader_handle = 0;
 
 			// If filepath already exists within either new map or pre-existing map, return corresponding handle and
 			// continue on to next shader path
@@ -538,6 +721,9 @@ namespace Graphics {
 			new_filepath_shader_map.emplace(path_str, new_shader_handle);
 			output_shader_handles.push_back(new_shader_handle);
 
+			// Attach debug name to shader object
+			glObjectLabel(GL_SHADER, new_shader_info.m_gl_shader_object, (GLsizei)path_str.size(), path_str.c_str());
+
 			unload_shader_data(loaded_shader_data);
 		}
 
@@ -549,7 +735,7 @@ namespace Graphics {
 		return output_shader_handles;
 	}
 
-	ResourceManager::shader_program_handle ResourceManager::LoadShaderProgram(std::vector<std::filesystem::path> _shader_filepaths)
+	ResourceManager::shader_program_handle ResourceManager::LoadShaderProgram(std::string _program_name, std::vector<std::filesystem::path> _shader_filepaths)
 	{
 		// Get shader handles corresponding to given shader filepaths from internal map
 		std::vector<shader_handle> shader_handles;
@@ -557,7 +743,51 @@ namespace Graphics {
 		for (unsigned int i = 0; i < _shader_filepaths.size(); ++i)
 			shader_handles[i] = m_filepath_shader_map.at(_shader_filepaths[i].string());
 
-		return LoadShaderProgram(shader_handles);
+		return LoadShaderProgram(_program_name, shader_handles);
+	}
+
+	ResourceManager::shader_program_handle ResourceManager::FindShaderProgram(std::string _program_name) const
+	{
+		auto iter = m_named_shader_program_map.find(_program_name);
+		return iter == m_named_shader_program_map.end() ? 0 : iter->second;
+	}
+
+	ResourceManager::shader_program_handle ResourceManager::LoadShaderProgram(std::string _program_name, std::vector<shader_handle> _shader_handles)
+	{
+
+		// Convert shader handles to gl shader objects
+		std::vector<GLuint> gl_shader_objects;
+		gl_shader_objects.resize(_shader_handles.size());
+		for (unsigned int i = 0; i < _shader_handles.size(); ++i)
+		{
+			shader_info& shader_info = m_shader_info_map.at(_shader_handles[i]);
+			gl_shader_objects[i] = shader_info.m_gl_shader_object;
+		}
+
+		// Create shader program & link with input shader objects
+		bool success = false;
+		GLuint gl_shader_program_object = create_program_and_link_gl_shaders(gl_shader_objects, &success);
+
+		// Insert shader program into map.
+		shader_program_info new_program_info;
+		new_program_info.m_gl_program_object = gl_shader_program_object;
+		new_program_info.m_linked_shader_handles = _shader_handles;
+		shader_program_handle new_shader_program_handle = m_shader_program_handle_counter;
+		m_shader_program_handle_counter++;
+		m_shader_program_info_map.emplace(new_shader_program_handle, new_program_info);
+		m_named_shader_program_map.emplace(_program_name, new_shader_program_handle);
+
+		// Add program handle to shader info map's "using programs map"
+		for (unsigned int i = 0; i < _shader_handles.size(); ++i)
+		{
+			shader_info& shader_info = m_shader_info_map.at(_shader_handles[i]);
+			shader_info.m_programs_using_shader.push_back(new_shader_program_handle);
+		}
+
+		// Attach debug name to shader program
+		glObjectLabel(GL_PROGRAM, new_program_info.m_gl_program_object, (GLsizei)_program_name.size(), _program_name.c_str());
+
+		return new_shader_program_handle;
 	}
 
 	void ResourceManager::RefreshShaders()
@@ -648,40 +878,6 @@ namespace Graphics {
 	void ResourceManager::SetBoundProgramUniform(unsigned int _uniform_location, glm::mat4 const & _uniform_value)
 	{
 		glProgramUniformMatrix4fv(m_bound_gl_program_object, _uniform_location, 1, false, glm::value_ptr(_uniform_value));
-	}
-
-	ResourceManager::shader_program_handle ResourceManager::LoadShaderProgram(std::vector<shader_handle> _shader_handles)
-	{
-
-		// Convert shader handles to gl shader objects
-		std::vector<GLuint> gl_shader_objects;
-		gl_shader_objects.resize(_shader_handles.size());
-		for (unsigned int i = 0; i < _shader_handles.size(); ++i)
-		{
-			shader_info& shader_info = m_shader_info_map.at(_shader_handles[i]);
-			gl_shader_objects[i] = shader_info.m_gl_shader_object;
-		}
-
-		// Create shader program & link with input shader objects
-		bool success = false;
-		GLuint gl_shader_program_object = create_program_and_link_gl_shaders(gl_shader_objects, &success);
-
-		// Insert shader program into map.
-		shader_program_info new_program_info;
-		new_program_info.m_gl_program_object = gl_shader_program_object;
-		new_program_info.m_linked_shader_handles = _shader_handles;
-		shader_program_handle new_shader_program_handle = m_shader_program_handle_counter;
-		m_shader_program_handle_counter++;
-		m_shader_program_info_map.emplace(new_shader_program_handle, new_program_info);
-
-		// Add program handle to shader info map's "using programs map"
-		for (unsigned int i = 0; i < _shader_handles.size(); ++i)
-		{
-			shader_info& shader_info = m_shader_info_map.at(_shader_handles[i]);
-			shader_info.m_programs_using_shader.push_back(new_shader_program_handle);
-		}
-
-		return new_shader_program_handle;
 	}
 
 	GLenum ResourceManager::get_extension_shader_type(filepath_string const & _extension)
@@ -813,6 +1009,209 @@ namespace Graphics {
 			return false;
 		}
 		return true;
+	}
+
+	//////////////////////////////////////////////////////////////////
+	//					Graphics Resource Management
+	//////////////////////////////////////////////////////////////////
+
+	void ResourceManager::Reset()
+	{
+		DeleteAllGraphicsResources();
+		reset_counters();
+	}
+
+	void ResourceManager::DeleteAllGraphicsResources()
+	{
+		auto collect_keys = [](auto const& map, auto& output) {
+			std::transform(
+				map.begin(), map.end(), std::back_inserter(output),
+				[](auto iter)->mesh_handle {return iter.first; }
+			);
+		};
+
+		// Collect all mesh handles
+		std::vector<mesh_handle> mesh_handles;
+		std::vector<buffer_handle> buffer_handles;
+		std::vector<texture_handle> texture_handles;
+		std::vector<framebuffer_handle> framebuffer_handles;
+		std::vector<shader_handle> shader_handles;
+		std::vector<shader_program_handle> shader_program_handles;
+
+		collect_keys(m_mesh_primitives_map, mesh_handles);
+		collect_keys(m_buffer_info_map, buffer_handles);
+		collect_keys(m_texture_info_map, texture_handles);
+		collect_keys(m_framebuffer_info_map, framebuffer_handles);
+		collect_keys(m_shader_info_map, shader_handles);
+		collect_keys(m_shader_program_info_map, shader_program_handles);
+
+		delete_meshes(mesh_handles);
+		delete_buffers(buffer_handles);
+		delete_textures(texture_handles);
+		delete_framebuffers(framebuffer_handles);
+		delete_shaders(shader_handles);
+		delete_programs(shader_program_handles);
+
+		m_material_data_map.clear();
+	}
+
+	void ResourceManager::reset_counters()
+	{
+		m_mesh_handle_counter = 1;
+		m_buffer_handle_counter = 1;
+		m_material_handle_counter = 1;
+		m_texture_handle_counter = 1;
+		m_framebuffer_handle_counter = 1;
+		m_shader_handle_counter = 1;
+		m_shader_program_handle_counter = 1;
+	}
+
+	void ResourceManager::delete_meshes(std::vector<mesh_handle> const& _meshes)
+	{
+		// Collect all gl vertex array objects
+		std::vector<GLuint> gl_vertex_array_objects;
+
+		// Iterate over all meshes
+		for (unsigned int i = 0; i < _meshes.size(); ++i)
+		{
+			auto mesh_iter = m_mesh_primitives_map.find(_meshes[i]);
+			// Each mesh has a list of primitives, each of which contains a VAO
+			for (mesh_primitive_data primitive_data : mesh_iter->second)
+			{
+				gl_vertex_array_objects.push_back(primitive_data.m_vao_gl_id);
+			}
+			m_mesh_primitives_map.erase(mesh_iter);
+		}
+
+		// Delete all gl texture objects simultaneously
+		if (!gl_vertex_array_objects.empty())
+		{
+			GfxCall(glDeleteVertexArrays((GLsizei)gl_vertex_array_objects.size(), &gl_vertex_array_objects[0]));
+		}
+	}
+
+	/*
+	* Delete instances of buffer info and their corresponding gl objects
+	* @param	std::vector<buffer_handle> const &		List of buffers to delete
+	*/
+	void ResourceManager::delete_buffers(std::vector<buffer_handle> const& _buffers)
+	{
+		// Collect all gl buffer objects
+		std::vector<GLuint> gl_buffer_objects;
+		for (unsigned int i = 0; i < _buffers.size(); ++i)
+		{
+			m_index_buffer_info_map.erase(_buffers[i]);
+			auto buffer_info_iter = m_buffer_info_map.find(_buffers[i]);
+			gl_buffer_objects.push_back(buffer_info_iter->second.m_gl_id);
+			m_buffer_info_map.erase(_buffers[i]);
+		}
+		// Delete all gl buffer objects simultaneously
+		if (!gl_buffer_objects.empty())
+		{
+			GfxCall(glDeleteBuffers((GLsizei)gl_buffer_objects.size(), &gl_buffer_objects[0]));
+		}
+	}
+
+	/*
+	* Delete instances of material information.
+	* @param	std::vector<material_handle> const &	List of materials to delete
+	* @detail	Materials do not have GL objects to delete.
+	*/
+	void ResourceManager::delete_materials(std::vector<material_handle> const& _materials)
+	{
+		for (unsigned int i = 0; i < _materials.size(); ++i)
+			m_material_data_map.erase(_materials[i]);
+	}
+
+	/*
+	* Delete instances of texture information and thei corresponding GL objects
+	* @param	std::vector<texture_handle> const &		List of textures to delete
+	*/
+	void ResourceManager::delete_textures(std::vector<texture_handle> const& _textures)
+	{
+		// Collect all gl texture objects
+		std::vector<GLuint> gl_texture_objects;
+		for (unsigned int i = 0; i < _textures.size(); ++i)
+		{
+			auto texture_info_iter = m_texture_info_map.find(_textures[i]);
+			gl_texture_objects.push_back(texture_info_iter->second.m_gl_source_id);
+			m_texture_info_map.erase(_textures[i]);
+		}
+		// Delete all gl texture objects simultaneously
+		if (!gl_texture_objects.empty())
+		{
+			GfxCall(glDeleteTextures((GLsizei)gl_texture_objects.size(), &gl_texture_objects[0]));
+		}
+	}
+
+	void ResourceManager::delete_framebuffers(std::vector<framebuffer_handle> const& _framebuffers)
+	{
+		// Collect all gl framebuffer objects
+		std::vector<GLuint> gl_objects;
+		for (unsigned int i = 0; i < _framebuffers.size(); ++i)
+		{
+			auto info_iter = m_framebuffer_info_map.find(_framebuffers[i]);
+			gl_objects.push_back(info_iter->second.m_gl_object);
+			m_framebuffer_info_map.erase(_framebuffers[i]);
+		}
+		// Delete all gl framebuffer objects simultaneously
+		if (!gl_objects.empty())
+		{
+			GfxCall(glDeleteFramebuffers((GLsizei)gl_objects.size(), &gl_objects[0]));
+		}
+	}
+
+	void ResourceManager::delete_shaders(std::vector<shader_handle> _shaders)
+	{
+		// Remove entry in name to shader map
+		std::sort(_shaders.begin(), _shaders.end());
+		auto iter = m_filepath_shader_map.begin();
+		while (iter != m_filepath_shader_map.end())
+		{
+			if (std::binary_search(_shaders.begin(), _shaders.end(), iter->second))
+				iter = m_filepath_shader_map.erase(iter);
+			else
+				++iter;
+		}
+		// Remove entry in shader info map
+		for (unsigned int i = 0; i < _shaders.size(); ++i)
+		{
+			shader_handle shader = _shaders[i];
+			auto iter = m_shader_info_map.find(shader);
+			GfxCall(glDeleteShader(iter->second.m_gl_shader_object));
+			m_shader_info_map.erase(iter);
+		}
+	}
+
+	void ResourceManager::delete_programs(std::vector<shader_program_handle>  _programs)
+	{
+		// Remove entry in name to shader map
+		std::sort(_programs.begin(), _programs.end());
+		auto iter = m_named_shader_program_map.begin();
+		while (iter != m_named_shader_program_map.end())
+		{
+			if (std::binary_search(_programs.begin(), _programs.end(), iter->second))
+				iter = m_named_shader_program_map.erase(iter);
+			else
+				++iter;
+		}
+		// Remove entry in shader program info map
+		for (unsigned int i = 0; i < _programs.size(); ++i)
+		{
+			shader_program_handle program = _programs[i];
+			auto iter = m_shader_program_info_map.find(_programs[i]);
+
+			// If a deleted program is bound, unbind it.
+			if (m_bound_program == program)
+			{
+				glUseProgram(0);
+				m_bound_program = 0;
+				m_bound_gl_program_object = 0;
+			}
+
+			GfxCall(glDeleteProgram(iter->second.m_gl_program_object));
+			m_shader_program_info_map.erase(iter);
+		}
 	}
 
 
