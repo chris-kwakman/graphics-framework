@@ -10,6 +10,10 @@
 
 #include <STB/stb_image_write.h>
 
+#include <Engine/Managers/input.h>
+
+#include <GLM/gtx/quaternion.hpp>
+
 #include <math.h>
 
 # define MATH_PI           3.14159265358979323846f
@@ -46,6 +50,8 @@ namespace Sandbox
 	static GLuint s_gl_tri_vao, s_gl_tri_ibo, s_gl_tri_vbo;
 
 	static texture_handle s_fb_texture_base_color, s_fb_texture_normal, s_fb_texture_metallic_roughness;
+
+	Engine::Math::transform3D camera_transform;
 
 	bool Initialize()
 	{
@@ -100,6 +106,7 @@ namespace Sandbox
 		// Load glTF model
 		bool success = system_resource_manager.LoadModel(
 			"data/gltf/sponza/Sponza.gltf"
+			//"data/gltf/Sphere.gltf"
 			//"data/gltf/japanese-eastern-toad-b-j-formosus/source/Q11442-1all.gltf"
 		);
 		if (success)
@@ -139,18 +146,88 @@ namespace Sandbox
 
 		GfxCall(glDepthRange(-1.0f, 1.0f));
 
+		camera_transform.position = glm::vec3(0.0f, 0.0f, 0.0f);
+
 		return true;
 	}
 
 	unsigned int frame_counter = 0;
+	float const CAM_MOVE_SPEED = 200.0f;
+	float const CAM_ROTATE_SPEED = MATH_PI * 0.75f;
 
-	float const theta = (float)M_PI * 0.00125f;
-	glm::quat camera_rotate(cosf(theta * 0.5f), 0.0f, sinf(theta * 0.5f), 0.0f);
+	void control_camera()
+	{
+		auto& input_manager = Singleton<Engine::Managers::InputManager>();
+		using button_state = Engine::Managers::InputManager::button_state;
 
-	Engine::Math::transform3D camera_transform;
+		float const DT = (1.0f / 60.0f);
+
+		float accum_rotate_horizontal = 0.0f, accum_rotate_vertical = 0.0f;
+
+		button_state rotate_up, rotate_down, rotate_left, rotate_right;
+		rotate_up = input_manager.GetKeyboardButtonState(SDL_SCANCODE_UP);
+		rotate_down = input_manager.GetKeyboardButtonState(SDL_SCANCODE_DOWN);
+		rotate_left = input_manager.GetKeyboardButtonState(SDL_SCANCODE_LEFT);
+		rotate_right = input_manager.GetKeyboardButtonState(SDL_SCANCODE_RIGHT);
+
+		accum_rotate_horizontal += 1.0f * (rotate_left == button_state::eDown);
+		accum_rotate_horizontal -= 1.0f * (rotate_right == button_state::eDown);
+		accum_rotate_vertical += 1.0f * (rotate_up == button_state::eDown);
+		accum_rotate_vertical -= 1.0f * (rotate_down == button_state::eDown);
+
+		glm::quat const quat_identity(1.0f, 0.0f, 0.0f, 0.0f);
+		glm::quat quat_rotate_around_y = glm::rotate(
+			quat_identity,
+			accum_rotate_horizontal * CAM_ROTATE_SPEED * DT, 
+			glm::vec3(0.0f, 1.0f, 0.0f)
+		);
+
+		camera_transform.quaternion = quat_rotate_around_y * camera_transform.quaternion;
+
+		glm::vec3 const cam_dir = glm::rotate(camera_transform.quaternion, glm::vec3(0.0f, 0.0f, -1.0f));
+		// Project camera direction vector onto horizontal plane & normalize.
+		glm::vec3 const proj_cam_dir(cam_dir.x, 0.0f, cam_dir.z);
+		glm::vec3 const perp_proj_cam_dir = glm::normalize(glm::cross(proj_cam_dir, glm::vec3(0.0f, 1.0f, 0.0f)));
+
+		glm::quat const quat_rotate_around_right_vector = glm::rotate(
+			quat_identity,
+			accum_rotate_vertical * CAM_ROTATE_SPEED * DT, 
+			perp_proj_cam_dir
+		);
+		camera_transform.quaternion = quat_rotate_around_right_vector * camera_transform.quaternion;
+
+		float accum_move_forward_backward = 0.0f, accum_move_left_right = 0.0f, accum_move_up_down = 0.0f;
+
+		button_state move_left, move_right, move_forward, move_backward, move_up, move_down;
+		move_left = input_manager.GetKeyboardButtonState(SDL_SCANCODE_A);
+		move_right = input_manager.GetKeyboardButtonState(SDL_SCANCODE_D);
+		move_forward = input_manager.GetKeyboardButtonState(SDL_SCANCODE_W);
+		move_backward = input_manager.GetKeyboardButtonState(SDL_SCANCODE_S);
+		move_up = input_manager.GetKeyboardButtonState(SDL_SCANCODE_Q);
+		move_down = input_manager.GetKeyboardButtonState(SDL_SCANCODE_E);
+
+		accum_move_left_right += 1.0f * (move_right == button_state::eDown);
+		accum_move_left_right -= 1.0f * (move_left == button_state::eDown);
+		accum_move_forward_backward += 1.0f * (move_forward == button_state::eDown);
+		accum_move_forward_backward -= 1.0f * (move_backward == button_state::eDown);
+		accum_move_up_down += 1.0f * (move_up == button_state::eDown);
+		accum_move_up_down -= 1.0f * (move_down == button_state::eDown);
+
+		camera_transform.position.y += DT * CAM_MOVE_SPEED * accum_move_up_down;
+		camera_transform.position += DT * CAM_MOVE_SPEED * accum_move_forward_backward * cam_dir;
+		camera_transform.position += DT * CAM_MOVE_SPEED * accum_move_left_right * perp_proj_cam_dir;
+	}
 
 	void Update()
 	{
+		auto & system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
+		auto& input_manager = Singleton<Engine::Managers::InputManager>();
+
+		if(input_manager.GetKeyboardButtonState(SDL_SCANCODE_F5) == Engine::Managers::InputManager::button_state::ePress)
+			system_resource_manager.RefreshShaders();
+
+		control_camera();
+
 		frame_counter++;
 		glEnable(GL_CULL_FACE);
 		glEnable(GL_DEPTH_TEST);
@@ -160,21 +237,13 @@ namespace Sandbox
 		using index_buffer_handle = Engine::Graphics::ResourceManager::buffer_handle;
 		using namespace Engine::Graphics;
 
-		Engine::Math::transform3D translation_transform;
-
-		translation_transform.position = glm::vec3(0.0f, 0.0f, -10.0f);
-		camera_transform.quaternion = camera_rotate * camera_transform.quaternion;
-		camera_transform.position = glm::vec3(0.0f, 0.0f, 0.0f);
-		
-		//camera_transform.position.y = 200.0f * std::sinf((float)frame_counter / (10.0f * MATH_PI));
-
 		Engine::Graphics::camera camera;
-		camera.m_right = glm::vec3(1.0f, 0.0f, 0.0f);
-		camera.m_up = glm::vec3(0.0f, 1.0f, 0.0f);
+		glm::vec3 const camera_forward = camera_transform.quaternion * glm::vec3(0.0f, 0.0f, -1.0f);
+		camera.m_right = glm::normalize(glm::cross(camera_forward, glm::vec3(0.0f, 1.0f, 0.0f)));
+		camera.m_up = glm::normalize(glm::cross(camera_forward, camera.m_right));
 
 		//camera_transform.quaternion = camera.get_lookat_quat();
 
-		Engine::Graphics::ResourceManager& system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
 		using shader_program_handle = Engine::Graphics::ResourceManager::shader_program_handle;
 
 		shader_program_handle const program_draw_gbuffer = system_resource_manager.FindShaderProgram("draw_gbuffer");
@@ -184,10 +253,8 @@ namespace Sandbox
 		SDL_Surface const* surface = Singleton<Engine::sdl_manager>().m_surface;
 		float const ar = (float)surface->w / (float)surface->h;
 
-		Engine::Math::transform3D mv = camera_transform.GetInverse() * translation_transform;
-		glm::mat4x4 const mvp = camera.create_view_to_perspective_matrix(MATH_PI * 0.4f, ar, 0.5f, 1500.0f) * mv.GetMatrix();
-
-		system_resource_manager.RefreshShaders();
+		Engine::Math::transform3D mv = camera_transform.GetInverse();
+		glm::mat4x4 const mvp = camera.create_view_to_perspective_matrix(MATH_PI * 0.4f, ar, 0.5f, 5000.0f) * mv.GetMatrix();
 
 		system_resource_manager.UseProgram(program_draw_gbuffer);
 		system_resource_manager.SetBoundProgramUniform(5, mvp);
@@ -196,6 +263,7 @@ namespace Sandbox
 		auto const& mesh_primitives = (system_resource_manager.m_mesh_primitives_map.begin())->second;
 
 		system_resource_manager.BindFramebuffer(s_framebuffer);
+		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		GLenum attachment_points[] = { GL_NONE, GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
 		system_resource_manager.DrawFramebuffers(s_framebuffer, sizeof(attachment_points) / sizeof(GLenum), attachment_points);
@@ -221,28 +289,31 @@ namespace Sandbox
 
 
 			// Set texture slots
-			ResourceManager::material_data material = system_resource_manager.m_material_data_map.at(primitive.m_material_handle);
+			if (primitive.m_material_handle != 0)
+			{
+				ResourceManager::material_data material = system_resource_manager.m_material_data_map.at(primitive.m_material_handle);
 
-			activate_texture(material.m_pbr_metallic_roughness.m_texture_base_color, 0, 0);
-			activate_texture(material.m_pbr_metallic_roughness.m_texture_metallic_roughness, 1, 1);
-			activate_texture(material.m_texture_normal, 2, 2);
-			activate_texture(material.m_texture_occlusion, 3, 3 );
-			activate_texture(material.m_texture_emissive, 4, 4);
+				activate_texture(material.m_pbr_metallic_roughness.m_texture_base_color, 0, 0);
+				activate_texture(material.m_pbr_metallic_roughness.m_texture_metallic_roughness, 1, 1);
+				activate_texture(material.m_texture_normal, 2, 2);
+				activate_texture(material.m_texture_occlusion, 3, 3);
+				activate_texture(material.m_texture_emissive, 4, 4);
 
-			using alpha_mode = ResourceManager::material_data::alpha_mode;
-			system_resource_manager.SetBoundProgramUniform(
-				10,
-				(float)(material.m_alpha_mode == alpha_mode::eMASK ? material.m_alpha_cutoff : 0.0)
-			);
-			if (material.m_alpha_mode == alpha_mode::eBLEND)
-				glEnable(GL_BLEND);
-			else
-				glDisable(GL_BLEND);
+				using alpha_mode = ResourceManager::material_data::alpha_mode;
+				system_resource_manager.SetBoundProgramUniform(
+					10,
+					(float)(material.m_alpha_mode == alpha_mode::eMASK ? material.m_alpha_cutoff : 0.0)
+				);
+				if (material.m_alpha_mode == alpha_mode::eBLEND)
+					glEnable(GL_BLEND);
+				else
+					glDisable(GL_BLEND);
 
-			if (material.m_double_sided)
-				glCullFace(GL_FALSE);
-			else
-				glCullFace(GL_TRUE);
+				if (material.m_double_sided)
+					glCullFace(GL_FALSE);
+				else
+					glCullFace(GL_TRUE);
+			}
 
 			GfxCall(glBindVertexArray(primitive.m_vao_gl_id));
 			GfxCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer_info.m_gl_id));
