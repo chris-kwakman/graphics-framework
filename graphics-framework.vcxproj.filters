@@ -65,5 +65,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="working_dir\data\shaders\deferred.frag" />
+    <None Include="working_dir\data\shaders\pbr.vert" />
   </ItemGroup>
 </Project>

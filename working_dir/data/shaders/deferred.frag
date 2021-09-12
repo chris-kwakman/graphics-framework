@@ -27,7 +27,9 @@ void main()
 
 	fb_depth = 0.0f;
 	fb_base_color = frag_color.rgb;
-	fb_metallic_roughness = texture(u_sampler_metallic_roughness, f_uv_1).rg;
+	vec2 out_roughness = texture(u_sampler_metallic_roughness, f_uv_1).rg;
+	out_roughness.r = max(0.01, out_roughness.r);
+	fb_metallic_roughness = out_roughness;
 	fb_normal = vec3(f_normal.x, f_normal.y, -f_normal.z);
 
 	//frag_color = vec4(texture(u_sampler_metallic_roughness, f_uv_1).rg, 0.0, 1.0);

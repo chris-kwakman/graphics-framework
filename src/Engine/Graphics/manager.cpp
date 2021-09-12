@@ -546,6 +546,7 @@ namespace Graphics {
 			_internal_format, (GLsizei)_size.x, (GLsizei)_size.y, 0, 
 			_input_format, _input_component_type, _data
 		));
+		GfxCall(glGenerateMipmap(tex_info.m_target));
 	}
 
 	/*
@@ -668,7 +669,7 @@ namespace Graphics {
 		for (unsigned int i = 0; i < _shader_paths.size(); ++i)
 		{
 			// Initialize new shader handle as invalid handle.
-			shader_handle curr_output_shader_handle = std::numeric_limits<shader_handle>::max();
+			shader_handle curr_output_shader_handle = 0;
 
 			// If filepath already exists within either new map or pre-existing map, return corresponding handle and
 			// continue on to next shader path

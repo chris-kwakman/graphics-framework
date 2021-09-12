@@ -176,6 +176,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="working_dir\data\shaders\deferred.frag" />
+    <None Include="working_dir\data\shaders\pbr.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
