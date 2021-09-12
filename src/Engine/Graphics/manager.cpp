@@ -290,8 +290,9 @@ namespace Graphics {
 		// Generate openGL textures beforehand
 		std::vector<GLuint> new_gl_texture_objects;
 		new_gl_texture_objects.resize(model.images.size());
-		glGenTextures((GLsizei)new_gl_texture_objects.size(), &new_gl_texture_objects[0]);
 
+		if(!new_gl_texture_objects.empty())
+			glGenTextures((GLsizei)new_gl_texture_objects.size(), &new_gl_texture_objects[0]);
 		for (unsigned int i = 0; i < model.images.size(); ++i)
 		{
 			texture_handle const current_texture = m_texture_handle_counter + i;
