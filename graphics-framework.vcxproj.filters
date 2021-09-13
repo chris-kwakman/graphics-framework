@@ -72,5 +72,6 @@
   <ItemGroup>
     <None Include="working_dir\data\shaders\deferred.frag" />
     <None Include="working_dir\data\shaders\pbr.vert" />
+    <None Include="working_dir\data\shaders\light_sphere_back.frag" />
   </ItemGroup>
 </Project>

@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <cassert>
 #include <set>
+#include <sstream>
 #include <algorithm>
 
 #include <glm/gtc/type_ptr.hpp>
@@ -134,6 +135,7 @@ namespace Graphics {
 		decltype(m_buffer_info_map) new_buffer_info_map;
 		decltype(m_index_buffer_info_map) new_index_buffer_info_map;
 		decltype(m_mesh_primitives_map) new_mesh_primitives_map;
+		decltype(m_named_mesh_map) new_named_mesh_map;
 
 		/*
 		* Load buffers (VBOs & IBOs)
@@ -230,9 +232,6 @@ namespace Graphics {
 				new_index_buffer_info.m_index_count = model.accessors[read_primitive.indices].count;
 				new_index_buffer_info_map.emplace(new_primitive.m_index_buffer_handle, new_index_buffer_info);
 
-				//Engine::Utils::print_debug("Bind VAO %u", new_primitive.m_vao_gl_id);
-				//Engine::Utils::print_debug("\tBind IBO %u", primitive_index_buffer.m_gl_id);
-
 				// Bind respective VBOs referred to by primitive attributes + index buffer
 
 				for (auto const & primitive_attrib : read_primitive.attributes)
@@ -270,14 +269,17 @@ namespace Graphics {
 						(GLvoid*)(read_accessor.byteOffset)
 					);
 
-					//Engine::Utils::print_debug("\tBind VBO %u", attribute_referenced_buffer.m_gl_id);
-					//Engine::Utils::print_debug("\tEnable attribute %u (%s)", gl_attribute_index, primitive_attrib.first);
-
 					gl_attribute_index++;
 				}
 				GfxCall(glBindVertexArray(0));
 			}
 			new_mesh_primitives_map.emplace(m_mesh_handle_counter + i, std::move(curr_mesh_primitives));
+			// Insert mesh into named mesh map.
+			std::filesystem::path const path(_filepath);
+			new_named_mesh_map.emplace(
+				path.stem().string() + std::string("/") + read_mesh.name,
+				m_mesh_handle_counter + i
+			);
 		}
 
 		/*
@@ -454,6 +456,18 @@ namespace Graphics {
 			new_material_data_map.emplace(new_material_handle, new_material_data);
 		}
 
+		// Debug output
+		std::ostringstream output;
+		output << "Loaded the following meshes:";
+		auto iter = new_named_mesh_map.begin();
+		while (iter != new_named_mesh_map.end())
+		{
+			output << "\n    \"" << iter->first << "\"";
+			++iter;
+		}
+		Engine::Utils::print_base("ResourceManager", "%s", output.str().c_str());
+
+
 		// Update all handle counters at the end
 		// This is done so we can safely offset tinygltf resource indices based on original handle counters.
 		m_mesh_handle_counter += (unsigned int)new_mesh_primitives_map.size();
@@ -463,11 +477,38 @@ namespace Graphics {
 
 		m_buffer_info_map.merge(std::move(new_buffer_info_map));
 		m_index_buffer_info_map.merge(std::move(new_index_buffer_info_map));
+		m_named_mesh_map.merge(new_named_mesh_map);
 		m_mesh_primitives_map.merge(new_mesh_primitives_map);
 		m_material_data_map.merge(new_material_data_map);
 		m_texture_info_map.merge(new_texture_info_map);
 
 		return true;
+	}
+
+	//////////////////////////////////////////////////////////////////
+	//						Mesh Methods
+	//////////////////////////////////////////////////////////////////
+
+	/*
+	* Attempts to find a mesh by a given name.
+	* @param	const char *	Name of mesh 
+								(Mesh "Mesh_0" in file "Sponza.gltf" will be called "Sponza/Mesh_0")
+	* @return	mesh_handle		Handle to mesh
+	*/
+	ResourceManager::mesh_handle ResourceManager::FindMesh(const char* _mesh_name) const
+	{
+		auto iter = m_named_mesh_map.find(_mesh_name);
+		return (iter == m_named_mesh_map.end()) ? 0 : iter->second;
+	}
+
+	/*
+	* Get list of primitives belonging to given mesh
+	* @param	mesh_handle				Handle to mesh
+	* @return	mesh_primitive_list		List of primitives' data
+	*/
+	ResourceManager::mesh_primitive_list const& ResourceManager::GetMeshPrimitives(mesh_handle _mesh) const
+	{
+		return m_mesh_primitives_map.at(_mesh);
 	}
 
 	//////////////////////////////////////////////////////////////////
@@ -1082,6 +1123,17 @@ namespace Graphics {
 				gl_vertex_array_objects.push_back(primitive_data.m_vao_gl_id);
 			}
 			m_mesh_primitives_map.erase(mesh_iter);
+
+		}
+
+		// Delete unused meshes in named mesh map
+		auto named_mesh_iter = m_named_mesh_map.begin();
+		while (named_mesh_iter != m_named_mesh_map.end())
+		{
+			if (m_mesh_primitives_map.find(named_mesh_iter->second) == m_mesh_primitives_map.end())
+				named_mesh_iter = m_named_mesh_map.erase(named_mesh_iter);
+			else
+				++named_mesh_iter;
 		}
 
 		// Delete all gl texture objects simultaneously

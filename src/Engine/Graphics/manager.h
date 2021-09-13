@@ -58,13 +58,16 @@ namespace Graphics {
 			size_t			m_index_count;
 		};
 
+		typedef std::vector<mesh_primitive_data> mesh_primitive_list;
+
 		// Handle counters
 		mesh_handle			m_mesh_handle_counter = 1;
 		buffer_handle		m_buffer_handle_counter = 1;
 
-		std::unordered_map<mesh_handle, std::vector<mesh_primitive_data>>	m_mesh_primitives_map;
-		std::unordered_map<buffer_handle, buffer_info>						m_buffer_info_map;
-		std::unordered_map<buffer_handle, index_buffer_info>				m_index_buffer_info_map;
+		std::unordered_map<std::string, mesh_handle>			m_named_mesh_map;
+		std::unordered_map<mesh_handle, mesh_primitive_list>	m_mesh_primitives_map;
+		std::unordered_map<buffer_handle, buffer_info>			m_buffer_info_map;
+		std::unordered_map<buffer_handle, index_buffer_info>	m_index_buffer_info_map;
 
 
 		//////////////////////////////////////////////////////
@@ -204,6 +207,15 @@ namespace Graphics {
 		static unsigned int get_glTF_type_component_count(int _attributeType);
 
 		bool load_gltf_model(const char * _filepath);
+
+		/*
+		* Mesh Methods
+		*/
+
+	public:
+
+		mesh_handle					FindMesh(const char* _mesh_name) const;
+		mesh_primitive_list const&	GetMeshPrimitives(mesh_handle _mesh) const;
 
 		/*
 		* Texture methods

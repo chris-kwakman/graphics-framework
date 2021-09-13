@@ -104,15 +104,12 @@ namespace Sandbox
 		system_resource_manager.AttachTextureToFramebuffer(s_framebuffer, GL_COLOR_ATTACHMENT2, s_fb_texture_normal);
 
 		// Load glTF model
-		bool success = system_resource_manager.LoadModel(
-			"data/gltf/sponza/Sponza.gltf"
-			//"data/gltf/Sphere.gltf"
-			//"data/gltf/japanese-eastern-toad-b-j-formosus/source/Q11442-1all.gltf"
-		);
+		bool success = system_resource_manager.LoadModel("data/gltf/sponza/Sponza.gltf");
+		success &= system_resource_manager.LoadModel("data/gltf/Sphere.gltf");
 		if (success)
-			printf("Asset loaded successfully.\n");
+			printf("Assets loaded successfully.\n");
 		else
-			printf("Failed to load asset.\n");
+			printf("Failed to load assets.\n");
 		
 		// Create primitive that covers screen for rendering g-buffer to default framebuffer
 		glm::vec2 tri_vert_pos_uv[6] = { 
@@ -148,7 +145,7 @@ namespace Sandbox
 
 		camera_transform.position = glm::vec3(0.0f, 0.0f, 0.0f);
 
-		return true;
+		return success;
 	}
 
 	unsigned int frame_counter = 0;
@@ -272,7 +269,7 @@ namespace Sandbox
 		system_resource_manager.SetBoundProgramUniform(5, mvp);
 		system_resource_manager.SetBoundProgramUniform(6, glm::transpose(mv.GetInvMatrix()));
 
-		auto const& mesh_primitives = (system_resource_manager.m_mesh_primitives_map.begin())->second;
+		ResourceManager::mesh_handle sponza_mesh = system_resource_manager.FindMesh("Sponza/Mesh_0");
 
 		system_resource_manager.BindFramebuffer(s_framebuffer);
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -293,6 +290,7 @@ namespace Sandbox
 			system_resource_manager.SetBoundProgramUniform(_shader_sampler_uniform_location, (int)_active_texture_index);
 		};
 
+		auto& mesh_primitives = system_resource_manager.GetMeshPrimitives(sponza_mesh);
 		for (unsigned int i = 0; i < mesh_primitives.size(); ++i)
 		{
 			ResourceManager::mesh_primitive_data primitive = mesh_primitives[i];
