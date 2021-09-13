@@ -156,6 +156,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\Engine\ECS\entity.cpp" />
     <ClCompile Include="src\Engine\Graphics\camera.cpp" />
     <ClCompile Include="src\Engine\Graphics\manager.cpp" />
     <ClCompile Include="src\Engine\Graphics\sdl_window.cpp" />
@@ -167,6 +168,7 @@
     <ClCompile Include="src\Sandbox\sandbox.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\Engine\ECS\entity.h" />
     <ClInclude Include="src\Engine\Graphics\camera.h" />
     <ClInclude Include="src\Engine\Graphics\manager.h" />
     <ClInclude Include="src\Engine\Graphics\sdl_window.h" />
