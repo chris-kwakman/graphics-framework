@@ -48,8 +48,6 @@ namespace Graphics {
 		{
 			GLuint			m_gl_id;
 			GLint			m_target;
-			size_t			m_byte_length;
-			size_t			m_byte_stride;
 		};
 
 		struct index_buffer_info
@@ -209,6 +207,15 @@ namespace Graphics {
 		bool load_gltf_model(const char * _filepath);
 
 		/*
+		* Buffer Methods
+		*/
+
+	public:
+
+		buffer_info					GetBufferInfo(buffer_handle _buffer) const;
+		index_buffer_info			GetIndexBufferInfo(buffer_handle _ibo) const;
+
+		/*
 		* Mesh Methods
 		*/
 
@@ -216,6 +223,14 @@ namespace Graphics {
 
 		mesh_handle					FindMesh(const char* _mesh_name) const;
 		mesh_primitive_list const&	GetMeshPrimitives(mesh_handle _mesh) const;
+		
+		/*
+		* Material methods
+		*/
+
+	public:
+
+		material_data				GetMaterial(material_handle _material) const;
 
 		/*
 		* Texture methods
@@ -236,6 +251,7 @@ namespace Graphics {
 		texture_handle	CreateTexture();
 		void			DeleteTexture(texture_handle _texture_handle);
 		void			BindTexture(texture_handle _texture_handle) const;
+		texture_info	GetTextureInfo(texture_handle _texture_handle) const;
 		void SpecifyTexture2D(texture_handle _texture_handle, GLint	_internal_format, glm::uvec2 _size, unsigned int _mipmap_level = 0);
 		void SpecifyAndUploadTexture2D(
 			texture_handle _texture_handle, GLint _internal_format, glm::uvec2 _size, unsigned int _mipmap_level,

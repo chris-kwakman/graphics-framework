@@ -283,7 +283,7 @@ namespace Sandbox
 			// If no texture handle exists, ignore
 			if (_texture == 0)
 				return;
-			auto texture_info = system_resource_manager.m_texture_info_map.at(_texture);
+			auto texture_info = system_resource_manager.GetTextureInfo(_texture);
 			GfxCall(glActiveTexture(GL_TEXTURE0 + _active_texture_index));
 			GfxCall(glBindTexture(texture_info.m_target, texture_info.m_gl_source_id));
 
@@ -294,14 +294,13 @@ namespace Sandbox
 		for (unsigned int i = 0; i < mesh_primitives.size(); ++i)
 		{
 			ResourceManager::mesh_primitive_data primitive = mesh_primitives[i];
-			ResourceManager::buffer_info const index_buffer_info = system_resource_manager.m_buffer_info_map.at(primitive.m_index_buffer_handle);
-			ResourceManager::index_buffer_info const ibo_info = system_resource_manager.m_index_buffer_info_map.at(primitive.m_index_buffer_handle);
-
+			auto index_buffer_info = system_resource_manager.GetBufferInfo(primitive.m_index_buffer_handle);
+			auto ibo_info = system_resource_manager.GetIndexBufferInfo(primitive.m_index_buffer_handle);
 
 			// Set texture slots
 			if (primitive.m_material_handle != 0)
 			{
-				ResourceManager::material_data material = system_resource_manager.m_material_data_map.at(primitive.m_material_handle);
+				ResourceManager::material_data material = system_resource_manager.GetMaterial(primitive.m_material_handle);
 
 				activate_texture(material.m_pbr_metallic_roughness.m_texture_base_color, 0, 0);
 				activate_texture(material.m_pbr_metallic_roughness.m_texture_metallic_roughness, 1, 1);
@@ -326,7 +325,6 @@ namespace Sandbox
 			}
 
 			GfxCall(glBindVertexArray(primitive.m_vao_gl_id));
-			GfxCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer_info.m_gl_id));
 			GfxCall(glDrawElements(
 				primitive.m_render_mode,
 				(GLsizei)ibo_info.m_index_count,

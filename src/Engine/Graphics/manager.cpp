@@ -168,15 +168,13 @@ namespace Graphics {
 
 			buffer_info new_buffer_info;
 			new_buffer_info.m_gl_id = new_gl_buffer_arr[i];
-			new_buffer_info.m_byte_length = read_bufferview.byteLength;
 			new_buffer_info.m_target = read_bufferview.target;
-			new_buffer_info.m_byte_stride = read_bufferview.byteStride;
 
 			// Create buffer memory block & upload data
 			glBindBuffer(new_buffer_info.m_target, new_buffer_info.m_gl_id);
 			// glTF buffers do not interleave binary blobs, so we can upload directly.
 			GfxCall(glBufferData(
-				new_buffer_info.m_target, new_buffer_info.m_byte_length, 
+				new_buffer_info.m_target, read_bufferview.byteLength, 
 				static_cast<GLvoid const*>(&read_buffer.data[read_bufferview.byteOffset]), 
 				GL_STATIC_DRAW
 			));
@@ -486,6 +484,20 @@ namespace Graphics {
 	}
 
 	//////////////////////////////////////////////////////////////////
+	//						Buffer Methods
+	//////////////////////////////////////////////////////////////////
+
+	ResourceManager::buffer_info ResourceManager::GetBufferInfo(buffer_handle _buffer) const
+	{
+		return m_buffer_info_map.at(_buffer);
+	}
+
+	ResourceManager::index_buffer_info ResourceManager::GetIndexBufferInfo(buffer_handle _ibo) const
+	{
+		return m_index_buffer_info_map.at(_ibo);
+	}
+
+	//////////////////////////////////////////////////////////////////
 	//						Mesh Methods
 	//////////////////////////////////////////////////////////////////
 
@@ -509,6 +521,20 @@ namespace Graphics {
 	ResourceManager::mesh_primitive_list const& ResourceManager::GetMeshPrimitives(mesh_handle _mesh) const
 	{
 		return m_mesh_primitives_map.at(_mesh);
+	}
+
+	//////////////////////////////////////////////////////////////////
+	//					Material Methods
+	//////////////////////////////////////////////////////////////////
+
+	/*
+	* Get material corresponding to handle.
+	* @param	material_handle		Handle to material
+	* @return	material_data		Data of material
+	*/
+	ResourceManager::material_data ResourceManager::GetMaterial(material_handle _material) const
+	{
+		return m_material_data_map.at(_material);
 	}
 
 	//////////////////////////////////////////////////////////////////
@@ -550,6 +576,16 @@ namespace Graphics {
 		Engine::Utils::assert_print_error(iter != m_texture_info_map.end(), "Texture handle is invalid.");
 		Engine::Utils::assert_print_error(iter->second.m_target != GL_INVALID_ENUM, "Texture has no target assigned.");
 		glBindTexture(iter->second.m_target, iter->second.m_gl_source_id);
+	}
+
+	/*
+	* Get texture information corresponding to given texture handle.
+	* @param	texture_handle		Handle to texture
+	* @return	texture_info		Information about texture
+	*/
+	ResourceManager::texture_info ResourceManager::GetTextureInfo(texture_handle _texture_handle) const
+	{
+		return m_texture_info_map.at(_texture_handle);
 	}
 
 	/*
