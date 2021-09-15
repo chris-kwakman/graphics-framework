@@ -56,6 +56,7 @@ namespace Sandbox
 
 	Engine::Math::transform3D camera_transform;
 
+
 	void setup_shaders()
 	{
 		Engine::Graphics::ResourceManager& system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
@@ -173,6 +174,7 @@ namespace Sandbox
 	float const CAM_MOVE_SPEED = 200.0f;
 	float const CAM_ROTATE_SPEED = MATH_PI * 0.75f;
 	float const MOUSE_SENSITIVITY = 0.05f;
+	bool camera_invert = false;
 
 	void control_camera()
 	{
@@ -200,10 +202,14 @@ namespace Sandbox
 		{
 			glm::ivec2 const mouse_delta = input_manager.GetMouseDelta();
 			glm::vec2 mouse_rotation_delta = MOUSE_SENSITIVITY * glm::vec2(mouse_delta);
-			accum_rotate_horizontal += mouse_rotation_delta.x;
-			accum_rotate_vertical += mouse_rotation_delta.y;
+			accum_rotate_horizontal -= mouse_rotation_delta.x;
+			accum_rotate_vertical -= mouse_rotation_delta.y;
+			if (camera_invert)
+			{
+				accum_rotate_horizontal *= -1.0f;
+				accum_rotate_vertical *= -1.0f;
+			}
 		}
-
 
 		glm::quat const quat_identity(1.0f, 0.0f, 0.0f, 0.0f);
 		glm::quat quat_rotate_around_y = glm::rotate(

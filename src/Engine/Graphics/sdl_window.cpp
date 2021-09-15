@@ -86,8 +86,6 @@ namespace Engine
 		grab_input_keyboard = !imgui_ui.WantCaptureKeyboard;
 		grab_input_mouse = !imgui_ui.WantCaptureMouse;
 
-		printf("ImGui taking inputs of mouse (%u) and keyboard (%u).\r", (unsigned int)grab_input_mouse, (unsigned int)grab_input_keyboard);
-
 		Singleton<Engine::Managers::InputManager>().UpdateKeyboardState(grab_input_keyboard);
 		Singleton<Engine::Managers::InputManager>().UpdateMouseState(grab_input_mouse);
 	}
