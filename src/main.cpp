@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "Engine/Graphics/sdl_window.h"
+#include <Engine/Editor/editor.h>
 #include "Engine/Utils/singleton.h"
 
 #include "Sandbox/sandbox.h"
@@ -48,7 +49,11 @@ void update_loop()
 		snprintf(window_title, sizeof(window_title), "c.kwakman | FPS: %.2f", 1000.0f / (float)frametime.count());
 		SDL_SetWindowTitle(sdl_manager.m_window, window_title);
 
+		Singleton<Engine::Editor::Editor>().NewFrame();
+
 		Sandbox::Update();
+
+		Singleton<Engine::Editor::Editor>().Render();
 
 		SDL_GL_SwapWindow(Singleton<Engine::sdl_manager>().m_window);
 
@@ -66,11 +71,13 @@ int main()
 	Engine::sdl_manager& sdl_manager = Singleton<Engine::sdl_manager>();
 	if (sdl_manager.setup(glm::uvec2(SCREEN_WIDTH, SCREEN_HEIGHT)))
 	{
+		Singleton<Engine::Editor::Editor>().Initialise();
 		if (Sandbox::Initialize())
 			update_loop();
 		else
 			std::cout << "Sandbox initialization failed.\n";
 		Sandbox::Shutdown();
+		Singleton<Engine::Editor::Editor>().Shutdown();
 	}
 
 	sdl_manager.shutdown();

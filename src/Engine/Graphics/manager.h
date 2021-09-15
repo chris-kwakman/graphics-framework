@@ -123,6 +123,7 @@ namespace Graphics {
 		{
 			GLuint	m_gl_source_id;
 			GLuint	m_target = GL_INVALID_ENUM;
+			glm::uvec3 m_size = { 0,0,0 };
 			//TODO: Texture ref count?
 		};
 
@@ -261,7 +262,7 @@ namespace Graphics {
 
 	private:
 
-		texture_info set_texture_target_and_bind(texture_handle _texture_handle, GLenum _target);
+		texture_info & set_texture_target_and_bind(texture_handle _texture_handle, GLenum _target);
 
 		/*
 		* Framebuffer Methods

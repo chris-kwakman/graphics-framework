@@ -11,8 +11,11 @@
 #include <STB/stb_image_write.h>
 
 #include <Engine/Managers/input.h>
+#include <Engine/Editor/editor.h>
 
 #include <GLM/gtx/quaternion.hpp>
+
+#include <ImGui/imgui_internal.h> // SetWindowHitTestHole()
 
 #include <math.h>
 
@@ -45,7 +48,7 @@ namespace Sandbox
 	using framebuffer_handle = Engine::Graphics::ResourceManager::framebuffer_handle;
 	using texture_handle = Engine::Graphics::ResourceManager::texture_handle;
 
-	static framebuffer_handle s_framebuffer;
+	static framebuffer_handle s_framebuffer_gbuffer;
 
 	static GLuint s_gl_tri_vao, s_gl_tri_ibo, s_gl_tri_vbo;
 
@@ -53,10 +56,9 @@ namespace Sandbox
 
 	Engine::Math::transform3D camera_transform;
 
-	bool Initialize()
+	void setup_shaders()
 	{
-		Engine::Graphics::ResourceManager & system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
-		system_resource_manager.Reset();
+		Engine::Graphics::ResourceManager& system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
 
 		using shader_handle = Engine::Graphics::ResourceManager::shader_handle;
 		using shader_program_handle = Engine::Graphics::ResourceManager::shader_program_handle;
@@ -77,12 +79,17 @@ namespace Sandbox
 
 		system_resource_manager.LoadShaderProgram("draw_gbuffer", draw_gbuffer_shaders);
 		system_resource_manager.LoadShaderProgram("draw_pbr", draw_pbr_shaders);
+	}
+
+	void setup_framebuffer()
+	{
+		Engine::Graphics::ResourceManager& system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
 
 		SDL_Surface const* surface = Singleton<Engine::sdl_manager>().m_surface;
 		glm::uvec2 const surface_size(surface->w, surface->h);
 
 		// Create framebuffer & textures.
-		s_framebuffer = system_resource_manager.CreateFramebuffer();
+		s_framebuffer_gbuffer = system_resource_manager.CreateFramebuffer();
 
 		texture_handle const s_fb_texture_depth = system_resource_manager.CreateTexture();
 		s_fb_texture_base_color = system_resource_manager.CreateTexture();
@@ -94,27 +101,22 @@ namespace Sandbox
 		system_resource_manager.SpecifyAndUploadTexture2D(s_fb_texture_depth, GL_DEPTH_COMPONENT, surface_size, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
 		system_resource_manager.SpecifyTexture2D(s_fb_texture_base_color, GL_RGB, surface_size);
 		system_resource_manager.SpecifyTexture2D(s_fb_texture_metallic_roughness, GL_RG, surface_size);
-		system_resource_manager.SpecifyTexture2D(s_fb_texture_normal, GL_RGB16F, surface_size);
+		system_resource_manager.SpecifyTexture2D(s_fb_texture_normal, GL_RGB, surface_size);
 
 		// Attach textures to framebuffer.
-		system_resource_manager.BindFramebuffer(s_framebuffer);
-		system_resource_manager.AttachTextureToFramebuffer(s_framebuffer, GL_DEPTH_ATTACHMENT, s_fb_texture_depth);
-		system_resource_manager.AttachTextureToFramebuffer(s_framebuffer, GL_COLOR_ATTACHMENT0, s_fb_texture_base_color);
-		system_resource_manager.AttachTextureToFramebuffer(s_framebuffer, GL_COLOR_ATTACHMENT1, s_fb_texture_metallic_roughness);
-		system_resource_manager.AttachTextureToFramebuffer(s_framebuffer, GL_COLOR_ATTACHMENT2, s_fb_texture_normal);
+		system_resource_manager.BindFramebuffer(s_framebuffer_gbuffer);
+		system_resource_manager.AttachTextureToFramebuffer(s_framebuffer_gbuffer, GL_DEPTH_ATTACHMENT, s_fb_texture_depth);
+		system_resource_manager.AttachTextureToFramebuffer(s_framebuffer_gbuffer, GL_COLOR_ATTACHMENT0, s_fb_texture_base_color);
+		system_resource_manager.AttachTextureToFramebuffer(s_framebuffer_gbuffer, GL_COLOR_ATTACHMENT1, s_fb_texture_metallic_roughness);
+		system_resource_manager.AttachTextureToFramebuffer(s_framebuffer_gbuffer, GL_COLOR_ATTACHMENT2, s_fb_texture_normal);
+	}
 
-		// Load glTF model
-		bool success = system_resource_manager.LoadModel("data/gltf/sponza/Sponza.gltf");
-		success &= system_resource_manager.LoadModel("data/gltf/Sphere.gltf");
-		if (success)
-			printf("Assets loaded successfully.\n");
-		else
-			printf("Failed to load assets.\n");
-		
+	void create_framebuffer_triangle()
+	{
 		// Create primitive that covers screen for rendering g-buffer to default framebuffer
-		glm::vec2 tri_vert_pos_uv[6] = { 
+		glm::vec2 tri_vert_pos_uv[6] = {
 			{-1.0f, -1.0f}, {3.0f, -1.0f}, {-1.0f, 3.0f}, // Define triangle in [-1,1] space
-			{0.0f, 0.0f}, {2.0f, 0.0f}, {0.0f, 2.0f}	
+			{0.0f, 0.0f}, {2.0f, 0.0f}, {0.0f, 2.0f}
 		};
 		unsigned char tri_indices[3] = { 0,1,2 };
 
@@ -133,13 +135,32 @@ namespace Sandbox
 		glEnableVertexArrayAttrib(s_gl_tri_vao, 0);
 		glEnableVertexArrayAttrib(s_gl_tri_vao, 1);
 		glVertexAttribPointer(0, 2, GL_FLOAT, false, 0, (void*)0);
-		glVertexAttribPointer(1, 2, GL_FLOAT, false, 0, (void*)(sizeof(tri_vert_pos_uv)/2));
+		glVertexAttribPointer(1, 2, GL_FLOAT, false, 0, (void*)(sizeof(tri_vert_pos_uv) / 2));
 
 		// Bind IBO to VAO
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_gl_tri_ibo);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(tri_indices), tri_indices, GL_STATIC_DRAW);
 
 		glBindVertexArray(0);
+	}
+
+	bool Initialize()
+	{
+		Engine::Graphics::ResourceManager & system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
+		system_resource_manager.Reset();
+
+		setup_shaders();
+		setup_framebuffer();
+		create_framebuffer_triangle();
+
+		// Load glTF model
+		bool success = false;
+		success = system_resource_manager.LoadModel("data/gltf/sponza/Sponza.gltf");
+		success = system_resource_manager.LoadModel("data/gltf/Sphere.gltf");
+		if (success)
+			printf("Assets loaded successfully.\n");
+		else
+			printf("Failed to load assets.\n");
 
 		GfxCall(glDepthRange(-1.0f, 1.0f));
 
@@ -227,8 +248,20 @@ namespace Sandbox
 		camera_transform.position += DT * CAM_MOVE_SPEED * accum_move_left_right * perp_proj_cam_dir;
 	}
 
+	bool show_demo_window = false;
+	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+
+	void DummyEditorRender()
+	{
+		// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
+		if (show_demo_window)
+			ImGui::ShowDemoWindow(&show_demo_window);
+	}
+
 	void Update()
 	{
+		DummyEditorRender();
+
 		auto & system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
 		auto& input_manager = Singleton<Engine::Managers::InputManager>();
 
@@ -269,13 +302,15 @@ namespace Sandbox
 		system_resource_manager.SetBoundProgramUniform(5, mvp);
 		system_resource_manager.SetBoundProgramUniform(6, glm::transpose(mv.GetInvMatrix()));
 
-		ResourceManager::mesh_handle sponza_mesh = system_resource_manager.FindMesh("Sponza/Mesh_0");
+		ResourceManager::mesh_handle mesh_to_render = system_resource_manager.FindMesh("Sponza/Mesh_0");
+		if (mesh_to_render == 0)
+			mesh_to_render = system_resource_manager.FindMesh("Sphere/Sphere");
 
-		system_resource_manager.BindFramebuffer(s_framebuffer);
+		system_resource_manager.BindFramebuffer(s_framebuffer_gbuffer);
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		GLenum attachment_points[] = { GL_NONE, GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
-		system_resource_manager.DrawFramebuffers(s_framebuffer, sizeof(attachment_points) / sizeof(GLenum), attachment_points);
+		system_resource_manager.DrawFramebuffers(s_framebuffer_gbuffer, sizeof(attachment_points) / sizeof(GLenum), attachment_points);
 
 
 		auto activate_texture = [&](ResourceManager::texture_handle _texture, unsigned int _shader_sampler_uniform_location, unsigned int _active_texture_index)
@@ -290,7 +325,7 @@ namespace Sandbox
 			system_resource_manager.SetBoundProgramUniform(_shader_sampler_uniform_location, (int)_active_texture_index);
 		};
 
-		auto& mesh_primitives = system_resource_manager.GetMeshPrimitives(sponza_mesh);
+		auto& mesh_primitives = system_resource_manager.GetMeshPrimitives(mesh_to_render);
 		for (unsigned int i = 0; i < mesh_primitives.size(); ++i)
 		{
 			ResourceManager::mesh_primitive_data primitive = mesh_primitives[i];
@@ -336,6 +371,8 @@ namespace Sandbox
 			
 		}
 
+		// Render onto final framebuffer
+
 		system_resource_manager.UnbindFramebuffer();
 		glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -355,7 +392,10 @@ namespace Sandbox
 			GL_UNSIGNED_BYTE,
 			nullptr
 		));
+
+
 		glBindVertexArray(0);
+		
 	}
 
 	void Shutdown()

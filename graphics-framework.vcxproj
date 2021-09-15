@@ -156,6 +156,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="include\ImGui\imgui.cpp" />
+    <ClCompile Include="include\ImGui\imgui_demo.cpp" />
+    <ClCompile Include="include\ImGui\imgui_draw.cpp" />
+    <ClCompile Include="include\ImGui\imgui_impl_opengl3.cpp" />
+    <ClCompile Include="include\ImGui\imgui_impl_sdl.cpp" />
+    <ClCompile Include="include\ImGui\imgui_tables.cpp" />
+    <ClCompile Include="include\ImGui\imgui_widgets.cpp" />
+    <ClCompile Include="include\ImGui\misc\cpp\imgui_stdlib.cpp" />
+    <ClCompile Include="src\Engine\Editor\compile_imgui.cpp" />
+    <ClCompile Include="src\Engine\Editor\editor.cpp" />
     <ClCompile Include="src\Engine\Graphics\camera.cpp" />
     <ClCompile Include="src\Engine\Graphics\manager.cpp" />
     <ClCompile Include="src\Engine\Graphics\sdl_window.cpp" />
@@ -167,6 +177,18 @@
     <ClCompile Include="src\Sandbox\sandbox.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\ImGui\imconfig.h" />
+    <ClInclude Include="include\ImGui\imgui.h" />
+    <ClInclude Include="include\ImGui\imgui_impl_opengl3.h" />
+    <ClInclude Include="include\ImGui\imgui_impl_opengl3_loader.h" />
+    <ClInclude Include="include\ImGui\imgui_impl_sdl.h" />
+    <ClInclude Include="include\ImGui\imgui_internal.h" />
+    <ClInclude Include="include\ImGui\imstb_rectpack.h" />
+    <ClInclude Include="include\ImGui\imstb_textedit.h" />
+    <ClInclude Include="include\ImGui\imstb_truetype.h" />
+    <ClInclude Include="include\ImGui\misc\cpp\imgui_stdlib.h" />
+    <ClInclude Include="include\ImGui\misc\single_file\imgui_single_file.h" />
+    <ClInclude Include="src\Engine\Editor\editor.h" />
     <ClInclude Include="src\Engine\Graphics\camera.h" />
     <ClInclude Include="src\Engine\Graphics\manager.h" />
     <ClInclude Include="src\Engine\Graphics\sdl_window.h" />

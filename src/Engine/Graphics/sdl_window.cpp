@@ -3,6 +3,8 @@
 #include <Engine/Utils/singleton.h>
 #include <Engine/Managers/input.h>
 
+#include <Engine/Editor/editor.h>
+
 namespace Engine
 {
 	bool sdl_manager::setup(glm::uvec2 _window_size)
@@ -65,19 +67,29 @@ namespace Engine
 		SDL_Event event;
 		while (SDL_PollEvent(&event))
 		{
+			Singleton<Engine::Editor::Editor>().ProcessSDLEvent(&event);
 			switch (event.type)
 			{
 			case SDL_QUIT:	
 				m_want_quit = true; 
 				break;
 			case SDL_WINDOWEVENT:
-				if (event.window.event == SDL_WINDOWEVENT_CLOSE)
+				if (event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(m_window))
 					m_want_quit = true;
 				break;
 			}
 		}
-		Singleton<Engine::Managers::InputManager>().UpdateKeyboardState();
-		Singleton<Engine::Managers::InputManager>().UpdateMouseState();
+
+		bool grab_input_keyboard = true, grab_input_mouse = true;
+
+		auto& imgui_ui = ImGui::GetIO();
+		grab_input_keyboard = !imgui_ui.WantCaptureKeyboard;
+		grab_input_mouse = !imgui_ui.WantCaptureMouse;
+
+		printf("ImGui taking inputs of mouse (%u) and keyboard (%u).\r", (unsigned int)grab_input_mouse, (unsigned int)grab_input_keyboard);
+
+		Singleton<Engine::Managers::InputManager>().UpdateKeyboardState(grab_input_keyboard);
+		Singleton<Engine::Managers::InputManager>().UpdateMouseState(grab_input_mouse);
 	}
 
 	void sdl_manager::shutdown()
