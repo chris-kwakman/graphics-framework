@@ -9,9 +9,9 @@ namespace Graphics {
 	{
 		return glm::quatLookAt(glm::normalize(glm::cross(m_up, m_right)), m_up);
 	}
-	glm::mat4x4 camera::create_view_to_perspective_matrix(float _fov, float _aspect, float _near, float _far) const
+	glm::mat4x4 camera::create_view_to_perspective_matrix() const
 	{
-		return glm::perspective(_fov, _aspect, _near, _far);
+		return glm::perspective(m_fov_y, m_aspect_ratio, m_near, m_far);
 	}
 
 }

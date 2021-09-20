@@ -20,6 +20,8 @@ namespace Engine
 		bool setup(glm::uvec2 _window_size);
 		void update();
 		void shutdown();
+
+		glm::uvec2 get_window_size() const;
 	};
 
 }

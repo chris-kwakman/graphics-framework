@@ -106,4 +106,9 @@ namespace Engine
 
 		SDL_Quit();
 	}
+
+	glm::uvec2 sdl_manager::get_window_size() const
+	{
+		return glm::uvec2(m_surface->w, m_surface->h);
+	}
 }

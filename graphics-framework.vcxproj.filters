@@ -72,6 +72,9 @@
     <ClCompile Include="include\ImGui\imgui_impl_sdl.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\Engine\Graphics\light.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Sandbox\sandbox.h">
@@ -134,10 +137,19 @@
     <ClInclude Include="include\ImGui\imgui_impl_opengl3_loader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\Engine\Graphics\light.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="working_dir\data\shaders\deferred.frag" />
-    <None Include="working_dir\data\shaders\pbr.vert" />
     <None Include="working_dir\data\shaders\light_sphere_back.frag" />
+    <None Include="working_dir\data\shaders\phong.frag" />
+    <None Include="working_dir\data\shaders\display_framebuffer_ambient_light.frag" />
+    <None Include="working_dir\data\shaders\display_framebuffer.vert" />
+    <None Include="working_dir\data\shaders\display_framebuffer_plain.frag" />
+    <None Include="working_dir\data\shaders\default.vert" />
+    <None Include="working_dir\data\shaders\bloom.frag" />
+    <None Include="working_dir\data\shaders\postprocessing.frag" />
   </ItemGroup>
 </Project>

@@ -11,10 +11,14 @@ namespace Graphics {
 	struct camera
 	{
 		glm::vec3 m_right, m_up;
+		float m_fov_y;
+		float m_aspect_ratio;
+		float m_near;
+		float m_far;
 
 		glm::quat	get_lookat_quat() const;
 
-		glm::mat4x4 create_view_to_perspective_matrix(float _fov, float _aspect, float _near, float _far) const;
+		glm::mat4x4 create_view_to_perspective_matrix() const;
 	};
 
 }

@@ -545,7 +545,7 @@ namespace Graphics {
 	* Creates a new texture object in graphics manager.
 	* @return	texture_handle
 	*/
-	ResourceManager::texture_handle ResourceManager::CreateTexture()
+	ResourceManager::texture_handle ResourceManager::CreateTexture(const char* _debug_name)
 	{
 		GLuint gl_texture_object = 0;
 		glGenTextures(1, &gl_texture_object);
@@ -555,6 +555,7 @@ namespace Graphics {
 		new_texture_info.m_target = GL_INVALID_ENUM;
 		new_texture_info.m_size = glm::vec3(0, 0, 0);
 		m_texture_info_map.emplace(new_texture_handle, new_texture_info);
+		glObjectLabel(GL_TEXTURE, new_texture_info.m_gl_source_id, (GLsizei)strlen(_debug_name), _debug_name);
 		return new_texture_handle;
 	}
 
@@ -596,12 +597,20 @@ namespace Graphics {
 	* @param	glm::uvec2		Size of object in terms of texels.
 	* @param	uint			Mipmap level of texture
 	*/
-	void ResourceManager::SpecifyTexture2D(texture_handle _texture_handle, GLint _internal_format, glm::uvec2 _size, unsigned int _mipmap_level)
+	void ResourceManager::AllocateTextureStorage2D(
+		texture_handle _texture_handle, GLenum _internal_format, 
+		glm::uvec2 _size, 
+		texture_parameters _params,
+		unsigned int _texture_levels
+	)
 	{
-		SpecifyAndUploadTexture2D(
-			_texture_handle, _internal_format, _size, _mipmap_level,
-			GL_RGBA, GL_UNSIGNED_BYTE, nullptr
-		);
+		assert(_texture_levels >= 1);
+		texture_info& tex_info = set_texture_target_and_bind(_texture_handle, GL_TEXTURE_2D);
+		GfxCall(glTexStorage2D(
+			tex_info.m_target, _texture_levels, _internal_format,
+			(GLsizei)_size.x, (GLsizei)_size.y
+		));
+		SetTextureParameters(_texture_handle, _params);
 	}
 
 	/*
@@ -615,18 +624,18 @@ namespace Graphics {
 	* @param	void *			Pointer to texture data that will be uploaded. Can be nullptr.
 	*/
 	void ResourceManager::SpecifyAndUploadTexture2D(
-		texture_handle _texture_handle, GLint _internal_format, glm::uvec2 _size, unsigned int _mipmap_level, 
+		texture_handle _texture_handle, GLint _internal_format, glm::uvec2 _size, unsigned int _texture_levels,
 		GLenum _input_format, GLenum _input_component_type, void* _data
 	)
 	{
 		texture_info & tex_info = set_texture_target_and_bind(_texture_handle, GL_TEXTURE_2D);
 		GfxCall(glTexImage2D(
-			tex_info.m_target, _mipmap_level,
+			tex_info.m_target, _texture_levels,
 			_internal_format, (GLsizei)_size.x, (GLsizei)_size.y, 0, 
 			_input_format, _input_component_type, _data
 		));
-		tex_info.m_size = glm::vec3(_size, 1);
 		GfxCall(glGenerateMipmap(tex_info.m_target));
+		tex_info.m_size = glm::vec3(_size, 1);
 	}
 
 	/*
@@ -643,10 +652,10 @@ namespace Graphics {
 		switch (tex_info.m_target)
 		{
 		case GL_TEXTURE_3D:	
-			GfxCall(glTexParameteri(tex_info.m_target, GL_TEXTURE_WRAP_S, _params.m_wrap_r)); 
+			GfxCall(glTexParameteri(tex_info.m_target, GL_TEXTURE_WRAP_R, _params.m_wrap_r)); 
 			[[fallthrough]];
 		case GL_TEXTURE_2D:	
-			GfxCall(glTexParameteri(tex_info.m_target, GL_TEXTURE_WRAP_S, _params.m_wrap_t)); 
+			GfxCall(glTexParameteri(tex_info.m_target, GL_TEXTURE_WRAP_T, _params.m_wrap_t)); 
 			[[fallthrough]];
 		case GL_TEXTURE_1D: 
 			GfxCall(glTexParameteri(tex_info.m_target, GL_TEXTURE_WRAP_S, _params.m_wrap_s)); 
@@ -725,9 +734,9 @@ namespace Graphics {
 
 	void ResourceManager::DrawFramebuffers(framebuffer_handle _framebuffer, unsigned int _arr_size, GLenum const* _arr_attachment_points) const
 	{
-		framebuffer_info const info = BindFramebuffer(_framebuffer);
-		GfxCall(glDrawBuffers((GLsizei)_arr_size, _arr_attachment_points));
-		GLuint const complete_status = glCheckFramebufferStatus(info.m_target);
+		framebuffer_info const info = m_framebuffer_info_map.at(_framebuffer);
+		GfxCall(glNamedFramebufferDrawBuffers(info.m_gl_object, (GLsizei)_arr_size, _arr_attachment_points));
+		GLuint const complete_status = glCheckNamedFramebufferStatus(info.m_gl_object, info.m_target);
 		Engine::Utils::assert_print_error(
 			complete_status == GL_FRAMEBUFFER_COMPLETE,
 			"Framebuffer is not complete. Status 0x%X.", complete_status
@@ -933,6 +942,11 @@ namespace Graphics {
 	void ResourceManager::SetBoundProgramUniform(unsigned int _uniform_location, float _uniform_value)
 	{
 		GfxCall(glProgramUniform1f(m_bound_gl_program_object, _uniform_location, _uniform_value));
+	}
+
+	void ResourceManager::SetBoundProgramUniform(unsigned int _uniform_location, glm::uvec2 _uniform_value)
+	{
+		glProgramUniform2ui(m_bound_gl_program_object, _uniform_location, _uniform_value.x, _uniform_value.y);
 	}
 
 	void ResourceManager::SetBoundProgramUniform(unsigned int _uniform_location, glm::vec2 _uniform_value)

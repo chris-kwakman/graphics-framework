@@ -249,13 +249,18 @@ namespace Graphics {
 		};
 
 
-		texture_handle	CreateTexture();
+		texture_handle	CreateTexture(const char * _debug_name = nullptr);
 		void			DeleteTexture(texture_handle _texture_handle);
 		void			BindTexture(texture_handle _texture_handle) const;
 		texture_info	GetTextureInfo(texture_handle _texture_handle) const;
-		void SpecifyTexture2D(texture_handle _texture_handle, GLint	_internal_format, glm::uvec2 _size, unsigned int _mipmap_level = 0);
+		void AllocateTextureStorage2D(
+			texture_handle _texture_handle, GLenum _internal_format, 
+			glm::uvec2 _size, 
+			texture_parameters _params, 
+			unsigned int _texture_levels = 1
+		);
 		void SpecifyAndUploadTexture2D(
-			texture_handle _texture_handle, GLint _internal_format, glm::uvec2 _size, unsigned int _mipmap_level,
+			texture_handle _texture_handle, GLint _internal_format, glm::uvec2 _size, unsigned int _texture_levels,
 			GLenum _input_format, GLenum _input_component_type, void * _data
 		);
 		void SetTextureParameters(texture_handle _texture_handle, texture_parameters _params);
@@ -295,6 +300,7 @@ namespace Graphics {
 		void SetBoundProgramUniform(unsigned int _uniform_location, unsigned int _uniform_value);
 		void SetBoundProgramUniform(unsigned int _uniform_location, int _uniform_value);
 		void SetBoundProgramUniform(unsigned int _uniform_location, float _uniform_value);
+		void SetBoundProgramUniform(unsigned int _uniform_location, glm::uvec2 _uniform_value);
 		void SetBoundProgramUniform(unsigned int _uniform_location, glm::vec2 _uniform_value);
 		void SetBoundProgramUniform(unsigned int _uniform_location, glm::vec3 _uniform_value);
 		void SetBoundProgramUniform(unsigned int _uniform_location, glm::vec4 _uniform_value);

@@ -9,13 +9,15 @@ layout(location = 10) uniform float	u_alpha_cutoff;
 
 layout(location = 0) out float fb_depth;
 layout(location = 1) out vec3 fb_base_color;
-layout(location = 2) out vec2 fb_metallic_roughness;
+layout(location = 2) out vec3 fb_metallic_roughness;
 layout(location = 3) out vec3 fb_normal;
 
 in vec3 f_pos;
-in vec3 f_normal;
-in vec4 f_tangent;
 in vec2 f_uv_1;
+in mat3 f_vTBN;
+
+in vec3 f_normal;
+in vec3 f_tangent;
 
 out vec4 out_color;
 
@@ -27,15 +29,19 @@ void main()
 
 	fb_depth = 0.0f;
 	fb_base_color = frag_color.rgb;
-	vec2 out_roughness = texture(u_sampler_metallic_roughness, f_uv_1).rg;
-	out_roughness.r = max(0.01, out_roughness.r);
-	fb_metallic_roughness = out_roughness;
-	fb_normal = vec3(f_normal.x, f_normal.y, -f_normal.z);
+	fb_metallic_roughness = texture(u_sampler_metallic_roughness, f_uv_1).rgb;
+	
 
-	//frag_color = vec4(texture(u_sampler_metallic_roughness, f_uv_1).rg, 0.0, 1.0);
-	//frag_color = vec4(texture(u_sampler_normal, f_uv_1).rgb, 1.0);
+	// Create TBN matrix using Gramm-Schmidt method to re-orthoganalize normal / tangent vectors
+	vec3 normal = normalize(f_normal);
+	vec3 tangent = normalize(f_tangent);
+	tangent = normalize(tangent - dot(tangent, normal) * normal);
+	vec3 bitangent = cross(tangent, normal);
+	mat3 TBN = mat3(tangent, bitangent, normal);
 
-	//frag_color = vec4(f_uv_1.x, f_uv_1.y, 0.0, 1.0);
-	//frag_color = vec4(f_normal.x, f_normal.y, -f_normal.z, 1.0f);
-	//frag_color = vec4(f_tangent.x, f_tangent.y, f_tangent.z, 1.0f);
+	// Convert normals in texture from [0,1] range to [-1,1] range.
+	fb_normal = normalize(texture(u_sampler_normal, f_uv_1).xyz * vec3(2) - vec3(1));
+	fb_normal = normalize(TBN * fb_normal);
+	fb_normal = (fb_normal + vec3(1)) * vec3(0.5);
+
 }
