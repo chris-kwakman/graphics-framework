@@ -62,7 +62,7 @@ void update_loop()
 	}
 }
 
-int main()
+int main(int argc, char* argv[])
 {
 	std::string const cwd = std::filesystem::current_path().string();
 	printf("Working directory: %s\n", cwd.c_str());
@@ -72,7 +72,7 @@ int main()
 	if (sdl_manager.setup(glm::uvec2(SCREEN_WIDTH, SCREEN_HEIGHT)))
 	{
 		Singleton<Engine::Editor::Editor>().Initialise();
-		if (Sandbox::Initialize())
+		if (Sandbox::Initialize(argc, argv))
 			update_loop();
 		else
 			std::cout << "Sandbox initialization failed.\n";

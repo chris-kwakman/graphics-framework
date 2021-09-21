@@ -16,6 +16,8 @@
 
 #include <GLM/gtx/quaternion.hpp>
 
+#include <string>
+
 #include <ImGui/imgui_internal.h> // SetWindowHitTestHole()
 
 #include <math.h>
@@ -24,6 +26,9 @@
 
 namespace Sandbox
 {
+
+	static bool s_bool_save_screenshot = false;
+	static std::string s_saved_screenshot_name;
 
 	// Saves the front framebuffer to an image with the specified filename
 	// Call it after swapping buffers to make sure you save the last frame rendered
@@ -206,7 +211,7 @@ namespace Sandbox
 		glBindVertexArray(0);
 	}
 
-	bool Initialize()
+	bool Initialize(int argc, char* argv[])
 	{
 		Engine::Graphics::ResourceManager & system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
 		system_resource_manager.Reset();
@@ -227,6 +232,14 @@ namespace Sandbox
 		GfxCall(glDepthRange(-1.0f, 1.0f));
 
 		s_camera_transform.position = glm::vec3(0.0f, 0.0f, 0.0f);
+
+		if (argc >= 3)
+		{
+			s_bool_save_screenshot = true;
+			s_saved_screenshot_name = std::string(argv[2]);
+			// Request quit right away.
+			Singleton<Engine::sdl_manager>().m_want_quit = true;
+		}
 
 		return success;
 	}
@@ -644,6 +657,9 @@ namespace Sandbox
 	
 		}
 		ImGui::End();
+
+		if (s_bool_save_screenshot)
+			SaveScreenShot(s_saved_screenshot_name.c_str());
 	}
 
 	void Shutdown()

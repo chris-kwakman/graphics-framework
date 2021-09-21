@@ -333,3 +333,5 @@ ASALocalRun/
 # Local History for Visual Studio
 .localhistory/
 working_dir/imgui.ini
+working_dir/imgui.ini
+*.png

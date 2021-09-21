@@ -3,7 +3,7 @@
 
 namespace Sandbox
 {
-	bool Initialize();
+	bool Initialize(int argc, char * argv[]);
 	void Update();
 	void Shutdown();
 
