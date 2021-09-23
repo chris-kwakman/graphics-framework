@@ -1,6 +1,8 @@
 #include "entity.h"
 #include <cassert>
 
+#include <Engine/Utils/singleton.h>
+
 namespace Engine {
 namespace ECS {
 
@@ -36,7 +38,7 @@ namespace ECS {
 		unsigned int i = m_entity_id_iter;
 		do
 		{
-			if (m_entity_in_use_flag.test(i))
+			if (!m_entity_in_use_flag.test(i))
 			{
 				temp_handle_idx_arr[i] = i;
 				handles_found++;
@@ -123,5 +125,10 @@ namespace ECS {
 	}
 
 	
+	bool entity_handle::is_alive() const
+	{
+		return Singleton<EntityManager>().DoesEntityExist(*this);
+	}
+
 }
 }

@@ -10,45 +10,49 @@
 namespace Engine {
 namespace ECS {
 
-	template<
-		unsigned int T_BYTE_SIZE_POW_2 = 1,
-		unsigned int T_COUNTER_BITS = 2
-	>
-	struct handle_type
+	struct entity_handle
 	{
-		static unsigned int constexpr HANDLE_BITS = 8*(1 << T_BYTE_SIZE_POW_2);
-		static unsigned int constexpr COUNTER_BITS = T_COUNTER_BITS;
-		static unsigned int constexpr ID_BITS = HANDLE_BITS - COUNTER_BITS;
-		static unsigned int constexpr INVALID_ID = (1 << ID_BITS) - 1;
-
-		uint16_t id() const { return m_id; }
-
-		bool operator==(handle_type _other) const { return m_data == _other.m_data; }
-		bool operator!=(handle_type _other) const { return m_data != _other.m_data; }
-
-		// Comparison operators used for sorting.
-		bool operator<(handle_type _other) const { return m_id < _other.m_id; }
-		bool operator>(handle_type _other) const { return m_id > _other.m_id; }
-
-	protected:
-
-		uint16_t counter() const { return m_counter; }
+		static unsigned int const ID_BITS = 12;
+		static unsigned int const COUNTER_BITS = 4;
+		static unsigned int const INVALID_ID = (1 << ID_BITS) - 1;
 
 		union
 		{
 			uint16_t m_data = INVALID_ID;
+			static_assert(COUNTER_BITS + ID_BITS == sizeof(m_data) * 8);
 			struct
 			{
-				uint16_t m_counter : COUNTER_BITS;
-				uint16_t m_id : ID_BITS;
+				decltype(m_data) m_counter : COUNTER_BITS;
+				decltype(m_data) m_id : ID_BITS;
 			};
 		};
 
-		static_assert((COUNTER_BITS + ID_BITS) / 8 == sizeof(m_data));
-	};
+		struct hash
+		{
+			std::size_t operator()(entity_handle _handle) const {
+				return std::hash<uint16_t>()(_handle.id());
+			}
+		};
 
-	struct entity_handle : public handle_type<1, 2>
-	{
+		entity_handle() = default;
+		entity_handle(entity_handle const& _other) = default;
+		entity_handle(entity_handle&& _other) = default;
+
+		entity_handle& operator=(entity_handle const& _other) = default;
+		entity_handle& operator=(entity_handle&& _other) noexcept = default;
+
+		uint16_t id() const { return m_id; }
+		uint16_t counter() const { return m_counter; }
+
+		bool operator==(entity_handle const & _other) const { return m_data == _other.m_data; }
+		bool operator!=(entity_handle const & _other) const { return m_data != _other.m_data; }
+
+		// Comparison operators used for sorting.
+		bool operator<(entity_handle const & _other) const { return m_id < _other.m_id; }
+		bool operator>(entity_handle const & _other) const { return m_id > _other.m_id; }
+
+		bool is_alive() const;
+
 		friend class EntityManager;
 	};
 
@@ -67,7 +71,7 @@ namespace ECS {
 
 		unsigned int				m_entity_id_iter = 0;
 
-		std::unordered_set<entity_handle>		m_entity_deletion_queue;
+		std::unordered_set<entity_handle, entity_handle::hash>	m_entity_deletion_queue;
 
 	public:
 
