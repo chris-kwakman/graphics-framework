@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "Engine/Graphics/sdl_window.h"
 #include "Engine/Utils/singleton.h"
+#include "Engine/ECS/entity.h"
 
 #include "Sandbox/sandbox.h"
 
@@ -25,7 +26,7 @@ void update_loop()
 {
 	auto frame_start = std::chrono::high_resolution_clock::now();
 	frametime = ms(0);
-	
+
 	while (true)
 	{
 		auto frame_end = std::chrono::high_resolution_clock::now();
@@ -50,6 +51,8 @@ void update_loop()
 
 		Sandbox::Update();
 
+		Singleton<Engine::ECS::EntityManager>().FreeQueuedEntities();
+
 		SDL_GL_SwapWindow(Singleton<Engine::sdl_manager>().m_window);
 
 		if (sdl_manager.m_want_quit)
@@ -66,6 +69,7 @@ int main()
 	Engine::sdl_manager& sdl_manager = Singleton<Engine::sdl_manager>();
 	if (sdl_manager.setup(glm::uvec2(SCREEN_WIDTH, SCREEN_HEIGHT)))
 	{
+		Singleton<Engine::ECS::EntityManager>().Reset();
 		if (Sandbox::Initialize())
 			update_loop();
 		else

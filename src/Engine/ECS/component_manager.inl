@@ -26,38 +26,48 @@ namespace ECS {
 	}
 
 	///////////////////////////////////////////////////////////////
-	//						ICompManager<TComp>
+	//						TCompManager<TComp>
 	///////////////////////////////////////////////////////////////
 
 
 	template<class TComp>
-	inline void ICompManager<TComp>::Clear()
+	inline void TCompManager<TComp>::Clear()
 	{
 		impl_clear();
 	}
 
 	template<class TComp>
-	inline typename ICompManager<TComp>::comp_type ICompManager<TComp>::Create(entity_handle _entity)
+	inline typename TCompManager<TComp>::comp_type TCompManager<TComp>::Create(entity_handle _entity)
 	{
+		// Only start listening for entity destruction message the first time we create a component.
+		// TODO: Do this on application initialization instead.
+		register_for_entity_destruction_message();
+
 		return TComp( impl_create(_entity) ? _entity : entity_handle() );
 	}
 
 	template<class TComp>
-	inline void ICompManager<TComp>::Destroy(entity_handle const* _entities, unsigned int _count)
+	inline void TCompManager<TComp>::Destroy(entity_handle const* _entities, unsigned int _count)
 	{
 		impl_destroy(_entities, _count);
 	}
 
 	template<class TComp>
-	inline bool ICompManager<TComp>::ComponentOwnedByEntity(entity_handle _entity) const
+	inline bool TCompManager<TComp>::ComponentOwnedByEntity(entity_handle _entity) const
 	{
 		return impl_component_owned_by_entity(_entity);
 	}
 
 	template<class TComp>
-	inline TComp ICompManager<TComp>::Get(entity_handle _entity) const
+	inline TComp TCompManager<TComp>::Get(entity_handle _entity) const
 	{
 		return TComp(ComponentOwnedByEntity(_entity) ? _entity : entity_handle());
+	}
+
+	template<class TComp>
+	inline void TCompManager<TComp>::receive_entity_destruction_message(std::vector<entity_handle> const& _destroyed_entities)
+	{
+		Destroy(&_destroyed_entities.front(), _destroyed_entities.size());
 	}
 
 }

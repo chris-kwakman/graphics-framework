@@ -45,6 +45,9 @@
     <ClCompile Include="src\Engine\ECS\entity.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\Engine\ECS\component_manager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Sandbox\sandbox.h">

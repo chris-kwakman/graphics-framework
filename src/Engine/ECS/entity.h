@@ -10,6 +10,8 @@
 namespace Engine {
 namespace ECS {
 
+	class ICompManager;
+
 	struct entity_handle
 	{
 		static unsigned int const ID_BITS = 12;
@@ -41,8 +43,9 @@ namespace ECS {
 		entity_handle& operator=(entity_handle const& _other) = default;
 		entity_handle& operator=(entity_handle&& _other) noexcept = default;
 
-		uint16_t id() const { return m_id; }
-		uint16_t counter() const { return m_counter; }
+		uint16_t	id() const { return m_id; }
+		uint16_t	counter() const { return m_counter; }
+		void		delayed_destruction();
 
 		bool operator==(entity_handle const & _other) const { return m_data == _other.m_data; }
 		bool operator!=(entity_handle const & _other) const { return m_data != _other.m_data; }
@@ -73,8 +76,11 @@ namespace ECS {
 
 		std::unordered_set<entity_handle, entity_handle::hash>	m_entity_deletion_queue;
 
+		std::unordered_multiset<ICompManager*, std::hash<ICompManager*>> m_registered_component_managers;
+
 	public:
 
+		void			Reset();
 		entity_handle	EntityCreationRequest();
 		bool			EntityCreationRequest(entity_handle* _out_handles, unsigned int _request_count);
 		void			EntityDelayedDeletion(entity_handle _entity);
@@ -82,6 +88,8 @@ namespace ECS {
 		bool			DoesEntityExist(entity_handle _entity) const;
 
 		std::vector<entity_handle> const FreeQueuedEntities();
+
+		void RegisterComponentManager(ICompManager* _component_manager);
 	};
 
 }

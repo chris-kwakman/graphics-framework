@@ -16,8 +16,6 @@
 
 #include <math.h>
 
-#include <Engine/ECS/component_manager.h>
-
 # define MATH_PI           3.14159265358979323846f
 
 namespace Sandbox
@@ -55,54 +53,8 @@ namespace Sandbox
 
 	Engine::Math::transform3D camera_transform;
 
-
-	struct MyComp;
-	class MyCompManager : public Engine::ECS::ICompManager<MyComp>
-	{
-		void impl_clear()
-		{
-			m_entity_map.clear();
-		}
-
-		bool impl_create(Engine::ECS::entity_handle _e)
-		{
-			m_entity_map.emplace(_e, m_entity_map.size()+2);
-			return true;
-		}
-
-		void impl_destroy(Engine::ECS::entity_handle const * _entities, unsigned int _count)
-		{
-			for (unsigned int i = 0; i < _count; i++)
-				m_entity_map.erase(_entities[i]);
-		}
-
-		bool impl_component_owned_by_entity(Engine::ECS::entity_handle _e) const
-		{
-			return m_entity_map.find(_e) != m_entity_map.end();
-		}
-
-		const char* GetComponentName() const { return "MyComp"; }
-
-		friend struct MyComp;
-
-		std::unordered_map<Engine::ECS::entity_handle, unsigned int, Engine::ECS::entity_handle::hash> m_entity_map;
-	};
-	struct MyComp : public Engine::ECS::IComp<MyCompManager>
-	{
-		DECLARE_COMPONENT(MyComp);
-		unsigned int get_value() const {
-			return get_manager().m_entity_map.at(m_owner);
-		}
-	};
-
 	bool Initialize()
 	{
-		Engine::ECS::entity_handle entity;
-		Singleton<Engine::ECS::EntityManager>().EntityCreationRequest(&entity, 1);
-
-		MyComp new_comp = MyComp::Create(entity);
-
-		printf("MyComp value: %d\n", new_comp.get_value());
 
 		Engine::Graphics::ResourceManager & system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
 		system_resource_manager.Reset();

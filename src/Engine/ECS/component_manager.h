@@ -5,64 +5,84 @@
 #include <Engine/Utils/singleton.h>
 
 namespace Engine {
-	namespace ECS {
+namespace ECS {
 
 #define DECLARE_COMPONENT(TComp) using IComp::IComp;
+#define REGISTER_COMPONENT(TComp) ;
 
-		template<class TCompManager>
-		struct IComp
-		{
-			typedef TCompManager comp_Manager;
+	template<class TCompManager>
+	struct IComp
+	{
+		typedef TCompManager comp_Manager;
 			
-			IComp(entity_handle _e = entity_handle()) : m_owner(_e) {}
-			IComp(IComp const & _other) : m_owner(_other.m_owner) {}
+		IComp(entity_handle _e = entity_handle()) : m_owner(_e) {}
+		IComp(IComp const & _other) : m_owner(_other.m_owner) {}
 
-			IComp& operator=(IComp const& _other) { m_owner = _other.m_owner; return *this; }
-			bool operator==(IComp const& _other) { return m_owner == _other.m_owner; }
+		IComp& operator=(IComp const& _other) { m_owner = _other.m_owner; return *this; }
+		bool operator==(IComp const& _other) { return m_owner == _other.m_owner; }
 
-			bool IsValid() const;
-			void Destroy();
+		bool IsValid() const;
+		void Destroy();
 
-			// Shorthand for creating a component type.
-			// Forwards to component manager.
-			static inline typename TCompManager::comp_type Create(entity_handle _e);
+		// Shorthand for creating a component type.
+		// Forwards to component manager.
+		static inline typename TCompManager::comp_type Create(entity_handle _e);
 
-			friend typename TCompManager;
+		friend typename TCompManager;
 
-		protected:
+	protected:
 
-			static inline TCompManager& get_manager() { return Singleton<TCompManager>(); }
+		static inline TCompManager& get_manager() { return Singleton<TCompManager>(); }
 
-			entity_handle m_owner;
-		};
+		entity_handle m_owner;
+	};
 
-		template<class TComp>
-		class ICompManager
-		{
-		public:
+	class ICompManager
+	{
+	protected:
 
-			typedef TComp comp_type;
+		void register_for_entity_destruction_message();
 
-			void			Clear();
+	public:
 
-			comp_type		Create(entity_handle _entity);
-			void			Destroy(entity_handle const * _entities, unsigned int _count);
+		virtual void receive_entity_destruction_message(std::vector<entity_handle> const& _destroyed_entities) = 0;
 
-			bool			ComponentOwnedByEntity(entity_handle _entity) const;
-			TComp			Get(entity_handle _entity) const;
+	private:
 
-			virtual const char* GetComponentName() const = 0;
+		bool m_registered_for_entity_destruction_message = false;
+	};
 
-		protected:
+	template<class TComp>
+	class TCompManager : protected ICompManager
+	{
+	public:
 
-			virtual void impl_clear() = 0;
+		typedef TComp comp_type;
 
-			virtual bool impl_create(entity_handle _e) = 0;
-			virtual void impl_destroy(entity_handle const * _entities, unsigned int _count) = 0;
-			virtual bool impl_component_owned_by_entity(entity_handle _entity) const = 0;
-		};
+		void			Clear();
 
-	}
+		comp_type		Create(entity_handle _entity);
+		void			Destroy(entity_handle const * _entities, unsigned int _count);
+
+		bool			ComponentOwnedByEntity(entity_handle _entity) const;
+		TComp			Get(entity_handle _entity) const;
+
+		virtual const char* GetComponentName() const = 0;
+
+	protected:
+
+		virtual void impl_clear() = 0;
+
+		virtual bool impl_create(entity_handle _e) = 0;
+		virtual void impl_destroy(entity_handle const * _entities, unsigned int _count) = 0;
+		virtual bool impl_component_owned_by_entity(entity_handle _entity) const = 0;
+
+	private:
+
+		void receive_entity_destruction_message(std::vector<entity_handle> const& _destroyed_entities) final;
+	};
+
+}
 }
 
 #include "component_manager.inl"  
