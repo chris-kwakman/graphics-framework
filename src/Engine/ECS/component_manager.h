@@ -15,7 +15,7 @@ namespace ECS {
 	{
 		typedef TCompManager comp_Manager;
 			
-		IComp(entity_handle _e = entity_handle()) : m_owner(_e) {}
+		IComp(Entity _e = Entity()) : m_owner(_e) {}
 		IComp(IComp const & _other) : m_owner(_other.m_owner) {}
 
 		IComp& operator=(IComp const& _other) { m_owner = _other.m_owner; return *this; }
@@ -26,15 +26,16 @@ namespace ECS {
 
 		// Shorthand for creating a component type.
 		// Forwards to component manager.
-		static inline typename TCompManager::comp_type Create(entity_handle _e);
+		static inline typename TCompManager::comp_type Create(Entity _e);
 
 		friend typename TCompManager;
+		friend struct Entity;
 
 	protected:
 
 		static inline TCompManager& get_manager() { return Singleton<TCompManager>(); }
 
-		entity_handle m_owner;
+		Entity m_owner;
 	};
 
 	class ICompManager
@@ -45,7 +46,7 @@ namespace ECS {
 
 	public:
 
-		virtual void receive_entity_destruction_message(std::vector<entity_handle> const& _destroyed_entities) = 0;
+		virtual void receive_entity_destruction_message(std::vector<Entity> const& _destroyed_entities) = 0;
 
 	private:
 
@@ -61,11 +62,11 @@ namespace ECS {
 
 		void			Clear();
 
-		comp_type		Create(entity_handle _entity);
-		void			Destroy(entity_handle const * _entities, unsigned int _count);
+		comp_type		Create(Entity _entity);
+		void			Destroy(Entity const * _entities, unsigned int _count);
 
-		bool			ComponentOwnedByEntity(entity_handle _entity) const;
-		TComp			Get(entity_handle _entity) const;
+		bool			ComponentOwnedByEntity(Entity _entity) const;
+		TComp			Get(Entity _entity) const;
 
 		virtual const char* GetComponentName() const = 0;
 
@@ -73,13 +74,13 @@ namespace ECS {
 
 		virtual void impl_clear() = 0;
 
-		virtual bool impl_create(entity_handle _e) = 0;
-		virtual void impl_destroy(entity_handle const * _entities, unsigned int _count) = 0;
-		virtual bool impl_component_owned_by_entity(entity_handle _entity) const = 0;
+		virtual bool impl_create(Entity _e) = 0;
+		virtual void impl_destroy(Entity const * _entities, unsigned int _count) = 0;
+		virtual bool impl_component_owned_by_entity(Entity _entity) const = 0;
 
 	private:
 
-		void receive_entity_destruction_message(std::vector<entity_handle> const& _destroyed_entities) final;
+		void receive_entity_destruction_message(std::vector<Entity> const& _destroyed_entities) final;
 	};
 
 }

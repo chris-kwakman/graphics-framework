@@ -12,7 +12,7 @@ namespace ECS {
 
 	class ICompManager;
 
-	struct entity_handle
+	struct Entity
 	{
 		static unsigned int const ID_BITS = 12;
 		static unsigned int const COUNTER_BITS = 4;
@@ -31,30 +31,32 @@ namespace ECS {
 
 		struct hash
 		{
-			std::size_t operator()(entity_handle _handle) const {
-				return std::hash<uint16_t>()(_handle.id());
+			std::size_t operator()(Entity _handle) const {
+				return std::hash<uint16_t>()(_handle.ID());
 			}
 		};
 
-		entity_handle() = default;
-		entity_handle(entity_handle const& _other) = default;
-		entity_handle(entity_handle&& _other) = default;
+		Entity() = default;
+		Entity(Entity const& _other) = default;
+		Entity(Entity&& _other) = default;
 
-		entity_handle& operator=(entity_handle const& _other) = default;
-		entity_handle& operator=(entity_handle&& _other) noexcept = default;
+		Entity& operator=(Entity const& _other) = default;
+		Entity& operator=(Entity&& _other) noexcept = default;
 
-		uint16_t	id() const { return m_id; }
-		uint16_t	counter() const { return m_counter; }
-		void		delayed_destruction();
+		uint16_t	ID() const { return m_id; }
+		uint16_t	Counter() const { return m_counter; }
+		void		DestroyEndOfFrame();
+		bool		Alive() const;
 
-		bool operator==(entity_handle const & _other) const { return m_data == _other.m_data; }
-		bool operator!=(entity_handle const & _other) const { return m_data != _other.m_data; }
+		bool operator==(Entity const & _other) const { return m_data == _other.m_data; }
+		bool operator!=(Entity const & _other) const { return m_data != _other.m_data; }
 
 		// Comparison operators used for sorting.
-		bool operator<(entity_handle const & _other) const { return m_id < _other.m_id; }
-		bool operator>(entity_handle const & _other) const { return m_id > _other.m_id; }
+		bool operator<(Entity const & _other) const { return m_id < _other.m_id; }
+		bool operator>(Entity const & _other) const { return m_id > _other.m_id; }
 
-		bool is_alive() const;
+		template<typename TComp>
+		TComp GetComponent() const;
 
 		friend class EntityManager;
 	};
@@ -63,31 +65,31 @@ namespace ECS {
 	{
 	public:
 
-		static unsigned int constexpr MAX_ENTITIES = (1 << entity_handle::ID_BITS) - 1;
+		static unsigned int constexpr MAX_ENTITIES = (1 << Entity::ID_BITS) - 1;
 
 	private:
 
 		// Stores whether an entity ID is currently in use (ID == index in bitset)
 		std::bitset<MAX_ENTITIES>	m_entity_in_use_flag;
-		// Stores counter of how many times an ID has been used (ID == index in array)
+		// Stores Counter of how many times an ID has been used (ID == index in array)
 		uint8_t						m_entity_counters[MAX_ENTITIES];
 
 		unsigned int				m_entity_id_iter = 0;
 
-		std::unordered_set<entity_handle, entity_handle::hash>	m_entity_deletion_queue;
+		std::unordered_set<Entity, Entity::hash>	m_entity_deletion_queue;
 
 		std::unordered_multiset<ICompManager*, std::hash<ICompManager*>> m_registered_component_managers;
 
 	public:
 
 		void			Reset();
-		entity_handle	EntityCreationRequest();
-		bool			EntityCreationRequest(entity_handle* _out_handles, unsigned int _request_count);
-		void			EntityDelayedDeletion(entity_handle _entity);
-		void			EntityDelayedDeletion(entity_handle* _entities, unsigned int _entity_count);
-		bool			DoesEntityExist(entity_handle _entity) const;
+		Entity	EntityCreationRequest();
+		bool			EntityCreationRequest(Entity* _out_handles, unsigned int _request_count);
+		void			EntityDelayedDeletion(Entity _entity);
+		void			EntityDelayedDeletion(Entity* _entities, unsigned int _entity_count);
+		bool			DoesEntityExist(Entity _entity) const;
 
-		std::vector<entity_handle> const FreeQueuedEntities();
+		std::vector<Entity> const FreeQueuedEntities();
 
 		void RegisterComponentManager(ICompManager* _component_manager);
 	};

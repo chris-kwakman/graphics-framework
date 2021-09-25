@@ -15,7 +15,7 @@ namespace ECS {
 	{
 		for (unsigned int i = 0; i < MAX_ENTITIES; ++i)
 		{
-			entity_handle new_entity;
+			Entity new_entity;
 			new_entity.m_id = i;
 			m_entity_deletion_queue.insert(new_entity);
 		}
@@ -29,24 +29,24 @@ namespace ECS {
 
 	/*
 	* Create a single entity handle
-	* @return	entity_handle		ID is invalid if handle could not be created.
+	* @return	Entity		ID is invalid if handle could not be created.
 	*/
-	entity_handle EntityManager::EntityCreationRequest()
+	Entity EntityManager::EntityCreationRequest()
 	{
-		entity_handle _out_handle;
+		Entity _out_handle;
 		if (!EntityCreationRequest(&_out_handle, 1))
-			_out_handle.m_id = entity_handle::INVALID_ID;
+			_out_handle.m_id = Entity::INVALID_ID;
 		return _out_handle;
 	}
 
 	/*
 	* Create multiple entity handles
-	* @param	entity_handle *		Array that created handles will be output to.
+	* @param	Entity *		Array that created handles will be output to.
 	* @param	unsigned int		Number of handles that user wishes to create
 	* @return	bool				False if we could not create all handles.
-	* @detail	If the function returns false, the input entity_handle array is not modified.
+	* @detail	If the function returns false, the input Entity array is not modified.
 	*/
-	bool EntityManager::EntityCreationRequest(entity_handle* _out_handles, unsigned int _request_count)
+	bool EntityManager::EntityCreationRequest(Entity* _out_handles, unsigned int _request_count)
 	{
 		if (_request_count == 0)
 			return true;
@@ -71,7 +71,7 @@ namespace ECS {
 		{
 			for (unsigned int i = 0; i < _request_count; i++)
 			{
-				entity_handle new_handle;
+				Entity new_handle;
 				new_handle.m_id = temp_handle_idx_arr[i];
 				new_handle.m_counter = m_entity_counters[temp_handle_idx_arr[i]];
 				m_entity_in_use_flag.set(temp_handle_idx_arr[i]);
@@ -85,22 +85,22 @@ namespace ECS {
 
 	/*
 	* Request input entity to be deleted at end of frame.
-	* @param	entity_handle		Entity to delete
+	* @param	Entity		Entity to delete
 	*/
-	void EntityManager::EntityDelayedDeletion(entity_handle _entity)
+	void EntityManager::EntityDelayedDeletion(Entity _entity)
 	{
 		EntityDelayedDeletion(&_entity, 1);
 	}
 
 	/*
 	* Request input entities to be deleted at end of frame.
-	* @param	entity_handle *		Array of entities to delete
+	* @param	Entity *		Array of entities to delete
 	* @param	unsigned int		Size of array
 	*/
-	void EntityManager::EntityDelayedDeletion(entity_handle* _entities, unsigned int _entity_count)
+	void EntityManager::EntityDelayedDeletion(Entity* _entities, unsigned int _entity_count)
 	{
 		assert(_entities);
-		std::vector<entity_handle> existing_entities;
+		std::vector<Entity> existing_entities;
 		existing_entities.reserve(_entity_count);
 		for (unsigned int i = 0; i < _entity_count; ++i)
 		{
@@ -115,23 +115,23 @@ namespace ECS {
 
 	/*
 	* Checks if given entity is still "alive" (i.e. in use)
-	* @param	entity_handle		Entity to check
+	* @param	Entity		Entity to check
 	* @return	bool				True if entity is still in use
 	*/
-	bool EntityManager::DoesEntityExist(entity_handle _entity) const
+	bool EntityManager::DoesEntityExist(Entity _entity) const
 	{
 		return m_entity_in_use_flag.test(_entity.m_id) && (m_entity_deletion_queue.find(_entity) == m_entity_deletion_queue.end());
 	}
 
 	/*
 	* Free entities queued for destruction internally
-	* @return	std::vector<entity_handle> const 	List of entities that should be passed to all component systems
+	* @return	std::vector<Entity> const 	List of entities that should be passed to all component systems
 	*												in order to delete components belonging to these entities.
 	*/
-	std::vector<entity_handle> const EntityManager::FreeQueuedEntities()
+	std::vector<Entity> const EntityManager::FreeQueuedEntities()
 	{
 		// Store entities queued for deletion in list
-		std::vector<entity_handle> deleted_entities;
+		std::vector<Entity> deleted_entities;
 		if (!m_entity_deletion_queue.empty())
 		{
 
@@ -146,8 +146,8 @@ namespace ECS {
 			m_entity_deletion_queue.clear();
 			for (unsigned int i = 0; i < deleted_entities.size(); ++i)
 			{
-				m_entity_counters[deleted_entities[i].id()]++;
-				m_entity_in_use_flag.reset(deleted_entities[i].id());
+				m_entity_counters[deleted_entities[i].ID()]++;
+				m_entity_in_use_flag.reset(deleted_entities[i].ID());
 			}
 
 		}
@@ -160,12 +160,12 @@ namespace ECS {
 	}
 
 	
-	void entity_handle::delayed_destruction()
+	void Entity::DestroyEndOfFrame()
 	{
 		Singleton<EntityManager>().EntityDelayedDeletion(*this);
 	}
 
-	bool entity_handle::is_alive() const
+	bool Entity::Alive() const
 	{
 		return Singleton<EntityManager>().DoesEntityExist(*this);
 	}
