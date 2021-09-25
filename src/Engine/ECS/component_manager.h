@@ -13,7 +13,7 @@ namespace ECS {
 	template<class TCompManager>
 	struct IComp
 	{
-		typedef TCompManager comp_Manager;
+		typedef TCompManager comp_manager;
 			
 		IComp(Entity _e = Entity()) : m_owner(_e) {}
 		IComp(IComp const & _other) : m_owner(_other.m_owner) {}
@@ -26,7 +26,7 @@ namespace ECS {
 
 		// Shorthand for creating a component type.
 		// Forwards to component manager.
-		static inline typename TCompManager::comp_type Create(Entity _e);
+		//static typename TCompManager::comp_type Create(Entity _e);
 
 		friend typename TCompManager;
 		friend struct Entity;
@@ -68,6 +68,8 @@ namespace ECS {
 		bool			ComponentOwnedByEntity(Entity _entity) const;
 		TComp			Get(Entity _entity) const;
 
+		void			EditComponent(Entity _entity);
+
 		virtual const char* GetComponentName() const = 0;
 
 	protected:
@@ -77,6 +79,8 @@ namespace ECS {
 		virtual bool impl_create(Entity _e) = 0;
 		virtual void impl_destroy(Entity const * _entities, unsigned int _count) = 0;
 		virtual bool impl_component_owned_by_entity(Entity _entity) const = 0;
+		virtual void impl_edit_component(Entity _entity) = 0;
+
 
 	private:
 

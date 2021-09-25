@@ -19,11 +19,11 @@ namespace ECS {
 		get_manager().Destroy(&m_owner, 1);
 	}
 
-	template<class TCompManager>
+	/*template<class TCompManager>
 	inline typename TCompManager::comp_type IComp<TCompManager>::Create(Entity _e)
 	{
 		return get_manager().Create(_e);
-	}
+	}*/
 
 	///////////////////////////////////////////////////////////////
 	//						TCompManager<TComp>
@@ -65,9 +65,16 @@ namespace ECS {
 	}
 
 	template<class TComp>
+	inline void TCompManager<TComp>::EditComponent(Entity _entity)
+	{
+		if (ComponentOwnedByEntity(_entity))
+			impl_edit_component(_entity);
+	}
+
+	template<class TComp>
 	inline void TCompManager<TComp>::receive_entity_destruction_message(std::vector<Entity> const& _destroyed_entities)
 	{
-		Destroy(&_destroyed_entities.front(), _destroyed_entities.size());
+		Destroy(&_destroyed_entities.front(), (unsigned int)_destroyed_entities.size());
 	}
 
 

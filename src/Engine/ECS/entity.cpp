@@ -7,6 +7,8 @@
 namespace Engine {
 namespace ECS {
 
+	Entity const Entity::InvalidEntity;
+
 	/*
 	* Reset manager to base state. ASSUMES ALL PREVIOUS ENTITY HANDLES ARE NOT BEING USED.
 	* @detail	Registered component managers are maintained however.
@@ -65,6 +67,7 @@ namespace ECS {
 				handles_found++;
 			}
 		} while (handles_found != _request_count && (++i % MAX_ENTITIES) != m_entity_id_iter);
+		m_entity_id_iter = i + 1;
 
 		bool found_requested_handles = (handles_found == _request_count);
 		if (found_requested_handles)

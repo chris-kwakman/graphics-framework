@@ -14,8 +14,8 @@ namespace ECS {
 
 	struct Entity
 	{
-		static unsigned int const ID_BITS = 12;
-		static unsigned int const COUNTER_BITS = 4;
+		static unsigned int const ID_BITS = 14;
+		static unsigned int const COUNTER_BITS = 2;
 		static unsigned int const INVALID_ID = (1 << ID_BITS) - 1;
 
 		union
@@ -59,6 +59,8 @@ namespace ECS {
 		TComp GetComponent() const;
 
 		friend class EntityManager;
+
+		static Entity const InvalidEntity;
 	};
 
 	class EntityManager

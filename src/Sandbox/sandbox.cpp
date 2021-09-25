@@ -1,11 +1,13 @@
 #include "sandbox.h"
 
-#include <Engine/Math/Transform.h>
+#include <Engine/Math/Transform3D.h>
 #include <Engine/Graphics/sdl_window.h>
 #include <Engine/Graphics/manager.h>
 #include <Engine/Graphics/camera.h>
 #include <Engine/Graphics/light.h>
 #include <Engine/Utils/singleton.h>
+
+#include <Engine/Components/Transform.h>
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -221,13 +223,13 @@ namespace Sandbox
 		create_framebuffer_triangle();
 
 		// Load glTF model
-		bool success = false;
-		success = system_resource_manager.LoadModel("data/gltf/sponza/Sponza.gltf");
-		success = system_resource_manager.LoadModel("data/gltf/Sphere.gltf");
-		if (success)
-			printf("Assets loaded successfully.\n");
-		else
-			printf("Failed to load assets.\n");
+		bool success = true;
+		//success = system_resource_manager.LoadModel("data/gltf/sponza/Sponza.gltf");
+		//success = system_resource_manager.LoadModel("data/gltf/Sphere.gltf");
+		//if (success)
+		//	printf("Assets loaded successfully.\n");
+		//else
+		//	printf("Failed to load assets.\n");
 
 		GfxCall(glDepthRange(-1.0f, 1.0f));
 
@@ -335,13 +337,6 @@ namespace Sandbox
 	bool show_demo_window = false;
 	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-	void DummyEditorRender()
-	{
-		// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-		if (show_demo_window)
-			ImGui::ShowDemoWindow(&show_demo_window);
-	}
-
 	std::vector<Engine::Graphics::light> s_lights;
 	int s_edit_light_index = -1;
 
@@ -354,6 +349,71 @@ namespace Sandbox
 	static bool			s_bloom_enabled = true;
 	static glm::vec3	s_bloom_treshhold_color(0.2126f, 0.7152f, 0.0722f);
 	static unsigned int	s_bloom_blur_count = 5;
+
+	void DummyEditorRender()
+	{
+		// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
+		if (show_demo_window)
+			ImGui::ShowDemoWindow(&show_demo_window);
+
+		auto& system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
+
+		if (ImGui::Begin("Light Editor"))
+		{
+			ImGui::SliderFloat("Shininess Multiplier", &s_shininess_mult_factor, 1.0f, 500.0f, "%.1f");
+			ImGui::ColorEdit3("Ambient Light", &s_ambient_color.x);
+
+			if (ImGui::Button("Create New Light"))
+			{
+				s_lights.push_back(Engine::Graphics::light());
+				s_lights.back().m_color = glm::vec3(1.0f, 1.0f, 1.0f);
+				s_lights.back().m_radius = 500.0f;
+			}
+
+			ImGui::SliderInt("Edit Light", &s_edit_light_index, -1, (int)s_lights.size() - 1);
+
+			if (s_edit_light_index != -1)
+			{
+				Engine::Graphics::light* edit_light = &s_lights[s_edit_light_index];
+
+				ImGui::SliderFloat("###LightRadius", &edit_light->m_radius, 0.0f, 3000.0f, "Radius: %.1f");
+				ImGui::DragFloat3("Light Pos", &edit_light->m_pos.x, 1.0f, -1000.0f, 1000.0f);
+				ImGui::ColorEdit3("Color", &edit_light->m_color.x);
+			}
+
+			ImGui::Separator();
+
+			ImGui::SliderFloat("Gamma Correction", &s_gamma_correction_factor, 1.0f, 5.0f, "%.1f");
+			ImGui::SliderFloat("Exposure", &s_exposure, 0.0f, 100.0f, "%.1f");
+			if (ImGui::Checkbox("Enable Bloom", &s_bloom_enabled))
+			{
+				if (!s_bloom_enabled)
+				{
+					for (unsigned int i = 0; i < 2; ++i)
+					{
+						system_resource_manager.BindFramebuffer(s_framebuffer_bloom[i]);
+						glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+						glClear(GL_COLOR_BUFFER_BIT);
+					}
+					system_resource_manager.UnbindFramebuffer();
+				}
+			}
+			ImGui::BeginDisabled(!s_bloom_enabled);
+			int bloom_blur_count = s_bloom_blur_count;
+			if (ImGui::SliderInt("###Bloom Blur Count", &bloom_blur_count, 2, 20, "Bloom Blur Count: %d", ImGuiSliderFlags_AlwaysClamp))
+				s_bloom_blur_count = std::max(2, bloom_blur_count);
+			ImGui::ColorEdit3("Bloom Luminance Treshhold", &s_bloom_treshhold_color.x);
+			ImGui::EndDisabled();
+		}
+		ImGui::End();
+
+		if (ImGui::Begin("Entity Hierarchy"))
+		{
+			Singleton<Component::TransformManager>().DisplayEntityHierarchy();
+		}
+		ImGui::End();
+
+	}
 
 	void Update()
 	{
@@ -412,6 +472,9 @@ namespace Sandbox
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		auto window_size = Singleton<Engine::sdl_manager>().get_window_size();
 		glViewport(0, 0, window_size.x, window_size.y);
+
+		if (mesh_to_render == 0)
+			return;
 
 		auto activate_texture = [&](ResourceManager::texture_handle _texture, unsigned int _shader_sampler_uniform_location, unsigned int _active_texture_index)
 		{
@@ -608,55 +671,6 @@ namespace Sandbox
 		glBindVertexArray(0);
 	
 
-		if (ImGui::Begin("Light Editor"))
-		{
-			ImGui::SliderFloat("Shininess Multiplier", &s_shininess_mult_factor, 1.0f, 500.0f, "%.1f");
-			ImGui::ColorEdit3("Ambient Light", &s_ambient_color.x);
-
-			if (ImGui::Button("Create New Light"))
-			{
-				s_lights.push_back(Engine::Graphics::light());
-				s_lights.back().m_color = glm::vec3(1.0f, 1.0f, 1.0f);
-				s_lights.back().m_radius = 500.0f;
-			}
-
-			ImGui::SliderInt("Edit Light", &s_edit_light_index, -1, (int)s_lights.size() - 1);
-
-			if (s_edit_light_index != -1)
-			{
-				Engine::Graphics::light* edit_light = &s_lights[s_edit_light_index];
-
-				ImGui::SliderFloat("###LightRadius", &edit_light->m_radius, 0.0f, 3000.0f, "Radius: %.1f");
-				ImGui::DragFloat3("Light Pos", &edit_light->m_pos.x, 1.0f, -1000.0f, 1000.0f);
-				ImGui::ColorEdit3("Color", &edit_light->m_color.x);
-			}
-
-			ImGui::Separator();
-
-			ImGui::SliderFloat("Gamma Correction", &s_gamma_correction_factor, 1.0f, 5.0f, "%.1f");
-			ImGui::SliderFloat("Exposure", &s_exposure, 0.0f, 100.0f, "%.1f");
-			if (ImGui::Checkbox("Enable Bloom", &s_bloom_enabled))
-			{
-				if (!s_bloom_enabled)
-				{
-					for (unsigned int i = 0; i < 2; ++i)
-					{
-						system_resource_manager.BindFramebuffer(s_framebuffer_bloom[i]);
-						glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-						glClear(GL_COLOR_BUFFER_BIT);
-					}
-					system_resource_manager.UnbindFramebuffer();
-				}
-			}
-			ImGui::BeginDisabled(!s_bloom_enabled);
-			int bloom_blur_count = s_bloom_blur_count;
-			if (ImGui::SliderInt("###Bloom Blur Count", &bloom_blur_count, 2, 20, "Bloom Blur Count: %d", ImGuiSliderFlags_AlwaysClamp))
-				s_bloom_blur_count = std::max(2, bloom_blur_count);
-			ImGui::ColorEdit3("Bloom Luminance Treshhold", &s_bloom_treshhold_color.x);
-			ImGui::EndDisabled();
-	
-		}
-		ImGui::End();
 
 		if (s_bool_save_screenshot)
 			SaveScreenShot(s_saved_screenshot_name.c_str());
