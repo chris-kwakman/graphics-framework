@@ -125,7 +125,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <TreatWarningAsError>true</TreatWarningAsError>
+      <TreatWarningAsError>false</TreatWarningAsError>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
@@ -143,7 +143,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <TreatWarningAsError>true</TreatWarningAsError>
+      <TreatWarningAsError>false</TreatWarningAsError>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
@@ -166,6 +166,8 @@
     <ClCompile Include="include\ImGui\misc\cpp\imgui_stdlib.cpp" />
     <ClCompile Include="src\Engine\Editor\compile_imgui.cpp" />
     <ClCompile Include="src\Engine\Editor\editor.cpp" />
+    <ClCompile Include="src\Engine\ECS\component_manager.cpp" />
+    <ClCompile Include="src\Engine\ECS\entity.cpp" />
     <ClCompile Include="src\Engine\Graphics\camera.cpp" />
     <ClCompile Include="src\Engine\Graphics\light.cpp" />
     <ClCompile Include="src\Engine\Graphics\manager.cpp" />
@@ -190,6 +192,9 @@
     <ClInclude Include="include\ImGui\misc\cpp\imgui_stdlib.h" />
     <ClInclude Include="include\ImGui\misc\single_file\imgui_single_file.h" />
     <ClInclude Include="src\Engine\Editor\editor.h" />
+    <ClInclude Include="src\Engine\ECS\component_manager.h" />
+    <ClInclude Include="src\Engine\ECS\component_manager.inl" />
+    <ClInclude Include="src\Engine\ECS\entity.h" />
     <ClInclude Include="src\Engine\Graphics\camera.h" />
     <ClInclude Include="src\Engine\Graphics\light.h" />
     <ClInclude Include="src\Engine\Graphics\manager.h" />
