@@ -26,6 +26,20 @@
 
 # define MATH_PI           3.14159265358979323846f
 
+std::vector<Engine::Graphics::light> s_lights;
+int s_edit_light_index = -1;
+
+// Lighting data
+static glm::vec3	s_ambient_color;
+static float		s_exposure = 1.0f;
+static float		s_gamma_correction_factor = 2.2f;
+static float		s_shininess_mult_factor = 100.0f;
+// Blur data
+static bool			s_bloom_enabled = true;
+static glm::vec3	s_bloom_treshhold_color(0.2126f, 0.7152f, 0.0722f);
+static unsigned int	s_bloom_blur_count = 5;
+
+
 namespace Sandbox
 {
 
@@ -148,7 +162,7 @@ namespace Sandbox
 		tex_params luminance_params = default_fb_texture_params;
 		luminance_params.m_min_filter = GL_LINEAR_MIPMAP_LINEAR;
 		system_resource_manager.AllocateTextureStorage2D(s_fb_texture_luminance, GL_RGB16F, surface_size, luminance_params,3);
-		s_bloom_texture_size = surface_size / glm::uvec2(2);
+		s_bloom_texture_size = surface_size / glm::uvec2(4);
 		for (unsigned int i = 0; i < 2; ++i)
 		{
 			// TODO: Half size of bloom blur textures
@@ -224,12 +238,12 @@ namespace Sandbox
 
 		// Load glTF model
 		bool success = true;
-		//success = system_resource_manager.LoadModel("data/gltf/sponza/Sponza.gltf");
-		//success = system_resource_manager.LoadModel("data/gltf/Sphere.gltf");
-		//if (success)
-		//	printf("Assets loaded successfully.\n");
-		//else
-		//	printf("Failed to load assets.\n");
+		success = system_resource_manager.LoadModel("data/gltf/sponza/Sponza.gltf");
+		success = system_resource_manager.LoadModel("data/gltf/Sphere.gltf");
+		if (success)
+			printf("Assets loaded successfully.\n");
+		else
+			printf("Failed to load assets.\n");
 
 		GfxCall(glDepthRange(-1.0f, 1.0f));
 
@@ -242,6 +256,14 @@ namespace Sandbox
 			// Request quit right away.
 			Singleton<Engine::sdl_manager>().m_want_quit = true;
 		}
+
+		// Create default light in scene
+		Engine::Graphics::light new_light;
+		new_light.m_color = glm::vec3{ 1.0f, 1.0f, 1.0f };
+		new_light.m_pos = glm::vec3{ 0.0f, 150.0f, 0.0f };
+		new_light.m_radius = 1500.0f;
+		s_lights.push_back(new_light);
+		s_edit_light_index = 0;
 
 		return success;
 	}
@@ -337,19 +359,6 @@ namespace Sandbox
 	bool show_demo_window = false;
 	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-	std::vector<Engine::Graphics::light> s_lights;
-	int s_edit_light_index = -1;
-
-	// Lighting data
-	static glm::vec3	s_ambient_color;
-	static float		s_exposure = 1.0f;
-	static float		s_gamma_correction_factor = 2.2f;
-	static float		s_shininess_mult_factor = 100.0f;
-	// Blur data
-	static bool			s_bloom_enabled = true;
-	static glm::vec3	s_bloom_treshhold_color(0.2126f, 0.7152f, 0.0722f);
-	static unsigned int	s_bloom_blur_count = 5;
-
 	void DummyEditorRender()
 	{
 		// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
@@ -407,11 +416,11 @@ namespace Sandbox
 		}
 		ImGui::End();
 
-		if (ImGui::Begin("Entity Hierarchy"))
-		{
-			Singleton<Component::TransformManager>().DisplayEntityHierarchy();
-		}
-		ImGui::End();
+		//if (ImGui::Begin("Entity Hierarchy"))
+		//{
+		//	Singleton<Component::TransformManager>().DisplayEntityHierarchy();
+		//}
+		//ImGui::End();
 
 	}
 
@@ -422,7 +431,7 @@ namespace Sandbox
 		auto & system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
 		auto& input_manager = Singleton<Engine::Managers::InputManager>();
 
-		//if(input_manager.GetKeyboardButtonState(SDL_SCANCODE_F5) == Engine::Managers::InputManager::button_state::ePress)
+		if(input_manager.GetKeyboardButtonState(SDL_SCANCODE_F5) == Engine::Managers::InputManager::button_state::ePress)
 			system_resource_manager.RefreshShaders();
 
 		control_camera();
