@@ -39,6 +39,7 @@ static bool			s_bloom_enabled = true;
 static glm::vec3	s_bloom_treshhold_color(0.2126f, 0.7152f, 0.0722f);
 static unsigned int	s_bloom_blur_count = 5;
 
+static bool			s_render_infinite_grid = false;
 
 namespace Sandbox
 {
@@ -95,6 +96,8 @@ namespace Sandbox
 		using shader_program_handle = Engine::Graphics::ResourceManager::shader_program_handle;
 
 		std::vector<std::filesystem::path> shader_paths = {
+			"data/shaders/infinite_grid.vert",
+			"data/shaders/infinite_grid.frag",
 			"data/shaders/default.vert",
 			"data/shaders/deferred.frag",
 			"data/shaders/display_framebuffer.vert",
@@ -107,6 +110,7 @@ namespace Sandbox
 		std::vector<Engine::Graphics::ResourceManager::shader_handle> output_shader_handles;
 		output_shader_handles = system_resource_manager.LoadShaders(shader_paths);
 
+		std::vector<std::filesystem::path> const draw_infinite_grid_shaders = { "data/shaders/infinite_grid.vert", "data/shaders/infinite_grid.frag" };
 		std::vector<std::filesystem::path> const draw_gbuffer_shaders = { "data/shaders/default.vert", "data/shaders/deferred.frag" };
 		std::vector<std::filesystem::path> const draw_framebuffer_plain_shaders = { "data/shaders/display_framebuffer.vert", "data/shaders/display_framebuffer_plain.frag" };
 		std::vector<std::filesystem::path> const draw_framebuffer_ambient_light = { "data/shaders/display_framebuffer.vert", "data/shaders/display_framebuffer_ambient_light.frag" };
@@ -114,6 +118,7 @@ namespace Sandbox
 		std::vector<std::filesystem::path> const process_bloom_blur_shaders = { "data/shaders/display_framebuffer.vert", "data/shaders/bloom.frag" };
 		std::vector<std::filesystem::path> const draw_postprocessing_shaders = { "data/shaders/display_framebuffer.vert", "data/shaders/postprocessing.frag" };
 
+		system_resource_manager.LoadShaderProgram("draw_infinite_grid", draw_infinite_grid_shaders);
 		system_resource_manager.LoadShaderProgram("draw_gbuffer", draw_gbuffer_shaders);
 		system_resource_manager.LoadShaderProgram("draw_framebuffer_plain", draw_framebuffer_plain_shaders);
 		system_resource_manager.LoadShaderProgram("draw_framebuffer_ambient_light", draw_framebuffer_ambient_light);
@@ -367,8 +372,10 @@ namespace Sandbox
 
 		auto& system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
 
-		if (ImGui::Begin("Light Editor"))
+		if (ImGui::Begin("Graphics"))
 		{
+			ImGui::Checkbox("Render Infinite Grid", &s_render_infinite_grid);
+
 			ImGui::SliderFloat("Shininess Multiplier", &s_shininess_mult_factor, 1.0f, 500.0f, "%.1f");
 			ImGui::ColorEdit3("Ambient Light", &s_ambient_color.x);
 
@@ -646,7 +653,6 @@ namespace Sandbox
 		}
 
 		// Render onto final framebuffer
-
 		glViewport(0, 0, (GLsizei)window_size.x, (GLsizei)window_size.y);
 
 		system_resource_manager.UnbindFramebuffer();
@@ -654,8 +660,8 @@ namespace Sandbox
 		glEnable(GL_CULL_FACE);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glDepthMask(GL_TRUE);
-		glDisable(GL_DEPTH_TEST);
-		glDepthFunc(GL_LEQUAL);
+		glEnable(GL_DEPTH_TEST);
+		glDepthFunc(GL_ALWAYS);
 		glDisable(GL_BLEND);
 
 		shader_program_handle const postprocessing_program = system_resource_manager.FindShaderProgram("postprocessing");
@@ -664,6 +670,7 @@ namespace Sandbox
 
 		activate_texture(s_fb_texture_light_color, 0, 0);
 		activate_texture(s_fb_texture_bloom_pingpong[1], 1, 1);
+		activate_texture(s_fb_texture_depth, 2, 2);
 
 		system_resource_manager.SetBoundProgramUniform(10, s_exposure);
 		system_resource_manager.SetBoundProgramUniform(11, s_gamma_correction_factor);
@@ -678,8 +685,23 @@ namespace Sandbox
 		));
 
 		glBindVertexArray(0);
-	
 
+		if (s_render_infinite_grid)
+		{
+			// Render endless grid
+			auto program = system_resource_manager.FindShaderProgram("draw_infinite_grid");
+			system_resource_manager.UseProgram(program);
+			system_resource_manager.SetBoundProgramUniform(0, s_camera_transform.GetInvMatrix());
+			system_resource_manager.SetBoundProgramUniform(1, camera.create_view_to_perspective_matrix());
+			system_resource_manager.SetBoundProgramUniform(10, camera.m_near);
+			system_resource_manager.SetBoundProgramUniform(11, camera.m_far);
+
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			glDepthFunc(GL_LESS);
+
+			glDrawArrays(GL_TRIANGLES, 0, 6);
+		}
 
 		if (s_bool_save_screenshot)
 			SaveScreenShot(s_saved_screenshot_name.c_str());

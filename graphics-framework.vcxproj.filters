@@ -172,5 +172,7 @@
     <None Include="working_dir\data\shaders\default.vert" />
     <None Include="working_dir\data\shaders\bloom.frag" />
     <None Include="working_dir\data\shaders\postprocessing.frag" />
+    <None Include="data\shaders\infinite_grid.vert" />
+    <None Include="data\shaders\infinite_grid.frag" />
   </ItemGroup>
 </Project>

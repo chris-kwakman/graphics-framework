@@ -4,6 +4,7 @@
 
 layout(location = 0) uniform sampler2D u_sampler_scene;
 layout(location = 1) uniform sampler2D u_sampler_bloom;
+layout(location = 2) uniform sampler2D u_sampler_depth;
 
 layout(location = 10) uniform float u_exposure;
 layout(location = 11) uniform float u_gamma;
@@ -25,4 +26,6 @@ void main()
 	result = pow(result, vec3(1.0f / u_gamma));
 
 	out_color = vec4(result,1);
+
+	gl_FragDepth = texture(u_sampler_depth, f_uv).r;
 }
