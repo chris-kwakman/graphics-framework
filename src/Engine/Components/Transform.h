@@ -1,3 +1,6 @@
+#ifndef COMPONENT_TRANSFORM_H
+#define COMPONENT_TRANSFORM_H
+
 #include <Engine/ECS/component_manager.h>
 #include <unordered_map>
 #include <Engine/Math/Transform3D.h>
@@ -76,7 +79,7 @@ namespace Component
 	public:
 
 		// Inherited via TCompManager
-		const char* GetComponentName() const final;
+		const char* GetComponentTypeName() const final { return "Transform"; }
 		std::vector<Entity> GetRootEntities() const;
 
 		void DisplayEntityHierarchy();
@@ -89,3 +92,5 @@ namespace Component
 		virtual void impl_edit_component(Entity _entity) override;
 	};
 }
+
+#endif

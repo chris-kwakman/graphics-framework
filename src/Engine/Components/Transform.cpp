@@ -50,7 +50,10 @@ namespace Component
 	void TransformManager::impl_destroy(Entity const* _entities, unsigned int _count)
 	{
 		for (unsigned int i = 0; i < _count; ++i)
-			remove_entry(_entities[i]);
+		{
+			if(ComponentOwnedByEntity(_entities[i]))
+				remove_entry(_entities[i]);
+		}
 	}
 
 	bool TransformManager::impl_component_owned_by_entity(Entity _entity) const
@@ -281,11 +284,6 @@ namespace Component
 	//////////////////////////////////////////////////////////////////////////
 	//					Manager Public Methods
 	//////////////////////////////////////////////////////////////////////////
-
-	const char* TransformManager::GetComponentName() const
-	{
-		return "Transform";
-	}
 
 	std::vector<Entity> TransformManager::GetRootEntities() const
 	{

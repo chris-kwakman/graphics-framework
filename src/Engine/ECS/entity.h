@@ -58,6 +58,9 @@ namespace ECS {
 		template<typename TComp>
 		TComp GetComponent() const;
 
+		template<typename TComp>
+		bool HasComponent() const;
+
 		friend class EntityManager;
 
 		static Entity const InvalidEntity;

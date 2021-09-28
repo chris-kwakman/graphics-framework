@@ -4,6 +4,9 @@
 #include "Engine/Utils/singleton.h"
 #include "Engine/ECS/entity.h"
 
+#include <Engine/ECS/component_manager.h>
+#include <Engine/Components/engine_components.h>
+
 #include "Sandbox/sandbox.h"
 
 #include <thread>
@@ -69,6 +72,7 @@ int main(int argc, char* argv[])
 	std::string const cwd = std::filesystem::current_path().string();
 	printf("Working directory: %s\n", cwd.c_str());
 
+	Component::InitializeEngineComponentManagers();
 	
 	Engine::sdl_manager& sdl_manager = Singleton<Engine::sdl_manager>();
 	if (sdl_manager.setup(glm::uvec2(SCREEN_WIDTH, SCREEN_HEIGHT)))
@@ -82,6 +86,8 @@ int main(int argc, char* argv[])
 		Sandbox::Shutdown();
 		Singleton<Engine::Editor::Editor>().Shutdown();
 	}
+
+	Component::ShutdownEngineComponentManagers();
 
 	sdl_manager.shutdown();
 

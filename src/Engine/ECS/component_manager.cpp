@@ -4,13 +4,18 @@
 namespace Engine {
 namespace ECS {
 
-	void ICompManager::register_for_entity_destruction_message()
+	static std::vector<ICompManager*> s_registered_component_managers;
+
+	std::vector<ICompManager*> const& ICompManager::GetRegisteredComponentManagers()
 	{
-		if (!m_registered_for_entity_destruction_message)
-		{
-			m_registered_for_entity_destruction_message = true;
-			Singleton<EntityManager>().RegisterComponentManager(this);
-		}
+		return s_registered_component_managers;
+	}
+
+	bool ICompManager::RegisterComponentManager(ICompManager* _component_manager)
+	{
+		Singleton<EntityManager>().RegisterComponentManager(_component_manager);
+		s_registered_component_managers.push_back(_component_manager);
+		return true;
 	}
 
 }

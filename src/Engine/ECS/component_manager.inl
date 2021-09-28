@@ -1,5 +1,9 @@
 #include "component_manager.h"
 #include <typeinfo>
+#include "entity.h"
+
+#include <ImGui/imgui.h>
+
 namespace Engine {
 namespace ECS {
 
@@ -19,12 +23,6 @@ namespace ECS {
 		get_manager().Destroy(&m_owner, 1);
 	}
 
-	/*template<class TCompManager>
-	inline typename TCompManager::comp_type IComp<TCompManager>::Create(Entity _e)
-	{
-		return get_manager().Create(_e);
-	}*/
-
 	///////////////////////////////////////////////////////////////
 	//						TCompManager<TComp>
 	///////////////////////////////////////////////////////////////
@@ -39,10 +37,6 @@ namespace ECS {
 	template<class TComp>
 	inline typename TCompManager<TComp>::comp_type TCompManager<TComp>::Create(Entity _entity)
 	{
-		// Only start listening for entity destruction message the first time we create a component.
-		// TODO: Do this on application initialization instead.
-		register_for_entity_destruction_message();
-
 		return TComp( impl_create(_entity) ? _entity : Entity() );
 	}
 
@@ -67,7 +61,7 @@ namespace ECS {
 	template<class TComp>
 	inline void TCompManager<TComp>::EditComponent(Entity _entity)
 	{
-		if (ComponentOwnedByEntity(_entity))
+		if (ComponentOwnedByEntity(_entity) && ImGui::CollapsingHeader(GetComponentTypeName()))
 			impl_edit_component(_entity);
 	}
 
@@ -77,20 +71,24 @@ namespace ECS {
 		Destroy(&_destroyed_entities.front(), (unsigned int)_destroyed_entities.size());
 	}
 
-
-
 	template<typename TComp>
 	inline TComp Entity::GetComponent() const
 	{
 		static_assert(std::is_base_of<IComp<typename TComp::comp_manager>,TComp>::value);
 #ifdef _DEBUG
-		if (TComp::get_manager().ComponentOwnedByEntity(*this))
+		if (HasComponent<TComp>())
 			return TComp::get_manager().Get(*this);
 		else
 			return TComp();
 #else
 		return TComp::get_manager().Get(*this);
 #endif // _DEBUG
+	}
+
+	template<typename TComp>
+	inline bool Entity::HasComponent() const
+	{
+		return TComp::get_manager().ComponentOwnedByEntity(*this);
 	}
 }
 }

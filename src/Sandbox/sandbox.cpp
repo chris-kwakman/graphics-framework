@@ -423,11 +423,34 @@ namespace Sandbox
 		}
 		ImGui::End();
 
-		//if (ImGui::Begin("Entity Hierarchy"))
-		//{
-		//	Singleton<Component::TransformManager>().DisplayEntityHierarchy();
-		//}
-		//ImGui::End();
+		if (ImGui::Begin("Entity Hierarchy"))
+		{
+			Singleton<Component::TransformManager>().DisplayEntityHierarchy();
+		}
+		ImGui::End();
+
+		if (ImGui::Begin("Component List"))
+		{
+			unsigned int e = 0;
+			for (auto manager : Engine::ECS::ICompManager::GetRegisteredComponentManagers())
+			{
+				const char* comp_name = manager->GetComponentTypeName();
+				if(ImGui::Button(comp_name))
+					manager->CreateComponent(*reinterpret_cast<Engine::ECS::Entity*>(&e));
+			}
+		}
+		ImGui::End();
+
+		if (ImGui::Begin("Component Editor"))
+		{
+			unsigned int e = 0;
+			for (auto manager : Engine::ECS::ICompManager::GetRegisteredComponentManagers())
+			{
+				manager->EditComponent(*reinterpret_cast<Engine::ECS::Entity *>(&e));
+			}
+		}
+		ImGui::End();
+
 
 	}
 

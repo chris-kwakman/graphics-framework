@@ -3,6 +3,7 @@
 
 #include "entity.h"
 #include <Engine/Utils/singleton.h>
+#include <vector>
 
 namespace Engine {
 namespace ECS {
@@ -40,23 +41,34 @@ namespace ECS {
 
 	class ICompManager
 	{
-	protected:
-
-		void register_for_entity_destruction_message();
 
 	public:
 
-		virtual void receive_entity_destruction_message(std::vector<Entity> const& _destroyed_entities) = 0;
+		virtual void CreateComponent(Entity _entity) = 0;
+		virtual void DestroyComponent(Entity _entity) = 0;
+
+		virtual void EditComponent(Entity _entity) = 0;
+		virtual const char* GetComponentTypeName() const = 0;
+
+		static std::vector<ICompManager*> const& GetRegisteredComponentManagers();
+
+	protected:
+
+		static bool RegisterComponentManager(ICompManager* _component_manager);
 
 	private:
 
-		bool m_registered_for_entity_destruction_message = false;
+		virtual void receive_entity_destruction_message(std::vector<Entity> const& _destroyed_entities) = 0;
+
+		friend class Engine::ECS::EntityManager;
 	};
 
 	template<class TComp>
 	class TCompManager : protected ICompManager
 	{
 	public:
+
+		void Initialize() { RegisterComponentManager(this); }
 
 		typedef TComp comp_type;
 
@@ -68,21 +80,26 @@ namespace ECS {
 		bool			ComponentOwnedByEntity(Entity _entity) const;
 		TComp			Get(Entity _entity) const;
 
-		void			EditComponent(Entity _entity);
+		void			EditComponent(Entity _entity) final;
 
-		virtual const char* GetComponentName() const = 0;
+		virtual const char* GetComponentTypeName() const = 0;
 
 	protected:
 
-		virtual void impl_clear() = 0;
+		void			CreateComponent(Entity _entity) final { Create(_entity); }
+		void			DestroyComponent(Entity _entity) final { Destroy(&_entity, 1); }
+
+		virtual void impl_clear() {}
 
 		virtual bool impl_create(Entity _e) = 0;
-		virtual void impl_destroy(Entity const * _entities, unsigned int _count) = 0;
+		virtual void impl_destroy(Entity const* _entities, unsigned int _count) = 0;
 		virtual bool impl_component_owned_by_entity(Entity _entity) const = 0;
 		virtual void impl_edit_component(Entity _entity) = 0;
 
-
 	private:
+
+		//static bool mb_registered;
+		//static bool static_initializer();
 
 		void receive_entity_destruction_message(std::vector<Entity> const& _destroyed_entities) final;
 	};
