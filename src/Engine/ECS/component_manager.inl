@@ -37,7 +37,11 @@ namespace ECS {
 	template<class TComp>
 	inline typename TCompManager<TComp>::comp_type TCompManager<TComp>::Create(Entity _entity)
 	{
-		return TComp( impl_create(_entity) ? _entity : Entity() );
+		return TComp(
+			(!impl_component_owned_by_entity(_entity) && impl_create(_entity))
+			? _entity 
+			: Entity() 
+		);
 	}
 
 	template<class TComp>
