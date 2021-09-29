@@ -477,8 +477,15 @@ namespace Sandbox
 		auto & system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
 		auto& input_manager = Singleton<Engine::Managers::InputManager>();
 
-		if(input_manager.GetKeyboardButtonState(SDL_SCANCODE_F5) == Engine::Managers::InputManager::button_state::ePress)
+		using button_state = Engine::Managers::InputManager::button_state;
+
+		if((input_manager.GetKeyboardButtonState(SDL_SCANCODE_F5) == button_state::ePress) ||
+			(input_manager.GetKeyboardButtonState(SDL_SCANCODE_LCTRL) == button_state::eDown && input_manager.GetKeyboardButtonState(SDL_SCANCODE_LSHIFT) == button_state::eDown && input_manager.GetKeyboardButtonState(SDL_SCANCODE_R) == button_state::ePress)
+		)
 			system_resource_manager.RefreshShaders();
+
+		if (input_manager.GetKeyboardButtonState(SDL_SCANCODE_LCTRL) == button_state::eDown && input_manager.GetKeyboardButtonState(SDL_SCANCODE_Q) == button_state::ePress)
+			Singleton<Engine::sdl_manager>().m_want_quit = true;
 
 		control_camera();
 		frame_counter++;
