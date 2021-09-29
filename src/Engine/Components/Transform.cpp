@@ -2,6 +2,8 @@
 
 #include <ImGui/imgui.h>
 
+#include <SDL2/SDL_scancode.h>
+
 namespace Component
 {
 
@@ -158,8 +160,6 @@ namespace Component
 
 		m_root_entities.erase(_entity);
 
-		printf("Attached %d to %d\n", _entity.ID(), _target.ID());
-
 		return true;
 	}
 
@@ -212,8 +212,6 @@ namespace Component
 
 		m_root_entities.insert(_entity);
 
-		printf("Detached %d from %d\n", _entity.ID(), parent.ID());
-
 		mark_entity_dirty(_entity);
 	}
 
@@ -228,7 +226,6 @@ namespace Component
 			child_iter = m_next_sibling[get_entity_index(child_iter)];
 		}
 		m_first_child[entity_index] = Entity::InvalidEntity;
-		printf("Detached all children from %d\n", _entity.ID());
 	}
 
 	/*
@@ -294,11 +291,11 @@ namespace Component
 		return entity_list;
 	}
 
-	void TransformManager::DisplayEntityHierarchy()
+	void TransformManager::DisplaySceneGraph()
 	{
 		auto root_nodes = Singleton<TransformManager>().GetRootEntities();
 
-		if (ImGui::BeginChild("HierarchyDisplay", ImVec2(0, 0), true, ImGuiWindowFlags_AlwaysAutoResize))
+		if (ImGui::BeginChild("GraphDisplay", ImVec2(0, 0), true, ImGuiWindowFlags_AlwaysAutoResize))
 		{
 			for (auto root_entity : root_nodes)
 				display_node_recursively(root_entity);
@@ -325,6 +322,11 @@ namespace Component
 		}
 		ImGui::EndChild();
 
+		if (ImGui::IsKeyDown(SDL_SCANCODE_DELETE))
+		{
+			for (auto entity : m_editor_scene_graph_data.selected_entities)
+				entity.DestroyEndOfFrame();
+		}
 
 		if (ImGui::BeginDragDropTarget())
 		{
@@ -351,7 +353,28 @@ namespace Component
 		if (!transform_manager.Get(_e).HasChildren())
 			entity_node_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
 
+		auto& selected_entities = m_editor_scene_graph_data.selected_entities;
+
+		if (selected_entities.find(_e) != selected_entities.end())
+			entity_node_flags |= ImGuiTreeNodeFlags_Selected;
+
 		bool const node_open = ImGui::TreeNodeEx((void*)_e.ID(), entity_node_flags, "%d", _e.ID());
+
+		if (ImGui::IsItemClicked())
+		{
+			if (ImGui::IsKeyDown(SDL_SCANCODE_LCTRL))
+			{
+				if (selected_entities.find(_e) == selected_entities.end())
+					selected_entities.insert(_e);
+				else
+					selected_entities.erase(_e);
+			}
+			else
+			{
+				selected_entities.clear();
+				selected_entities.insert(_e);
+			}
+		}
 
 		if (ImGui::BeginPopupContextItem())
 		{

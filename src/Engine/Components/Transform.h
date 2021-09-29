@@ -78,13 +78,22 @@ namespace Component
 
 	public:
 
+		struct EditorSceneGraphData
+		{
+			std::unordered_set<Entity, Entity::hash> selected_entities;
+		};
+
 		// Inherited via TCompManager
 		const char* GetComponentTypeName() const final { return "Transform"; }
 		std::vector<Entity> GetRootEntities() const;
 
-		void DisplayEntityHierarchy();
+		void DisplaySceneGraph();
+
+		EditorSceneGraphData GetEditorSceneGraphData() const { return m_editor_scene_graph_data; }
 
 	private:
+
+		EditorSceneGraphData m_editor_scene_graph_data;
 
 		void display_node_recursively(Entity _e);
 

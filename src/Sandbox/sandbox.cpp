@@ -243,12 +243,12 @@ namespace Sandbox
 
 		// Load glTF model
 		bool success = true;
-		success = system_resource_manager.LoadModel("data/gltf/sponza/Sponza.gltf");
-		success = system_resource_manager.LoadModel("data/gltf/Sphere.gltf");
-		if (success)
-			printf("Assets loaded successfully.\n");
-		else
-			printf("Failed to load assets.\n");
+		//success = system_resource_manager.LoadModel("data/gltf/sponza/Sponza.gltf");
+		//success = system_resource_manager.LoadModel("data/gltf/Sphere.gltf");
+		//if (success)
+		//	printf("Assets loaded successfully.\n");
+		//else
+		//	printf("Failed to load assets.\n");
 
 		GfxCall(glDepthRange(-1.0f, 1.0f));
 
@@ -423,30 +423,46 @@ namespace Sandbox
 		}
 		ImGui::End();
 
-		if (ImGui::Begin("Entity Hierarchy"))
+		auto & transform_manager = Singleton<Component::TransformManager>();
+
+		if (ImGui::Begin("Scene Graph"))
 		{
-			Singleton<Component::TransformManager>().DisplayEntityHierarchy();
+			transform_manager.DisplaySceneGraph();
 		}
 		ImGui::End();
 
+		auto const & editor_scene_graph_data = transform_manager.GetEditorSceneGraphData();
+
 		if (ImGui::Begin("Component List"))
 		{
-			unsigned int e = 0;
-			for (auto manager : Engine::ECS::ICompManager::GetRegisteredComponentManagers())
+			if (!editor_scene_graph_data.selected_entities.empty())
 			{
-				const char* comp_name = manager->GetComponentTypeName();
-				if(ImGui::Button(comp_name))
-					manager->CreateComponent(*reinterpret_cast<Engine::ECS::Entity*>(&e));
+				for (auto manager : Engine::ECS::ICompManager::GetRegisteredComponentManagers())
+				{
+					const char* comp_name = manager->GetComponentTypeName();
+					if (ImGui::Button(comp_name))
+					{
+						for(auto entity : editor_scene_graph_data.selected_entities)
+							manager->CreateComponent(entity);
+					}
+				}
 			}
 		}
 		ImGui::End();
 
 		if (ImGui::Begin("Component Editor"))
 		{
-			unsigned int e = 0;
-			for (auto manager : Engine::ECS::ICompManager::GetRegisteredComponentManagers())
+			if (editor_scene_graph_data.selected_entities.size() == 1)
 			{
-				manager->EditComponent(*reinterpret_cast<Engine::ECS::Entity *>(&e));
+				Engine::ECS::Entity const selected_entity = *editor_scene_graph_data.selected_entities.begin();
+				for (auto manager : Engine::ECS::ICompManager::GetRegisteredComponentManagers())
+				{
+					manager->EditComponent(selected_entity);
+				}
+			}
+			else
+			{
+				ImGui::Text("No entity selected");
 			}
 		}
 		ImGui::End();
@@ -512,8 +528,21 @@ namespace Sandbox
 		auto window_size = Singleton<Engine::sdl_manager>().get_window_size();
 		glViewport(0, 0, window_size.x, window_size.y);
 
+		// If we cannot render anything, just clear framebuffer so editor can render.
 		if (mesh_to_render == 0)
+		{
+			glViewport(0, 0, (GLsizei)window_size.x, (GLsizei)window_size.y);
+
+			system_resource_manager.UnbindFramebuffer();
+			glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+			glEnable(GL_CULL_FACE);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glDepthMask(GL_TRUE);
+			glEnable(GL_DEPTH_TEST);
+			glDepthFunc(GL_ALWAYS);
+
 			return;
+		}
 
 		auto activate_texture = [&](ResourceManager::texture_handle _texture, unsigned int _shader_sampler_uniform_location, unsigned int _active_texture_index)
 		{
