@@ -243,12 +243,12 @@ namespace Sandbox
 
 		// Load glTF model
 		bool success = true;
-		//success = system_resource_manager.LoadModel("data/gltf/sponza/Sponza.gltf");
-		//success = system_resource_manager.LoadModel("data/gltf/Sphere.gltf");
-		//if (success)
-		//	printf("Assets loaded successfully.\n");
-		//else
-		//	printf("Failed to load assets.\n");
+		success = system_resource_manager.LoadModel("data/gltf/sponza/Sponza.gltf");
+		success = system_resource_manager.LoadModel("data/gltf/Sphere.gltf");
+		if (success)
+			printf("Assets loaded successfully.\n");
+		else
+			printf("Failed to load assets.\n");
 
 		GfxCall(glDepthRange(-1.0f, 1.0f));
 
@@ -467,6 +467,7 @@ namespace Sandbox
 		}
 		ImGui::End();
 
+		system_resource_manager.EditorDisplay();
 
 	}
 

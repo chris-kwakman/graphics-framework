@@ -15,6 +15,9 @@
 #include <STB/stb_image.h>
 #include <tiny_glft/tiny_gltf.h>
 
+#include <ImGui/imgui.h>
+#include <ImGui/misc/cpp/imgui_stdlib.h>
+
 namespace Engine {
 namespace Graphics {
 
@@ -1317,6 +1320,78 @@ namespace Graphics {
 			GfxCall(glDeleteProgram(iter->second.m_gl_program_object));
 			m_shader_program_info_map.erase(iter);
 		}
+	}
+
+
+	enum E_ResourceType {eMesh, eCOUNT};
+	static E_ResourceType s_editor_show_resource_list = eMesh;
+
+	static std::unordered_map<E_ResourceType, const char*> s_resource_type_name{
+		{E_ResourceType::eMesh, "Mesh"}
+	};
+
+	const char* get_type_name(E_ResourceType _type) { return s_resource_type_name.at(_type); }
+
+	void ResourceManager::EditorDisplay()
+	{
+
+		if (ImGui::Begin("Graphics Resources"))
+		{
+			if (ImGui::BeginCombo("Display Resource", get_type_name(s_editor_show_resource_list)))
+			{
+				for (unsigned int i = 0; i < E_ResourceType::eCOUNT; ++i)
+				{
+					E_ResourceType const type = E_ResourceType(i);
+					if (ImGui::Selectable(get_type_name(type)))
+						s_editor_show_resource_list = type;
+				}
+				ImGui::EndCombo();
+			}
+
+			ImGui::Separator();
+
+			if (s_editor_show_resource_list == E_ResourceType::eMesh)
+				editor_mesh_list();
+		}
+		ImGui::End();
+	}
+
+	void ResourceManager::editor_mesh_list()
+	{
+		static std::string s_search_bar{};
+		static std::unordered_map<std::string, mesh_handle> partial_name_matches;
+
+		if (ImGui::IsWindowAppearing())
+		{
+			s_search_bar.clear();
+			partial_name_matches.clear();
+		}
+
+		if (ImGui::InputText("Search", &s_search_bar, ImGuiInputTextFlags_CharsNoBlank))
+		{
+			partial_name_matches.clear();
+			std::string search_lowercase;
+			std::transform(s_search_bar.begin(), s_search_bar.end(), std::back_inserter(search_lowercase), std::tolower);
+			for (auto const & pair : m_named_mesh_map)
+			{
+				std::string mesh_name_lowercase;
+				std::transform(pair.first.begin(), pair.first.end(), std::back_inserter(mesh_name_lowercase), std::tolower);
+				size_t result = mesh_name_lowercase.find(search_lowercase);
+				if (result != std::string::npos)
+					partial_name_matches.emplace(pair);
+			}
+		}
+		auto const & map = (partial_name_matches.empty() && s_search_bar.empty()) ? m_named_mesh_map : partial_name_matches;
+		for (auto const& match : map)
+		{
+			ImGui::Selectable(match.first.c_str());
+			if (ImGui::BeginDragDropSource())
+			{
+				ImGui::SetDragDropPayload("RESOURCE_MESH", (void const*)&match.second, sizeof(mesh_handle));
+				ImGui::EndDragDropSource();
+			}
+		}
+
 	}
 
 

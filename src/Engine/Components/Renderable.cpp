@@ -66,10 +66,34 @@ namespace Component
 	{
 		auto component = Get(_entity);
 		std::string mesh_name = component.GetMeshName();
-		ResourceManager::mesh_handle mesh_handle = component.GetMeshHandle();
+		ResourceManager::mesh_handle my_mesh = component.GetMeshHandle();
 
+		ResourceManager::mesh_handle payload_mesh_handle;
+
+		auto accept_mesh_handle_payload = [&payload_mesh_handle]()->bool
+		{
+			bool result = false;
+			if (ImGui::BeginDragDropTarget())
+			{
+				if (ImGuiPayload const* payload = ImGui::AcceptDragDropPayload("RESOURCE_MESH"))
+				{
+					payload_mesh_handle = *(ResourceManager::mesh_handle*)payload->Data;
+					result = true;
+				}
+
+				ImGui::EndDragDropTarget();
+			}
+			return result;
+		};
+
+		bool mesh_payload_accepted = false;
 		ImGui::InputText("Mesh Name", (char*)mesh_name.c_str(), mesh_name.size(), ImGuiInputTextFlags_ReadOnly);
-		ImGui::InputInt("Mesh ID", (int*)&mesh_handle, 0, 0, ImGuiInputTextFlags_ReadOnly);
+		mesh_payload_accepted |= accept_mesh_handle_payload();
+		ImGui::InputInt("Mesh ID", (int*)&my_mesh, 0, 0, ImGuiInputTextFlags_ReadOnly);
+		mesh_payload_accepted |= accept_mesh_handle_payload();
+
+		if (mesh_payload_accepted)
+			component.SetMesh(payload_mesh_handle);
 	}
 
 }

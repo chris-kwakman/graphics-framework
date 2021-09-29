@@ -328,6 +328,14 @@ namespace Graphics {
 		void Reset();
 		void DeleteAllGraphicsResources();
 
+		void EditorDisplay();
+
+		// Private editor methods
+	private:
+		
+		void editor_mesh_list();
+
+
 	private:
 
 		void reset_counters();
