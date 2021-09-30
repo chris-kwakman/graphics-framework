@@ -4,6 +4,8 @@
 #include <Engine/Utils/singleton.h>
 #include "component_manager.h"
 
+#include <Engine/Serialisation/common.h>
+
 namespace Engine {
 namespace ECS {
 

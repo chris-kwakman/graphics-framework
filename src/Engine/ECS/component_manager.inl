@@ -4,6 +4,8 @@
 
 #include <ImGui/imgui.h>
 
+#include <Engine/Serialisation/scene.h>
+
 namespace Engine {
 namespace ECS {
 
@@ -67,6 +69,14 @@ namespace ECS {
 	{
 		if (ComponentOwnedByEntity(_entity) && ImGui::CollapsingHeader(GetComponentTypeName()))
 			impl_edit_component(_entity);
+	}
+
+	template<class TComp>
+	inline void TCompManager<TComp>::DeserializeEntityComponent(Entity _e, nlohmann::json const& _json_entity, Engine::Serialisation::SceneContext const* _context)
+	{
+		auto component_iter = _json_entity.find(GetComponentTypeName());
+		if (component_iter != _json_entity.end())
+			impl_deserialise_component(_e, *component_iter, _context);
 	}
 
 	template<class TComp>

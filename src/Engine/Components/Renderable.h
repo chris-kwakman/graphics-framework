@@ -30,11 +30,15 @@ namespace Component
 		void impl_destroy(Entity const* _entities, unsigned int _count) final;
 		bool impl_component_owned_by_entity(Entity _entity) const final;
 		void impl_edit_component(Entity _entity) final;
+		void impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context) final;
 
 	public:
 
 		// Inherited via TCompManager
 		const char* GetComponentTypeName() const final { return "Renderable"; }
+
+		decltype(m_mesh_map) const& GetAllRenderables() const { return m_mesh_map; }
+
 	};
 }
 

@@ -24,8 +24,8 @@ namespace Component
 		glm::vec3					GetLocalScale() const;
 		glm::quat					GetLocalRotation() const;
 
-		Engine::Math::transform3D   ComputeModelToWorldTransform() const;
-		glm::mat4x4					ComputeModelToWorldMatrix() const;
+		Engine::Math::transform3D   ComputeWorldTransform() const;
+		glm::mat4x4					ComputeWorldMatrix() const;
 
 		void SetLocalTransform(Engine::Math::transform3D _value);
 		void SetLocalPosition(glm::vec3 _value);
@@ -99,6 +99,7 @@ namespace Component
 
 		// Inherited via TCompManager
 		virtual void impl_edit_component(Entity _entity) override;
+		virtual void impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const * _context) override;
 	};
 }
 

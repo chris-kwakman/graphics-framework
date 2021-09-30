@@ -57,5 +57,21 @@ namespace Math
 		new_transform.position = _l.position + _l.quaternion * (_l.scale * _r.position);
 		return new_transform;
 	}
+
+	using json = nlohmann::json;
+
+	void from_json(json const& j, Engine::Math::transform3D& t)
+	{
+		t.scale = j["scale"];
+		t.position = j["position"];
+		t.quaternion = j["quaternion"];
+	}
+
+	void to_json(json& j, Engine::Math::transform3D const& t)
+	{
+		j["scale"] = t.scale;
+		j["position"] = t.position;
+		j["quaternion"] = t.quaternion;
+	}
 }
 }

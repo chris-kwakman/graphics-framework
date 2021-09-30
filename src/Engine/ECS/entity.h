@@ -70,6 +70,8 @@ namespace ECS {
 	{
 	public:
 
+		EntityManager() {Reset();}
+
 		static unsigned int constexpr MAX_ENTITIES = (1 << Entity::ID_BITS) - 1;
 
 	private:

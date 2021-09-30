@@ -6,23 +6,27 @@
 #include <Engine/Graphics/camera.h>
 #include <Engine/Graphics/light.h>
 #include <Engine/Utils/singleton.h>
-
+#include <Engine/Managers/input.h>
+#include <Engine/Editor/editor.h>
+#include <Engine/Serialisation/serialise_gltf.h>
+#include <Engine/Utils/logging.h>
 #include <Engine/Components/Transform.h>
+#include <Engine/Components/Renderable.h>
 
-#include <glm/gtc/matrix_transform.hpp>
 
 #include <STB/stb_image_write.h>
 
-#include <Engine/Managers/input.h>
-#include <Engine/Editor/editor.h>
 
+#include <glm/gtc/matrix_transform.hpp>
 #include <GLM/gtx/quaternion.hpp>
 
-#include <string>
 
 #include <ImGui/imgui_internal.h> // SetWindowHitTestHole()
 
+#include <string>
 #include <math.h>
+#include <iostream>
+#include <iomanip>
 
 # define MATH_PI           3.14159265358979323846f
 
@@ -241,10 +245,45 @@ namespace Sandbox
 		setup_framebuffer();
 		create_framebuffer_triangle();
 
+		auto LoadModel = [](const char* _filepath)->bool
+		{
+			using namespace tinygltf;
+
+			Model model;
+
+			TinyGLTF loader;
+			std::string error, warning;
+
+			bool success = loader.LoadASCIIFromFile(&model, &error, &warning, _filepath);
+
+			if (!warning.empty()) {
+				Engine::Utils::print_base("TinyGLTF", "Warning: %s", warning.c_str());
+			}
+
+			if (!error.empty()) {
+				Engine::Utils::print_base("TinyGLTF", "Error: %s", error.c_str());
+				return false;
+			}
+
+			if (!success) {
+				Engine::Utils::print_base("TinyGLTF", "Failed to parse glTF.");
+				return false;
+			}
+
+			//TODO: Take scene graph from model data
+			auto & model_data = Singleton<Engine::Graphics::ResourceManager>().ImportModel_GLTF(model, _filepath);
+
+			nlohmann::json j = Engine::Serialisation::SerializeGLTFScene(model, model_data);
+			Engine::Serialisation::DeserialiseScene(j);
+			std::cout << std::setw(4) << j.dump() << std::endl;
+
+			return true;
+		};
+
 		// Load glTF model
 		bool success = true;
-		success = system_resource_manager.LoadModel("data/gltf/sponza/Sponza.gltf");
-		success = system_resource_manager.LoadModel("data/gltf/Sphere.gltf");
+		success = LoadModel("data/gltf/sponza/Sponza.gltf");
+		success = LoadModel("data/gltf/Sphere.gltf");
 		if (success)
 			printf("Assets loaded successfully.\n");
 		else
@@ -516,15 +555,12 @@ namespace Sandbox
 		SDL_Surface const* surface = Singleton<Engine::sdl_manager>().m_surface;
 		float const ar = (float)surface->w / (float)surface->h;
 
-		Engine::Math::transform3D mv = s_camera_transform.GetInverse();
 		camera.m_aspect_ratio = ar;
 		camera.m_fov_y = MATH_PI * 0.4f;
 		camera.m_near = 0.5f;
 		camera.m_far = 5000.0f;
-		glm::mat4x4 const mvp = camera.create_view_to_perspective_matrix() * mv.GetMatrix();
 
 		system_resource_manager.UseProgram(program_draw_gbuffer);
-		system_resource_manager.SetBoundProgramUniform(5, mvp);
 
 		ResourceManager::mesh_handle mesh_to_render = system_resource_manager.FindMesh("Sponza/Mesh_0");
 		if (mesh_to_render == 0)
@@ -564,58 +600,78 @@ namespace Sandbox
 			system_resource_manager.SetBoundProgramUniform(_shader_sampler_uniform_location, (int)_active_texture_index);
 		};
 
-		auto& mesh_primitives = system_resource_manager.GetMeshPrimitives(mesh_to_render);
-		for (unsigned int i = 0; i < mesh_primitives.size(); ++i)
+		glm::mat4 const camera_view_matrix = s_camera_transform.GetInvMatrix();
+		glm::mat4 const camera_perspective_matrix = camera.create_view_to_perspective_matrix();
+		glm::mat4 const matrix_vp = camera_perspective_matrix * camera_view_matrix;
+
+		auto all_renderables = Singleton<Component::RenderableManager>().GetAllRenderables();
+		for (auto pair : all_renderables)
 		{
-			ResourceManager::mesh_primitive_data primitive = mesh_primitives[i];
-			auto index_buffer_info = system_resource_manager.GetBufferInfo(primitive.m_index_buffer_handle);
-			auto ibo_info = system_resource_manager.GetIndexBufferInfo(primitive.m_index_buffer_handle);
+			Engine::ECS::Entity const renderable_entity = pair.first;
+			ResourceManager::mesh_handle const renderable_mesh = pair.second;
+			if (renderable_mesh == 0) 
+				continue;
 
-			glm::mat4 const mesh_model_matrix(1.0f);
-			glm::mat4 const matrix_mv = s_camera_transform.GetInvMatrix() * mesh_model_matrix;
-			glm::mat4 const matrix_t_inv_mv = glm::transpose(glm::inverse(matrix_mv));
-
-			system_resource_manager.SetBoundProgramUniform(6, matrix_t_inv_mv);
-			system_resource_manager.SetBoundProgramUniform(9, matrix_mv);
-
-			// Set texture slots
-			if (primitive.m_material_handle != 0)
+			Component::Transform renderable_transform = renderable_entity.GetComponent<Component::Transform>();
+			auto& mesh_primitives = system_resource_manager.GetMeshPrimitives(renderable_mesh);
+			for (unsigned int i = 0; i < mesh_primitives.size(); ++i)
 			{
-				ResourceManager::material_data material = system_resource_manager.GetMaterial(primitive.m_material_handle);
+				ResourceManager::mesh_primitive_data primitive = mesh_primitives[i];
+				assert(primitive.m_index_buffer_handle != 0);
+				auto index_buffer_info = system_resource_manager.GetBufferInfo(primitive.m_index_buffer_handle);
+				auto ibo_info = system_resource_manager.GetIndexBufferInfo(primitive.m_index_buffer_handle);
 
-				activate_texture(material.m_pbr_metallic_roughness.m_texture_base_color, 0, 0);
-				activate_texture(material.m_pbr_metallic_roughness.m_texture_metallic_roughness, 1, 1);
-				activate_texture(material.m_texture_normal, 2, 2);
-				activate_texture(material.m_texture_occlusion, 3, 3);
-				activate_texture(material.m_texture_emissive, 4, 4);
+				// TODO: Use world transform
+				auto model_transform = renderable_transform.ComputeWorldTransform();
+				glm::mat4 const mesh_model_matrix = model_transform.GetMatrix();
+				glm::mat4 const matrix_mv = camera_view_matrix * mesh_model_matrix;
+				glm::mat4 const matrix_t_inv_mv = glm::transpose(glm::inverse(matrix_mv));
 
-				using alpha_mode = ResourceManager::material_data::alpha_mode;
-				system_resource_manager.SetBoundProgramUniform(
-					10,
-					(float)(material.m_alpha_mode == alpha_mode::eMASK ? material.m_alpha_cutoff : 0.0)
-				);
-				if (material.m_alpha_mode == alpha_mode::eBLEND)
-					glEnable(GL_BLEND);
-				else
-					glDisable(GL_BLEND);
+				system_resource_manager.SetBoundProgramUniform(5, matrix_vp * mesh_model_matrix);
+				system_resource_manager.SetBoundProgramUniform(6, matrix_t_inv_mv);
+				system_resource_manager.SetBoundProgramUniform(9, matrix_vp * mesh_model_matrix);
 
-				if (material.m_double_sided)
-					glDisable(GL_CULL_FACE);
-				else
-					glEnable(GL_CULL_FACE);
+				// Set texture slots
+				if (primitive.m_material_handle != 0)
+				{
+					ResourceManager::material_data material = system_resource_manager.GetMaterial(primitive.m_material_handle);
+
+					activate_texture(material.m_pbr_metallic_roughness.m_texture_base_color, 0, 0);
+					activate_texture(material.m_pbr_metallic_roughness.m_texture_metallic_roughness, 1, 1);
+					activate_texture(material.m_texture_normal, 2, 2);
+					activate_texture(material.m_texture_occlusion, 3, 3);
+					activate_texture(material.m_texture_emissive, 4, 4);
+
+					using alpha_mode = ResourceManager::material_data::alpha_mode;
+					system_resource_manager.SetBoundProgramUniform(
+						10,
+						(float)(material.m_alpha_mode == alpha_mode::eMASK ? material.m_alpha_cutoff : 0.0)
+					);
+					if (material.m_alpha_mode == alpha_mode::eBLEND)
+						glEnable(GL_BLEND);
+					else
+						glDisable(GL_BLEND);
+
+					if (material.m_double_sided)
+						glDisable(GL_CULL_FACE);
+					else
+						glEnable(GL_CULL_FACE);
+				}
+
+				GfxCall(glBindVertexArray(primitive.m_vao_gl_id));
+				GfxCall(glDrawElements(
+					primitive.m_render_mode,
+					(GLsizei)ibo_info.m_index_count,
+					ibo_info.m_type,
+					nullptr
+				));
+				glBindVertexArray(0);
+				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+			
 			}
 
-			GfxCall(glBindVertexArray(primitive.m_vao_gl_id));
-			GfxCall(glDrawElements(
-				primitive.m_render_mode,
-				(GLsizei)ibo_info.m_index_count,
-				ibo_info.m_type,
-				nullptr
-			));
-			glBindVertexArray(0);
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-			
 		}
+
 
 		// Lighting Stage
 

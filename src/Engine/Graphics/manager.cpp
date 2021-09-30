@@ -76,7 +76,7 @@ namespace Graphics {
 	}
 
 
-	bool ResourceManager::LoadModel(const char* _filepath)
+	/*bool ResourceManager::LoadModel(tinygltf::TinyGLTF & _tinygltf,const char* _filepath)
 	{
 		std::filesystem::path const path(_filepath);
 		Engine::Utils::print_base("Resource Manager", "Loading model \"%s\"...", path.string().c_str());
@@ -87,7 +87,7 @@ namespace Graphics {
 			success = false;
 			std::filesystem::path const extension = path.extension();
 			if (extension == ".gltf")
-				success = load_gltf_model(_filepath);
+				success = ImportModel_GLTF(_filepath);
 			else
 			{
 				success = false;
@@ -103,31 +103,11 @@ namespace Graphics {
 			Engine::Utils::print_base("Resource Manager", "ERROR: Model at path \"%s\" does not exist.", path.string().c_str());
 
 		return success;
-	}
+	}*/
 
-	bool ResourceManager::load_gltf_model(const char* _filepath)
+	ResourceManager::gltf_model_data const & ResourceManager::ImportModel_GLTF(tinygltf::Model& _tinygltf_model, const char* _filepath)
 	{
 		using namespace tinygltf;
-
-		Model model;
-
-		TinyGLTF loader;
-		std::string error, warning;
-
-		bool success = loader.LoadASCIIFromFile(&model, &error, &warning, _filepath);
-
-		if (!warning.empty()) {
-			Engine::Utils::print_base("TinyGLTF", "Warning: %s", warning.c_str());
-		}
-
-		if (!error.empty()) {
-			Engine::Utils::print_base("TinyGLTF", "Error: %s", error.c_str());
-		}
-
-		if (!success) {
-			Engine::Utils::print_base("TinyGLTF", "Failed to parse glTF.");
-			return false;
-		}
 
 		/*
 				Load gltf model into internal manager.
@@ -139,13 +119,18 @@ namespace Graphics {
 		decltype(m_index_buffer_info_map) new_index_buffer_info_map;
 		decltype(m_mesh_primitives_map) new_mesh_primitives_map;
 		decltype(m_named_mesh_map) new_named_mesh_map;
+		decltype(m_mesh_name_map) new_mesh_name_map;
+
+		std::vector<mesh_handle> created_meshes;
+
+		std::string const model_name = std::filesystem::path(_filepath).stem().string();
 
 		/*
 		* Load buffers (VBOs & IBOs)
 		*/
 
 		// Generate all GL buffers at once.
-		unsigned int const new_bufferview_count = (unsigned int)model.bufferViews.size();
+		unsigned int const new_bufferview_count = (unsigned int)_tinygltf_model.bufferViews.size();
 		std::vector<GLuint> new_gl_buffer_arr;
 		new_gl_buffer_arr.resize(new_bufferview_count);
 		glGenBuffers(new_bufferview_count, &new_gl_buffer_arr[0]);
@@ -160,8 +145,8 @@ namespace Graphics {
 		for (unsigned int i = 0; i < new_bufferview_count; ++i)
 		{
 			buffer_handle const curr_new_handle = m_buffer_handle_counter + gpu_buffer_count;	
-			tinygltf::BufferView const& read_bufferview = model.bufferViews[i];
-			tinygltf::Buffer const& read_buffer = model.buffers[read_bufferview.buffer];
+			tinygltf::BufferView const& read_bufferview = _tinygltf_model.bufferViews[i];
+			tinygltf::Buffer const& read_buffer = _tinygltf_model.buffers[read_bufferview.buffer];
 
 			if (read_bufferview.target == 0)
 			{
@@ -190,11 +175,13 @@ namespace Graphics {
 		* Set up meshes (lists of VAOs)
 		*/
 
-		unsigned int const new_mesh_count = (unsigned int)model.meshes.size();
+		unsigned int const new_mesh_count = (unsigned int)_tinygltf_model.meshes.size();
 		
 		for (unsigned int i = 0; i < new_mesh_count; ++i)
 		{
-			tinygltf::Mesh const& read_mesh = model.meshes[i];
+			tinygltf::Mesh const& read_mesh = _tinygltf_model.meshes[i];
+
+			mesh_handle const new_mesh_handle = m_mesh_handle_counter + i;
 
 			std::vector<mesh_primitive_data> curr_mesh_primitives;
 			curr_mesh_primitives.resize(read_mesh.primitives.size());
@@ -229,20 +216,30 @@ namespace Graphics {
 				// Insert component type of IBO into index buffer component map if it hasn't been done already
 				// Overwriting pre-existing index buffer info element is fine since it should be a copy anyways.
 				index_buffer_info new_index_buffer_info;
-				new_index_buffer_info.m_type = model.accessors[read_primitive.indices].componentType;
-				new_index_buffer_info.m_index_count = model.accessors[read_primitive.indices].count;
+				new_index_buffer_info.m_type = _tinygltf_model.accessors[read_primitive.indices].componentType;
+				new_index_buffer_info.m_index_count = _tinygltf_model.accessors[read_primitive.indices].count;
 				new_index_buffer_info_map.emplace(new_primitive.m_index_buffer_handle, new_index_buffer_info);
 
 				// Bind respective VBOs referred to by primitive attributes + index buffer
 
 				for (auto const & primitive_attrib : read_primitive.attributes)
 				{
+					// Get buffer pointed to by bufferView pointed to by current attribute in primitive
+					tinygltf::Accessor const& read_accessor = _tinygltf_model.accessors[primitive_attrib.second];
+					tinygltf::BufferView const& read_bufferview = _tinygltf_model.bufferViews[read_accessor.bufferView];
+					buffer_handle const attribute_buffer_handle =
+						m_buffer_handle_counter + read_accessor.bufferView;
+					buffer_info const attribute_referenced_buffer = new_buffer_info_map.at(attribute_buffer_handle);
+
 					// Determine location of attribute in shader.
 					// Assume position, normal and tangent attributes always exist in primitives.
 
 					//TODO: Support joints, weights (and colors?)
 					unsigned int gl_attribute_index = 0;
-					if (primitive_attrib.first == "POSITION") gl_attribute_index = 0;
+					if (primitive_attrib.first == "POSITION") {
+						gl_attribute_index = 0;
+						new_primitive.m_vertex_count = read_accessor.count;
+					}
 					else if (primitive_attrib.first == "NORMAL") gl_attribute_index = 1;
 					else if (primitive_attrib.first == "TANGENT") gl_attribute_index = 2;
 					//TODO: Check if TEXCOORD actually exists rather than assuming it.
@@ -253,12 +250,6 @@ namespace Graphics {
 						gl_attribute_index = 3 + texcoord_index;
 					}
 
-					// Get buffer pointed to by bufferView pointed to by current attribute in primitive
-					tinygltf::Accessor const& read_accessor = model.accessors[primitive_attrib.second];
-					tinygltf::BufferView const& read_bufferview = model.bufferViews[read_accessor.bufferView];
-					buffer_handle const attribute_buffer_handle =
-						m_buffer_handle_counter + read_accessor.bufferView;
-					buffer_info const attribute_referenced_buffer = new_buffer_info_map.at(attribute_buffer_handle);
 					glBindBuffer(attribute_referenced_buffer.m_target, attribute_referenced_buffer.m_gl_id);
 					glEnableVertexArrayAttrib(new_primitive.m_vao_gl_id, gl_attribute_index);
 					glVertexAttribPointer(
@@ -274,13 +265,14 @@ namespace Graphics {
 				}
 				GfxCall(glBindVertexArray(0));
 			}
-			new_mesh_primitives_map.emplace(m_mesh_handle_counter + i, std::move(curr_mesh_primitives));
+			new_mesh_primitives_map.emplace(new_mesh_handle, std::move(curr_mesh_primitives));
 			// Insert mesh into named mesh map.
 			std::filesystem::path const path(_filepath);
-			new_named_mesh_map.emplace(
-				path.stem().string() + std::string("/") + read_mesh.name,
-				m_mesh_handle_counter + i
-			);
+			std::string const mesh_name = model_name + std::string("/") + read_mesh.name;
+			new_named_mesh_map.emplace(mesh_name, new_mesh_handle);
+			new_mesh_name_map.emplace(new_mesh_handle, mesh_name);
+
+			created_meshes.push_back(new_mesh_handle);
 		}
 
 		/*
@@ -292,14 +284,14 @@ namespace Graphics {
 
 		// Generate openGL textures beforehand
 		std::vector<GLuint> new_gl_texture_objects;
-		new_gl_texture_objects.resize(model.images.size());
+		new_gl_texture_objects.resize(_tinygltf_model.images.size());
 
 		if(!new_gl_texture_objects.empty())
 			glGenTextures((GLsizei)new_gl_texture_objects.size(), &new_gl_texture_objects[0]);
-		for (unsigned int i = 0; i < model.images.size(); ++i)
+		for (unsigned int i = 0; i < _tinygltf_model.images.size(); ++i)
 		{
 			texture_handle const current_texture = m_texture_handle_counter + i;
-			tinygltf::Image & read_texture_source = model.images[i];
+			tinygltf::Image & read_texture_source = _tinygltf_model.images[i];
 			texture_info new_texture_info;
 			new_texture_info.m_gl_source_id = new_gl_texture_objects[i];
 			new_texture_info.m_target = GL_TEXTURE_2D; // Assume all glTF textures are 2D.
@@ -333,8 +325,8 @@ namespace Graphics {
 				else
 				{
 					// Assume bufferview data for image is contiguous
-					tinygltf::BufferView const& read_bufferview = model.bufferViews[read_texture_source.bufferView];
-					stbi_uc* image_ptr = (stbi_uc*)&model.buffers[read_bufferview.buffer].data[read_bufferview.byteOffset];
+					tinygltf::BufferView const& read_bufferview = _tinygltf_model.bufferViews[read_texture_source.bufferView];
+					stbi_uc* image_ptr = (stbi_uc*)&_tinygltf_model.buffers[read_bufferview.buffer].data[read_bufferview.byteOffset];
 					image_data = stbi_load_from_memory(
 						image_ptr,
 						(int)read_texture_source.image.size(),
@@ -386,10 +378,10 @@ namespace Graphics {
 		}
 
 		// Go through textures one more time and set parameters properly.
-		for (unsigned int i = 0; i < model.textures.size(); ++i)
+		for (unsigned int i = 0; i < _tinygltf_model.textures.size(); ++i)
 		{
-			tinygltf::Texture const& read_texture = model.textures[i];
-			tinygltf::Sampler const& read_sampler = model.samplers[read_texture.sampler];
+			tinygltf::Texture const& read_texture = _tinygltf_model.textures[i];
+			tinygltf::Sampler const& read_sampler = _tinygltf_model.samplers[read_texture.sampler];
 
 			texture_handle const current_texture = m_texture_handle_counter + read_texture.source;
 			texture_info current_texture_info = new_texture_info_map.at(current_texture);
@@ -407,9 +399,9 @@ namespace Graphics {
 
 		//TODO: Load material data into new map
 		decltype(m_material_data_map) new_material_data_map;
-		for (unsigned int i = 0; i < model.materials.size(); ++i)
+		for (unsigned int i = 0; i < _tinygltf_model.materials.size(); ++i)
 		{
-			tinygltf::Material const& read_material = model.materials[i];
+			tinygltf::Material const& read_material = _tinygltf_model.materials[i];
 			tinygltf::PbrMetallicRoughness const read_pbr_mr = read_material.pbrMetallicRoughness;
 
 			material_handle new_material_handle = m_material_handle_counter + i;
@@ -425,7 +417,7 @@ namespace Graphics {
 
 			auto get_source_of_texture_index = [&](unsigned int _index)->unsigned int
 			{
-				return model.textures[_index].source;
+				return _tinygltf_model.textures[_index].source;
 			};
 
 			auto determine_texture_handle = [&](int _texture_index)->texture_handle
@@ -479,11 +471,23 @@ namespace Graphics {
 		m_buffer_info_map.merge(std::move(new_buffer_info_map));
 		m_index_buffer_info_map.merge(std::move(new_index_buffer_info_map));
 		m_named_mesh_map.merge(new_named_mesh_map);
+		m_mesh_name_map.merge(new_mesh_name_map);
 		m_mesh_primitives_map.merge(new_mesh_primitives_map);
 		m_material_data_map.merge(new_material_data_map);
 		m_texture_info_map.merge(new_texture_info_map);
 
-		return true;
+		gltf_model_data model_data;
+		model_data.m_model_name = model_name;
+		model_data.m_meshes = std::move(created_meshes);
+
+		m_imported_gltf_models.emplace(_filepath, std::move(model_data));
+
+		return m_imported_gltf_models.at(_filepath);
+	}
+
+	ResourceManager::gltf_model_data const& ResourceManager::GetImportedGLTFModelData(const char* _filepath) const
+	{
+		return m_imported_gltf_models.at(_filepath);
 	}
 
 	//////////////////////////////////////////////////////////////////
@@ -508,12 +512,22 @@ namespace Graphics {
 	* Attempts to find a mesh by a given name.
 	* @param	const char *	Name of mesh 
 								(Mesh "Mesh_0" in file "Sponza.gltf" will be called "Sponza/Mesh_0")
-	* @return	mesh_handle		Handle to mesh
+	* @return	mesh_handle		Handle to mesh (0 if not found)
 	*/
 	ResourceManager::mesh_handle ResourceManager::FindMesh(const char* _mesh_name) const
 	{
 		auto iter = m_named_mesh_map.find(_mesh_name);
 		return (iter == m_named_mesh_map.end()) ? 0 : iter->second;
+	}
+
+	/*
+	* Gets name of given (valid) mesh
+	* @param	mesh_handle		Handle to mesh
+	* @returns	std::string		Name of mesh
+	*/
+	std::string ResourceManager::GetMeshName(mesh_handle _mesh) const
+	{
+		return m_mesh_name_map.at(_mesh);
 	}
 
 	/*
@@ -1149,6 +1163,7 @@ namespace Graphics {
 		delete_shaders(shader_handles);
 		delete_programs(shader_program_handles);
 
+		m_imported_gltf_models.clear();
 		m_material_data_map.clear();
 	}
 
@@ -1181,14 +1196,16 @@ namespace Graphics {
 
 		}
 
-		// Delete unused meshes in named mesh map
-		auto named_mesh_iter = m_named_mesh_map.begin();
-		while (named_mesh_iter != m_named_mesh_map.end())
+		// Delete mesh entries in map.
+		for (unsigned int i = 0; i < _meshes.size(); ++i)
 		{
-			if (m_mesh_primitives_map.find(named_mesh_iter->second) == m_mesh_primitives_map.end())
-				named_mesh_iter = m_named_mesh_map.erase(named_mesh_iter);
-			else
-				++named_mesh_iter;
+			mesh_handle const delete_mesh = _meshes[i];
+			auto iter = m_mesh_name_map.find(delete_mesh);
+			if (iter != m_mesh_name_map.end())
+			{
+				m_named_mesh_map.erase(iter->second);
+				m_mesh_name_map.erase(iter);
+			}
 		}
 
 		// Delete all gl texture objects simultaneously

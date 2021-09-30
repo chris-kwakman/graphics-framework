@@ -96,4 +96,12 @@ namespace Component
 			component.SetMesh(payload_mesh_handle);
 	}
 
+	void RenderableManager::impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context)
+	{
+		auto& resource_manager = Singleton<Engine::Graphics::ResourceManager>();
+		Renderable component = Get(_e);
+		auto mesh_handle = resource_manager.FindMesh(_json_comp["mesh_name"].get<std::string>().c_str());
+		component.SetMesh(mesh_handle);
+	}
+
 }

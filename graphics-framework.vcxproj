@@ -127,6 +127,10 @@
       <ConformanceMode>true</ConformanceMode>
       <TreatWarningAsError>false</TreatWarningAsError>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <MinimalRebuild>true</MinimalRebuild>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <FloatingPointModel>Fast</FloatingPointModel>
+      <Optimization>Disabled</Optimization>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -145,6 +149,9 @@
       <ConformanceMode>true</ConformanceMode>
       <TreatWarningAsError>false</TreatWarningAsError>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <MinimalRebuild>true</MinimalRebuild>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <FloatingPointModel>Fast</FloatingPointModel>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -179,6 +186,9 @@
     <ClCompile Include="src\Engine\Graphics\tiny_gltf.cc" />
     <ClCompile Include="src\Engine\Managers\input.cpp" />
     <ClCompile Include="src\Engine\Math\Transform3D.cpp" />
+    <ClCompile Include="src\Engine\Serialisation\common.cpp" />
+    <ClCompile Include="src\Engine\Serialisation\scene.cpp" />
+    <ClCompile Include="src\Engine\Serialisation\serialise_gltf.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\Sandbox\sandbox.cpp" />
   </ItemGroup>
@@ -207,6 +217,9 @@
     <ClInclude Include="src\Engine\Graphics\sdl_window.h" />
     <ClInclude Include="src\Engine\Managers\input.h" />
     <ClInclude Include="src\Engine\Math\Transform3D.h" />
+    <ClInclude Include="src\Engine\Serialisation\common.h" />
+    <ClInclude Include="src\Engine\Serialisation\scene.h" />
+    <ClInclude Include="src\Engine\Serialisation\serialise_gltf.h" />
     <ClInclude Include="src\Engine\Utils\logging.h" />
     <ClInclude Include="src\Engine\Utils\singleton.h" />
     <ClInclude Include="src\Sandbox\sandbox.h" />

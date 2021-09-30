@@ -1,15 +1,15 @@
 #ifndef ENGINE_ECS_COMPONENT_MANAGER_H
 #define ENGINE_ECS_COMPONENT_MANAGER_H
 
-#include "entity.h"
 #include <Engine/Utils/singleton.h>
+#include <Engine/Serialisation/scene.h>
+#include "entity.h"
 #include <vector>
 
 namespace Engine {
 namespace ECS {
 
 #define DECLARE_COMPONENT(TComp) using IComp::IComp;
-#define REGISTER_COMPONENT(TComp) ;
 
 	template<class TCompManager>
 	struct IComp
@@ -49,6 +49,7 @@ namespace ECS {
 
 		virtual void EditComponent(Entity _entity) = 0;
 		virtual const char* GetComponentTypeName() const = 0;
+		virtual void DeserializeEntityComponent(Entity _entity, nlohmann::json const & _json_entity, Engine::Serialisation::SceneContext const * _context) = 0;
 
 		static std::vector<ICompManager*> const& GetRegisteredComponentManagers();
 
@@ -84,6 +85,11 @@ namespace ECS {
 
 		virtual const char* GetComponentTypeName() const = 0;
 
+		// Inherited via ICompManager
+		// These methods assume that the entity's component already exists.
+		// If json components have dependencies on each other, it is ALSO assumed the dependency component exists.
+		void DeserializeEntityComponent(Entity _e, nlohmann::json const& _json_entity, Engine::Serialisation::SceneContext const* _context) final;
+
 	protected:
 
 		void			CreateComponent(Entity _entity) final { Create(_entity); }
@@ -95,6 +101,8 @@ namespace ECS {
 		virtual void impl_destroy(Entity const* _entities, unsigned int _count) = 0;
 		virtual bool impl_component_owned_by_entity(Entity _entity) const = 0;
 		virtual void impl_edit_component(Entity _entity) = 0;
+		virtual void impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context) = 0;
+
 
 	private:
 

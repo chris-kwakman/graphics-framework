@@ -25,7 +25,7 @@ void main()
 
 	f_uv_1 = v_uv_1;
 
-	f_normal = vec3(u_mv * vec4(v_normal,0));
+	f_normal = vec3(u_mv_t_inv * vec4(v_normal,0));
 	f_tangent = vec3(u_mv * vec4(v_tangent.xyz,0));
 
 }

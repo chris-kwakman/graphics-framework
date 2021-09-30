@@ -423,6 +423,25 @@ namespace Component
 		ImGui::DragFloat3("Scale", &transform.scale.x, 0.1f, 0.0f, FLT_MAX / INT_MIN);
 	}
 
+	/*
+	* Deserialize json into this entity's component
+	* @param	Entity
+	* @param	json		Json component to deserialize
+	* @param	SceneContext		Provided when deserialising scene
+	* @details	Assumes entity corresponding to this component has already been created.
+	*/
+	void TransformManager::impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context)
+	{
+		Transform component = Get(_e);
+		component.SetLocalTransform(_json_comp["local_transform"]);
+		if (_context)
+		{
+			auto parent_iter = _json_comp.find("parent_index");
+			if (parent_iter != _json_comp.end())
+				component.SetParent(_context->m_index_entities[parent_iter->get<unsigned int>()]);
+		}
+	}
+
 	//////////////////////////////////////////////////////////////////////////
 	//			Component Getters / Setters
 	//////////////////////////////////////////////////////////////////////////
@@ -481,7 +500,7 @@ namespace Component
 	* Computes model to world transform using entity hierarchy.
 	* @returns	Transform 3D
 	*/
-	Engine::Math::transform3D Transform::ComputeModelToWorldTransform() const
+	Engine::Math::transform3D Transform::ComputeWorldTransform() const
 	{
 		unsigned int entity_iter_idx = get_manager().get_entity_index(m_owner);
 		Engine::Math::transform3D model_to_world_transform = get_manager().m_local_transforms[entity_iter_idx];
@@ -500,7 +519,7 @@ namespace Component
 	* If precomputed matrix is outdated (dirty), recompute from scratch using model to world transform.
 	* @returns	Model to World matrix
 	*/
-	glm::mat4x4 Transform::ComputeModelToWorldMatrix() const
+	glm::mat4x4 Transform::ComputeWorldMatrix() const
 	{
 		unsigned int const owner_index = get_manager().get_entity_index(m_owner);
 		// If owner index is NOT dirty, use pre-computed matrix

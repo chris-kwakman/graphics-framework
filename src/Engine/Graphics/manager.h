@@ -3,8 +3,9 @@
 
 #include <unordered_map>
 #include <GL/glew.h>
-#include <Engine/Math/Transform3D.h>
 #include <filesystem>
+#include <tiny_glft/tiny_gltf.h>
+#include <Engine/Math/Transform3D.h>
 
 namespace Engine {
 namespace Graphics {
@@ -27,12 +28,13 @@ namespace Graphics {
 		typedef unsigned int	texture_handle;
 		typedef unsigned int	framebuffer_handle;
 
+		typedef std::string	 filepath_string;
+
 		//////////////////////////////////////////////////////
 		//			OpenGL Graphics Assets Data
 		//////////////////////////////////////////////////////
 
 	public:
-
 
 		// Mesh data
 		struct mesh_primitive_data
@@ -40,6 +42,7 @@ namespace Graphics {
 			GLuint			m_vao_gl_id;			// VAO referring to IBO and VBOs
 			buffer_handle	m_index_buffer_handle;	// Handle pointing to IBO (component type of IBO stored in index_buffer_component_map)
 			material_handle m_material_handle;
+			unsigned int	m_vertex_count;			// To be used as index count when index buffer handle is not specified.
 			unsigned char	m_render_mode = GL_TRIANGLES; // Default according to specification
 		};
 
@@ -63,6 +66,7 @@ namespace Graphics {
 		buffer_handle		m_buffer_handle_counter = 1;
 
 		std::unordered_map<std::string, mesh_handle>			m_named_mesh_map;
+		std::unordered_map<mesh_handle, std::string>			m_mesh_name_map;
 		std::unordered_map<mesh_handle, mesh_primitive_list>	m_mesh_primitives_map;
 		std::unordered_map<buffer_handle, buffer_info>			m_buffer_info_map;
 		std::unordered_map<buffer_handle, index_buffer_info>	m_index_buffer_info_map;
@@ -148,6 +152,21 @@ namespace Graphics {
 		std::unordered_map<framebuffer_handle, framebuffer_info>			m_framebuffer_info_map;
 
 		//////////////////////////////////////////////////////
+		//						GLTF Data
+		//////////////////////////////////////////////////////
+
+	public:
+
+		struct gltf_model_data
+		{
+			std::string m_model_name;
+			std::vector<mesh_handle> m_meshes;
+		};
+
+		std::unordered_map<filepath_string, gltf_model_data> m_imported_gltf_models;
+
+
+		//////////////////////////////////////////////////////
 		//				OpenGL Shader Data
 		//////////////////////////////////////////////////////
 
@@ -156,7 +175,6 @@ namespace Graphics {
 		typedef char shader_data;
 		typedef unsigned int shader_handle;
 		typedef unsigned int shader_program_handle;
-		typedef std::string	 filepath_string;
 
 		struct shader_info
 		{
@@ -198,14 +216,13 @@ namespace Graphics {
 
 	public:
 
-		bool LoadModel(const char* _filepath);
+		gltf_model_data const & ImportModel_GLTF(tinygltf::Model & _tinygltf_model, const char * _filepath);
+		gltf_model_data const & GetImportedGLTFModelData(const char* _filepath) const;
 
 	private:
 
 		static unsigned int get_gl_component_size(GLuint _componentType);
 		static unsigned int get_glTF_type_component_count(int _attributeType);
-
-		bool load_gltf_model(const char * _filepath);
 
 		/*
 		* Buffer Methods
@@ -223,6 +240,7 @@ namespace Graphics {
 	public:
 
 		mesh_handle					FindMesh(const char* _mesh_name) const;
+		std::string					GetMeshName(mesh_handle _mesh) const;
 		mesh_primitive_list const&	GetMeshPrimitives(mesh_handle _mesh) const;
 		
 		/*

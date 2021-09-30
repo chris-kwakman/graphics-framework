@@ -6,6 +6,8 @@
 #include <glm/mat4x4.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+#include <Engine/Serialisation/common.h>
+
 namespace Engine
 {
 	namespace Math
@@ -34,6 +36,9 @@ namespace Engine
 
 			static transform3D concatenate(transform3D _l, transform3D _r);
 		};
+
+		void from_json(nlohmann::json const& j, Engine::Math::transform3D& t);
+		void to_json(nlohmann::json& j, Engine::Math::transform3D const& t);
 	}
 }
 
