@@ -67,8 +67,22 @@ namespace ECS {
 	template<class TComp>
 	inline void TCompManager<TComp>::EditComponent(Entity _entity)
 	{
-		if (ComponentOwnedByEntity(_entity) && ImGui::CollapsingHeader(GetComponentTypeName()))
-			impl_edit_component(_entity);
+		if (ComponentOwnedByEntity(_entity))
+		{
+			bool const opened_collapsing_header = ImGui::CollapsingHeader(GetComponentTypeName());
+			bool component_destroyed = false;
+			if (ImGui::BeginPopupContextItem())
+			{
+				if (ImGui::Button("Destroy Component"))
+				{
+					Destroy(&_entity, 1);
+					component_destroyed = true;
+				}
+				ImGui::EndPopup();
+			}
+			if (opened_collapsing_header && !component_destroyed)
+				impl_edit_component(_entity);
+		}
 	}
 
 	template<class TComp>

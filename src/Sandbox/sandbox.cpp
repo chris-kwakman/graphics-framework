@@ -488,18 +488,7 @@ namespace Sandbox
 
 		if (ImGui::Begin("Component List"))
 		{
-			if (!editor_scene_graph_data.selected_entities.empty())
-			{
-				for (auto manager : Engine::ECS::ICompManager::GetRegisteredComponentManagers())
-				{
-					const char* comp_name = manager->GetComponentTypeName();
-					if (ImGui::Button(comp_name))
-					{
-						for(auto entity : editor_scene_graph_data.selected_entities)
-							manager->CreateComponent(entity);
-					}
-				}
-			}
+			
 		}
 		ImGui::End();
 
@@ -516,6 +505,23 @@ namespace Sandbox
 			else
 			{
 				ImGui::Text("No entity selected");
+			}
+			if (!editor_scene_graph_data.selected_entities.empty())
+			{
+				ImGui::Button("Create Component");
+				if (ImGui::BeginPopupContextItem("CreatableComponentList", ImGuiPopupFlags_MouseButtonLeft))
+				{
+					for (auto manager : Engine::ECS::ICompManager::GetRegisteredComponentManagers())
+					{
+						const char* comp_name = manager->GetComponentTypeName();
+						if (ImGui::Selectable(comp_name))
+						{
+							for (auto entity : editor_scene_graph_data.selected_entities)
+								manager->CreateComponent(entity);
+						}
+					}
+					ImGui::EndPopup();
+				}
 			}
 		}
 		ImGui::End();
