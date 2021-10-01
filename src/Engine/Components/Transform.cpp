@@ -105,7 +105,7 @@ namespace Component
 		return m_entity_data_index_map.at(_e);
 	}
 
-	void TransformManager::mark_entity_dirty(Entity _e)
+	void TransformManager::mark_matrix_dirty(Entity _e)
 	{
 		mark_index_dirty(m_entity_data_index_map.at(_e));
 	}
@@ -156,7 +156,12 @@ namespace Component
 			m_next_sibling[iter_child_index] = _entity;
 		}
 
-		mark_entity_dirty(_entity);
+		// Maintain world transform of entity that we are attaching to parent
+		auto parent_component = Get(m_parent[entity_index]);
+		Engine::Math::transform3D const parent_transform = parent_component.ComputeWorldTransform();
+		m_local_transforms[entity_index] = parent_transform.GetInverse() * m_local_transforms[entity_index];
+
+		mark_matrix_dirty(_entity);
 
 		m_root_entities.erase(_entity);
 
@@ -207,12 +212,16 @@ namespace Component
 			m_next_sibling[child_iter_index] = m_next_sibling[entity_index];
 		}
 
+		// Maintain world transform of entity that we are detaching from parent
+		Engine::Math::transform3D const parent_transform = Get(m_parent[entity_index]).ComputeWorldTransform();
+		m_local_transforms[entity_index] = parent_transform * m_local_transforms[entity_index];
+
 		m_parent[entity_index] = Entity::InvalidEntity;
 		m_next_sibling[entity_index] = Entity::InvalidEntity;
 
 		m_root_entities.insert(_entity);
 
-		mark_entity_dirty(_entity);
+		mark_matrix_dirty(_entity);
 	}
 
 	void TransformManager::detach_all_entity_children(Entity _entity)

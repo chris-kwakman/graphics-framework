@@ -64,7 +64,7 @@ namespace Component
 		void remove_entry(Entity _e);
 		uint16_t get_entity_index(Entity _e) const;
 
-		void mark_entity_dirty(Entity _e);
+		void mark_matrix_dirty(Entity _e);
 		void mark_index_dirty(uint16_t _idx);
 		bool check_index_dirty(uint16_t _idx) const;
 
