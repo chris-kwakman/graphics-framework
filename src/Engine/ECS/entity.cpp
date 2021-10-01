@@ -79,7 +79,7 @@ namespace ECS {
 				Entity new_handle;
 				new_handle.m_id = temp_handle_idx_arr[i];
 				new_handle.m_counter = m_entity_counters[temp_handle_idx_arr[i]];
-				m_entity_in_use_flag.set(temp_handle_idx_arr[i]);
+				m_entity_in_use_flag.set(temp_handle_idx_arr[i], true);
 				_out_handles[i] = new_handle;
 			}
 		}

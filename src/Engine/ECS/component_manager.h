@@ -25,16 +25,12 @@ namespace ECS {
 		bool IsValid() const;
 		void Destroy();
 
-		// Shorthand for creating a component type.
-		// Forwards to component manager.
-		//static typename TCompManager::comp_type Create(Entity _e);
-
 		friend typename TCompManager;
 		friend struct Entity;
 
-	protected:
+		static inline TCompManager& GetManager() { return Singleton<TCompManager>(); }
 
-		static inline TCompManager& get_manager() { return Singleton<TCompManager>(); }
+	protected:
 
 		Entity m_owner;
 	};

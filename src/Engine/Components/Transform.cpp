@@ -449,7 +449,7 @@ namespace Component
 
 	Entity Transform::GetParent() const
 	{
-		return get_manager().m_parent[get_manager().get_entity_index(m_owner)];
+		return GetManager().m_parent[GetManager().get_entity_index(m_owner)];
 	}
 
 	void Transform::SetParent(Entity _e)
@@ -460,28 +460,28 @@ namespace Component
 		if (
 			GetParent() != _e &&
 			m_owner != _e && 
-			!get_manager().is_entity_attached_to_entity(_e, m_owner))
+			!GetManager().is_entity_attached_to_entity(_e, m_owner))
 		{
 			DetachFromParent();
-			get_manager().attach_entity_to_parent(m_owner, _e);
+			GetManager().attach_entity_to_parent(m_owner, _e);
 		}
 	}
 
 	void Transform::DetachFromParent()
 	{
 		if (GetParent() != Entity::InvalidEntity)
-			get_manager().detach_entity_from_parent(m_owner);
+			GetManager().detach_entity_from_parent(m_owner);
 	}
 
 	void Transform::AttachChild(Entity _e)
 	{
 		if(_e != Entity::InvalidEntity && _e != m_owner)
-			get_manager().Get(_e).SetParent(m_owner);
+			GetManager().Get(_e).SetParent(m_owner);
 	}
 
 	Engine::Math::transform3D Transform::GetLocalTransform() const
 	{
-		return get_manager().m_local_transforms[get_manager().get_entity_index(m_owner)];
+		return GetManager().m_local_transforms[GetManager().get_entity_index(m_owner)];
 	}
 	glm::vec3 Transform::GetLocalPosition() const
 	{
@@ -502,14 +502,14 @@ namespace Component
 	*/
 	Engine::Math::transform3D Transform::ComputeWorldTransform() const
 	{
-		unsigned int entity_iter_idx = get_manager().get_entity_index(m_owner);
-		Engine::Math::transform3D model_to_world_transform = get_manager().m_local_transforms[entity_iter_idx];
-		Entity parent_entity = get_manager().m_parent[entity_iter_idx];
+		unsigned int entity_iter_idx = GetManager().get_entity_index(m_owner);
+		Engine::Math::transform3D model_to_world_transform = GetManager().m_local_transforms[entity_iter_idx];
+		Entity parent_entity = GetManager().m_parent[entity_iter_idx];
 		while (parent_entity != Entity::InvalidEntity)
 		{
-			unsigned int const parent_index = get_manager().get_entity_index(parent_entity);;
-			model_to_world_transform = get_manager().m_local_transforms[parent_index] * model_to_world_transform;
-			parent_entity = get_manager().m_parent[parent_index];
+			unsigned int const parent_index = GetManager().get_entity_index(parent_entity);;
+			model_to_world_transform = GetManager().m_local_transforms[parent_index] * model_to_world_transform;
+			parent_entity = GetManager().m_parent[parent_index];
 		}
 		return model_to_world_transform;
 	}
@@ -521,32 +521,32 @@ namespace Component
 	*/
 	glm::mat4x4 Transform::ComputeWorldMatrix() const
 	{
-		unsigned int const owner_index = get_manager().get_entity_index(m_owner);
+		unsigned int const owner_index = GetManager().get_entity_index(m_owner);
 		// If owner index is NOT dirty, use pre-computed matrix
-		if (!get_manager().check_index_dirty(owner_index))
+		if (!GetManager().check_index_dirty(owner_index))
 		{
-			return get_manager().m_world_matrices[owner_index];
+			return GetManager().m_world_matrices[owner_index];
 		}
 		// If owner index IS dirty, re-compute model to world matrix.
 		else
 		{
-			glm::mat4x4 transformation_matrix = get_manager().m_local_transforms[owner_index].GetMatrix();
-			Entity parent_iter = get_manager().m_parent[owner_index];
-			unsigned int parent_index = get_manager().get_entity_index(parent_iter);
+			glm::mat4x4 transformation_matrix = GetManager().m_local_transforms[owner_index].GetMatrix();
+			Entity parent_iter = GetManager().m_parent[owner_index];
+			unsigned int parent_index = GetManager().get_entity_index(parent_iter);
 			while (parent_iter != Entity::InvalidEntity)
 			{
 				// If parent is NOT dirty, use precomputed matrix and exit early.
-				if (!get_manager().check_index_dirty(parent_index))
+				if (!GetManager().check_index_dirty(parent_index))
 				{
-					transformation_matrix = get_manager().m_world_matrices[parent_index] * transformation_matrix;
+					transformation_matrix = GetManager().m_world_matrices[parent_index] * transformation_matrix;
 					break;
 				}
 				// Otherwise, keep going up the hierarchy until we reach the end or reach a valid precomputed matrix
 				else
 				{
-					transformation_matrix = get_manager().m_world_matrices[parent_index] * transformation_matrix;
-					parent_iter = get_manager().m_parent[parent_index];
-					parent_index = get_manager().get_entity_index(parent_iter);
+					transformation_matrix = GetManager().m_world_matrices[parent_index] * transformation_matrix;
+					parent_iter = GetManager().m_parent[parent_index];
+					parent_index = GetManager().get_entity_index(parent_iter);
 				}
 			}
 			return transformation_matrix;
@@ -555,32 +555,32 @@ namespace Component
 
 	void Transform::SetLocalTransform(Engine::Math::transform3D _value)
 	{
-		unsigned int entity_index = get_manager().get_entity_index(m_owner);
-		get_manager().m_local_transforms[entity_index] = _value;
-		get_manager().mark_index_dirty(entity_index);
+		unsigned int entity_index = GetManager().get_entity_index(m_owner);
+		GetManager().m_local_transforms[entity_index] = _value;
+		GetManager().mark_index_dirty(entity_index);
 	}
 	void Transform::SetLocalPosition(glm::vec3 _value)
 	{
-		unsigned int entity_index = get_manager().get_entity_index(m_owner);
-		get_manager().m_local_transforms[entity_index].position = _value;
-		get_manager().mark_index_dirty(entity_index);
+		unsigned int entity_index = GetManager().get_entity_index(m_owner);
+		GetManager().m_local_transforms[entity_index].position = _value;
+		GetManager().mark_index_dirty(entity_index);
 	}
 	void Transform::SetLocalScale(glm::vec3 _value)
 	{
-		unsigned int entity_index = get_manager().get_entity_index(m_owner);
-		get_manager().m_local_transforms[entity_index].scale = _value;
-		get_manager().mark_index_dirty(entity_index);
+		unsigned int entity_index = GetManager().get_entity_index(m_owner);
+		GetManager().m_local_transforms[entity_index].scale = _value;
+		GetManager().mark_index_dirty(entity_index);
 	}
 	void Transform::SetLocalRotation(glm::quat _value)
 	{
-		unsigned int entity_index = get_manager().get_entity_index(m_owner);
-		get_manager().m_local_transforms[entity_index].quaternion = _value;
-		get_manager().mark_index_dirty(entity_index);
+		unsigned int entity_index = GetManager().get_entity_index(m_owner);
+		GetManager().m_local_transforms[entity_index].quaternion = _value;
+		GetManager().mark_index_dirty(entity_index);
 	}
 	bool Transform::HasChildren() const
 	{
-		unsigned int entity_index = get_manager().get_entity_index(m_owner);
-		auto manager = get_manager();
+		unsigned int entity_index = GetManager().get_entity_index(m_owner);
+		auto manager = GetManager();
 		return manager.m_first_child[entity_index] != Entity::InvalidEntity;
 	}
 }

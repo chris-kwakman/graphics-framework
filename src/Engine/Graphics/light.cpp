@@ -10,7 +10,7 @@ namespace Graphics {
 
 	void RenderLights(
 		mesh_handle _light_mesh,
-		Engine::Graphics::camera _camera,
+		Engine::Graphics::camera_data _camera,
 		Engine::Math::transform3D _camera_transform,
 		light const* _lights, unsigned int _light_count
 	)
@@ -40,7 +40,7 @@ namespace Graphics {
 		resource_manager.SetBoundProgramUniform(12, _camera.m_far);
 
 		glm::mat4x4 const view_matrix = _camera_transform.GetInvMatrix();
-		glm::mat4x4 const perspective_matrix = _camera.create_view_to_perspective_matrix();
+		glm::mat4x4 const perspective_matrix = _camera.get_perspective_matrix();
 		glm::mat4x4 const view_perspective_matrix = perspective_matrix * view_matrix;
 
 		// Upload inverse perspective matrix for unprojecting fragment depth in shader code.

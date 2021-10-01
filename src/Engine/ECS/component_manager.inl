@@ -16,13 +16,13 @@ namespace ECS {
 	template<class TCompManager>
 	inline bool IComp<TCompManager>::IsValid() const
 	{
-		return get_manager().ComponentOwnedByEntity(m_owner);
+		return GetManager().ComponentOwnedByEntity(m_owner);
 	}
 
 	template<class TCompManager>
 	inline void IComp<TCompManager>::Destroy()
 	{
-		get_manager().Destroy(&m_owner, 1);
+		GetManager().Destroy(&m_owner, 1);
 	}
 
 	///////////////////////////////////////////////////////////////
@@ -91,18 +91,18 @@ namespace ECS {
 		static_assert(std::is_base_of<IComp<typename TComp::comp_manager>,TComp>::value);
 #ifdef _DEBUG
 		if (HasComponent<TComp>())
-			return TComp::get_manager().Get(*this);
+			return TComp::GetManager().Get(*this);
 		else
 			return TComp();
 #else
-		return TComp::get_manager().Get(*this);
+		return TComp::GetManager().Get(*this);
 #endif // _DEBUG
 	}
 
 	template<typename TComp>
 	inline bool Entity::HasComponent() const
 	{
-		return TComp::get_manager().ComponentOwnedByEntity(*this);
+		return TComp::GetManager().ComponentOwnedByEntity(*this);
 	}
 }
 }

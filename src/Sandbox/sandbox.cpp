@@ -3,7 +3,7 @@
 #include <Engine/Math/Transform3D.h>
 #include <Engine/Graphics/sdl_window.h>
 #include <Engine/Graphics/manager.h>
-#include <Engine/Graphics/camera.h>
+#include <Engine/Graphics/camera_data.h>
 #include <Engine/Graphics/light.h>
 #include <Engine/Utils/singleton.h>
 #include <Engine/Managers/input.h>
@@ -12,6 +12,7 @@
 #include <Engine/Utils/logging.h>
 #include <Engine/Components/Transform.h>
 #include <Engine/Components/Renderable.h>
+#include <Engine/Components/Camera.h>
 
 
 #include <STB/stb_image_write.h>
@@ -42,7 +43,6 @@ static float		s_shininess_mult_factor = 100.0f;
 static bool			s_bloom_enabled = true;
 static glm::vec3	s_bloom_treshhold_color(0.2126f, 0.7152f, 0.0722f);
 static unsigned int	s_bloom_blur_count = 5;
-
 static bool			s_render_infinite_grid = false;
 
 namespace Sandbox
@@ -89,8 +89,8 @@ namespace Sandbox
 		s_fb_texture_bloom_pingpong[2],
 		s_fb_texture_final_depth;
 
-	Engine::Math::transform3D s_camera_transform;
-
+	using Entity = Engine::ECS::Entity;
+	static Entity s_camera_entity;
 
 	void setup_shaders()
 	{
@@ -281,17 +281,15 @@ namespace Sandbox
 		};
 
 		// Load glTF model
-		bool success = true;
-		success = LoadModel("data/gltf/sponza/Sponza.gltf");
-		success = LoadModel("data/gltf/Sphere.gltf");
-		if (success)
+		bool failure = false;
+		failure |= !LoadModel("data/gltf/sponza/Sponza.gltf");
+		failure |= !LoadModel("data/gltf/Sphere.gltf");
+		if (!failure)
 			printf("Assets loaded successfully.\n");
 		else
 			printf("Failed to load assets.\n");
 
 		GfxCall(glDepthRange(-1.0f, 1.0f));
-
-		s_camera_transform.position = glm::vec3(0.0f, 0.0f, 0.0f);
 
 		if (argc >= 3)
 		{
@@ -309,7 +307,14 @@ namespace Sandbox
 		s_lights.push_back(new_light);
 		s_edit_light_index = 0;
 
-		return success;
+		// Create editor camera
+		s_camera_entity;
+		Singleton<Engine::ECS::EntityManager>().EntityCreationRequest(&s_camera_entity, 1);
+		auto transform_comp = Component::Transform::GetManager().Create(s_camera_entity);
+		transform_comp.SetLocalPosition(glm::vec3(0.0f, 10.0f, 0.0f));
+		Component::Camera::GetManager().Create(s_camera_entity);
+
+		return !failure;
 	}
 
 	unsigned int frame_counter = 0;
@@ -361,9 +366,11 @@ namespace Sandbox
 			glm::vec3(0.0f, 1.0f, 0.0f)
 		);
 
-		s_camera_transform.quaternion = quat_rotate_around_y * s_camera_transform.quaternion;
+		auto camera_transform_comp = s_camera_entity.GetComponent<Component::Transform>();
+		auto cam_transform = camera_transform_comp.GetLocalTransform();
+		cam_transform.quaternion = quat_rotate_around_y * cam_transform.quaternion;
 
-		glm::vec3 const cam_dir = glm::rotate(s_camera_transform.quaternion, glm::vec3(0.0f, 0.0f, -1.0f));
+		glm::vec3 const cam_dir = glm::rotate(cam_transform.quaternion, glm::vec3(0.0f, 0.0f, -1.0f));
 		// Project camera direction vector onto horizontal plane & normalize.
 		glm::vec3 const proj_cam_dir(cam_dir.x, 0.0f, cam_dir.z);
 		glm::vec3 const perp_proj_cam_dir = glm::normalize(glm::cross(proj_cam_dir, glm::vec3(0.0f, 1.0f, 0.0f)));
@@ -373,7 +380,7 @@ namespace Sandbox
 			accum_rotate_vertical * CAM_ROTATE_SPEED * DT, 
 			perp_proj_cam_dir
 		);
-		s_camera_transform.quaternion = quat_rotate_around_right_vector * s_camera_transform.quaternion;
+		cam_transform.quaternion = quat_rotate_around_right_vector * cam_transform.quaternion;
 
 		float accum_move_forward_backward = 0.0f, accum_move_left_right = 0.0f, accum_move_up_down = 0.0f;
 
@@ -395,9 +402,16 @@ namespace Sandbox
 		float const move_speed_mult = input_manager.GetKeyboardButtonState(SDL_SCANCODE_LSHIFT) == button_state::eDown ?
 			CAM_MOV_SHIFT_MULT : 1.0f;
 
-		s_camera_transform.position.y += DT * CAM_MOVE_SPEED * move_speed_mult * accum_move_up_down;
-		s_camera_transform.position += DT * CAM_MOVE_SPEED * move_speed_mult * accum_move_forward_backward * cam_dir;
-		s_camera_transform.position += DT * CAM_MOVE_SPEED * move_speed_mult * accum_move_left_right * perp_proj_cam_dir;
+		cam_transform.position.y += DT * CAM_MOVE_SPEED * move_speed_mult * accum_move_up_down;
+		cam_transform.position += DT * CAM_MOVE_SPEED * move_speed_mult * accum_move_forward_backward * cam_dir;
+		cam_transform.position += DT * CAM_MOVE_SPEED * move_speed_mult * accum_move_left_right * perp_proj_cam_dir;
+
+		camera_transform_comp.SetLocalTransform(cam_transform);
+
+		// Set camera aspect ratio every frame
+		SDL_Surface const* surface = Singleton<Engine::sdl_manager>().m_surface;
+		float const ar = (float)surface->w / (float)surface->h;
+		s_camera_entity.GetComponent<Component::Camera>().SetAspectRatio(ar);
 	}
 
 	bool show_demo_window = false;
@@ -538,10 +552,10 @@ namespace Sandbox
 		using index_buffer_handle = Engine::Graphics::ResourceManager::buffer_handle;
 		using namespace Engine::Graphics;
 
-		Engine::Graphics::camera camera;
-		glm::vec3 const camera_forward = s_camera_transform.quaternion * glm::vec3(0.0f, 0.0f, -1.0f);
-		camera.m_right = glm::normalize(glm::cross(camera_forward, glm::vec3(0.0f, 1.0f, 0.0f)));
-		camera.m_up = glm::normalize(glm::cross(camera_forward, camera.m_right));
+		auto const cam_transform = s_camera_entity.GetComponent<Component::Transform>().ComputeWorldTransform();
+		glm::vec3 const camera_forward = cam_transform.quaternion * glm::vec3(0.0f, 0.0f, -1.0f);
+		glm::vec3 const camera_right = glm::normalize(glm::cross(camera_forward, glm::vec3(0.0f, 1.0f, 0.0f)));
+		glm::vec3 const camera_up = glm::normalize(glm::cross(camera_forward, camera_right));
 
 		//s_camera_transform.quaternion = camera.get_lookat_quat();
 
@@ -552,13 +566,7 @@ namespace Sandbox
 		shader_program_handle const program_draw_ambient_light = system_resource_manager.FindShaderProgram("draw_framebuffer_ambient_light");
 		assert(program_draw_gbuffer != 0);
 
-		SDL_Surface const* surface = Singleton<Engine::sdl_manager>().m_surface;
-		float const ar = (float)surface->w / (float)surface->h;
-
-		camera.m_aspect_ratio = ar;
-		camera.m_fov_y = MATH_PI * 0.4f;
-		camera.m_near = 0.5f;
-		camera.m_far = 5000.0f;
+		auto camera_component = s_camera_entity.GetComponent<Component::Camera>();
 
 		system_resource_manager.UseProgram(program_draw_gbuffer);
 
@@ -600,8 +608,8 @@ namespace Sandbox
 			system_resource_manager.SetBoundProgramUniform(_shader_sampler_uniform_location, (int)_active_texture_index);
 		};
 
-		glm::mat4 const camera_view_matrix = s_camera_transform.GetInvMatrix();
-		glm::mat4 const camera_perspective_matrix = camera.create_view_to_perspective_matrix();
+		glm::mat4 const camera_view_matrix = cam_transform.GetInvMatrix();
+		glm::mat4 const camera_perspective_matrix = camera_component.GetCameraData().get_perspective_matrix();
 		glm::mat4 const matrix_vp = camera_perspective_matrix * camera_view_matrix;
 
 		auto all_renderables = Singleton<Component::RenderableManager>().GetAllRenderables();
@@ -714,7 +722,7 @@ namespace Sandbox
 			activate_texture(s_fb_texture_normal, 3, 3);
 
 			if (!s_lights.empty())
-				Engine::Graphics::RenderLights(sphere_mesh, camera, s_camera_transform, &s_lights[0], (unsigned int)s_lights.size());
+				Engine::Graphics::RenderLights(sphere_mesh, camera_component.GetCameraData(), cam_transform, &s_lights[0], (unsigned int)s_lights.size());
 
 			glEnable(GL_CULL_FACE);
 			glDepthMask(GL_TRUE);
@@ -807,10 +815,10 @@ namespace Sandbox
 			// Render endless grid
 			auto program = system_resource_manager.FindShaderProgram("draw_infinite_grid");
 			system_resource_manager.UseProgram(program);
-			system_resource_manager.SetBoundProgramUniform(0, s_camera_transform.GetInvMatrix());
-			system_resource_manager.SetBoundProgramUniform(1, camera.create_view_to_perspective_matrix());
-			system_resource_manager.SetBoundProgramUniform(10, camera.m_near);
-			system_resource_manager.SetBoundProgramUniform(11, camera.m_far);
+			system_resource_manager.SetBoundProgramUniform(0, cam_transform.GetInvMatrix());
+			system_resource_manager.SetBoundProgramUniform(1, camera_component.GetCameraData().get_perspective_matrix());
+			system_resource_manager.SetBoundProgramUniform(10, camera_component.GetNearDistance());
+			system_resource_manager.SetBoundProgramUniform(11, camera_component.GetFarDistance());
 
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

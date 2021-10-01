@@ -171,6 +171,7 @@
     <ClCompile Include="include\ImGui\imgui_tables.cpp" />
     <ClCompile Include="include\ImGui\imgui_widgets.cpp" />
     <ClCompile Include="include\ImGui\misc\cpp\imgui_stdlib.cpp" />
+    <ClCompile Include="src\Engine\Components\Camera.cpp" />
     <ClCompile Include="src\Engine\Components\engine_components.cpp" />
     <ClCompile Include="src\Engine\Components\Renderable.cpp" />
     <ClCompile Include="src\Engine\Components\Transform.cpp" />
@@ -178,7 +179,7 @@
     <ClCompile Include="src\Engine\Editor\compile_imgui.cpp" />
     <ClCompile Include="src\Engine\Editor\editor.cpp" />
     <ClCompile Include="src\Engine\ECS\entity.cpp" />
-    <ClCompile Include="src\Engine\Graphics\camera.cpp" />
+    <ClCompile Include="src\Engine\Graphics\camera_data.cpp" />
     <ClCompile Include="src\Engine\Graphics\light.cpp" />
     <ClCompile Include="src\Engine\Graphics\manager.cpp" />
     <ClCompile Include="src\Engine\Graphics\sdl_window.cpp" />
@@ -204,6 +205,7 @@
     <ClInclude Include="include\ImGui\imstb_truetype.h" />
     <ClInclude Include="include\ImGui\misc\cpp\imgui_stdlib.h" />
     <ClInclude Include="include\ImGui\misc\single_file\imgui_single_file.h" />
+    <ClInclude Include="src\Engine\Components\Camera.h" />
     <ClInclude Include="src\Engine\Components\engine_components.h" />
     <ClInclude Include="src\Engine\Components\Renderable.h" />
     <ClInclude Include="src\Engine\Components\Transform.h" />
@@ -211,7 +213,7 @@
     <ClInclude Include="src\Engine\ECS\component_manager.h" />
     <ClInclude Include="src\Engine\ECS\component_manager.inl" />
     <ClInclude Include="src\Engine\ECS\entity.h" />
-    <ClInclude Include="src\Engine\Graphics\camera.h" />
+    <ClInclude Include="src\Engine\Graphics\camera_data.h" />
     <ClInclude Include="src\Engine\Graphics\light.h" />
     <ClInclude Include="src\Engine\Graphics\manager.h" />
     <ClInclude Include="src\Engine\Graphics\sdl_window.h" />

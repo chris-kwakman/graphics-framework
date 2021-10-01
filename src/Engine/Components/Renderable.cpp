@@ -21,12 +21,12 @@ namespace Component
 
 	ResourceManager::mesh_handle Renderable::GetMeshHandle() const
 	{
-		return get_manager().m_mesh_map.at(m_owner);
+		return GetManager().m_mesh_map.at(m_owner);
 	}
 
 	void Renderable::SetMesh(ResourceManager::mesh_handle _mesh)
 	{
-		get_manager().m_mesh_map.find(m_owner)->second = _mesh;
+		GetManager().m_mesh_map.find(m_owner)->second = _mesh;
 	}
 
 

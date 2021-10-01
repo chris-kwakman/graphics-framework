@@ -3,7 +3,7 @@
 
 #include <glm/vec3.hpp>
 #include <Engine/Graphics/manager.h>
-#include <Engine/Graphics/camera.h>
+#include <Engine/Graphics/camera_data.h>
 
 namespace Engine {
 namespace Graphics {
@@ -19,7 +19,7 @@ namespace Graphics {
 
 	void RenderLights(
 		mesh_handle _light_mesh,
-		Engine::Graphics::camera _camera,
+		Engine::Graphics::camera_data _camera,
 		Engine::Math::transform3D _camera_transform,
 		light const* _lights, unsigned int _light_count
 	);
