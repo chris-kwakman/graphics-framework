@@ -148,15 +148,15 @@ namespace Graphics {
 			tinygltf::BufferView const& read_bufferview = _tinygltf_model.bufferViews[i];
 			tinygltf::Buffer const& read_buffer = _tinygltf_model.buffers[read_bufferview.buffer];
 
-			if (read_bufferview.target == 0)
-			{
-				Engine::Utils::print_warning("glTF Buffer View (%u) Target is undefined.", i);
-				continue;
-			}
 
 			buffer_info new_buffer_info;
 			new_buffer_info.m_gl_id = new_gl_buffer_arr[i];
 			new_buffer_info.m_target = read_bufferview.target;
+			if (read_bufferview.target == 0)
+			{
+				Engine::Utils::print_warning("glTF Buffer View (%u) Target is undefined. Setting target as ELEMENT_ARRAY_BUFFER.", i);
+				new_buffer_info.m_target = GL_ELEMENT_ARRAY_BUFFER;
+			}
 
 			// Create buffer memory block & upload data
 			glBindBuffer(new_buffer_info.m_target, new_buffer_info.m_gl_id);
@@ -205,20 +205,32 @@ namespace Graphics {
 
 				new_primitive.m_vao_gl_id = new_gl_vao_array[p];
 				new_primitive.m_material_handle = m_material_handle_counter + read_primitive.material;
-				new_primitive.m_index_buffer_handle = m_buffer_handle_counter + read_primitive.indices;
+				new_primitive.m_index_buffer_handle = read_primitive.indices >= 0 
+					? m_buffer_handle_counter + _tinygltf_model.accessors[read_primitive.indices].bufferView
+					: 0;
 				new_primitive.m_render_mode = read_primitive.mode;
 
 				glBindVertexArray(new_primitive.m_vao_gl_id);
 
 				// Bind respective IBO (assume IBO exists for each primitive)
-				buffer_info const primitive_index_buffer = new_buffer_info_map.at(new_primitive.m_index_buffer_handle);
-				glBindBuffer(primitive_index_buffer.m_target, primitive_index_buffer.m_gl_id);
-				// Insert component type of IBO into index buffer component map if it hasn't been done already
-				// Overwriting pre-existing index buffer info element is fine since it should be a copy anyways.
-				index_buffer_info new_index_buffer_info;
-				new_index_buffer_info.m_type = _tinygltf_model.accessors[read_primitive.indices].componentType;
-				new_index_buffer_info.m_index_count = _tinygltf_model.accessors[read_primitive.indices].count;
-				new_index_buffer_info_map.emplace(new_primitive.m_index_buffer_handle, new_index_buffer_info);
+				if (new_primitive.m_index_buffer_handle != 0)
+				{
+					buffer_info const primitive_index_buffer = new_buffer_info_map.at(new_primitive.m_index_buffer_handle);
+					glBindBuffer(primitive_index_buffer.m_target, primitive_index_buffer.m_gl_id);
+					// Insert component type of IBO into index buffer component map if it hasn't been done already
+					// Overwriting pre-existing index buffer info element is fine since it should be a copy anyways.
+					auto const& indices_accessor = _tinygltf_model.accessors[read_primitive.indices];
+					index_buffer_info new_index_buffer_info;
+					new_index_buffer_info.m_type = indices_accessor.componentType;
+					new_index_buffer_info.m_index_count = indices_accessor.count;
+					new_index_buffer_info_map.emplace(new_primitive.m_index_buffer_handle, new_index_buffer_info);
+
+					// Index offset in case we are re-using same IBO for multiple primitives.
+					new_primitive.m_index_byte_offset = indices_accessor.byteOffset;
+					new_primitive.m_index_count = indices_accessor.count;
+				}
+				else
+					new_primitive.m_index_count = 0;
 
 				// Bind respective VBOs referred to by primitive attributes + index buffer
 
@@ -238,7 +250,9 @@ namespace Graphics {
 					unsigned int gl_attribute_index = 0;
 					if (primitive_attrib.first == "POSITION") {
 						gl_attribute_index = 0;
-						new_primitive.m_vertex_count = read_accessor.count;
+						// Only set primitive vertex count if we are not using an IBO.
+						if(new_primitive.m_index_buffer_handle == 0)
+							new_primitive.m_vertex_count = read_accessor.count;
 					}
 					else if (primitive_attrib.first == "NORMAL") gl_attribute_index = 1;
 					else if (primitive_attrib.first == "TANGENT") gl_attribute_index = 2;

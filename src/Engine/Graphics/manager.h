@@ -42,7 +42,12 @@ namespace Graphics {
 			GLuint			m_vao_gl_id;			// VAO referring to IBO and VBOs
 			buffer_handle	m_index_buffer_handle;	// Handle pointing to IBO (component type of IBO stored in index_buffer_component_map)
 			material_handle m_material_handle;
-			unsigned int	m_vertex_count;			// To be used as index count when index buffer handle is not specified.
+			size_t			m_index_byte_offset;	// Index offset when drawing using IBO
+			union
+			{
+				size_t		m_vertex_count;			// To be used as index count when index buffer handle is not specified.
+				size_t		m_index_count;			// Only one of these can ever be used.
+			};
 			unsigned char	m_render_mode = GL_TRIANGLES; // Default according to specification
 		};
 

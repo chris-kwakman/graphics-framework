@@ -76,6 +76,8 @@ namespace Sandbox
 
 	static GLuint s_gl_tri_vao, s_gl_tri_ibo, s_gl_tri_vbo;
 
+	static glm::vec4 s_clear_color{ 0.0f,0.0f,0.0f,0.0f };
+
 	static texture_handle
 		s_fb_texture_depth,
 		s_fb_texture_base_color,
@@ -311,8 +313,8 @@ namespace Sandbox
 	}
 
 	unsigned int frame_counter = 0;
-	float const CAM_MOVE_SPEED = 400.0f;
-	float const CAM_MOV_SHIFT_MULT = 2.0f;
+	float const CAM_MOVE_SPEED = 50.0f;
+	float const CAM_MOV_SHIFT_MULT = 4.0f;
 	float const CAM_ROTATE_SPEED = MATH_PI * 0.75f;
 	float const MOUSE_SENSITIVITY = 0.05f;
 	bool camera_invert = false;
@@ -421,6 +423,7 @@ namespace Sandbox
 		if (ImGui::Begin("Graphics"))
 		{
 			ImGui::Checkbox("Render Infinite Grid", &s_render_infinite_grid);
+			ImGui::ColorEdit3("Clear Color", &s_clear_color.r);
 
 			ImGui::SliderFloat("Shininess Multiplier", &s_shininess_mult_factor, 1.0f, 500.0f, "%.1f");
 			ImGui::ColorEdit3("Ambient Light", &s_ambient_color.x);
@@ -585,7 +588,7 @@ namespace Sandbox
 			mesh_to_render = system_resource_manager.FindMesh("Sphere/Sphere");*/
 
 		system_resource_manager.BindFramebuffer(s_framebuffer_gbuffer);
-		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+		glClearColor(s_clear_color.x, s_clear_color.y, s_clear_color.z, 0.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		auto window_size = Singleton<Engine::sdl_manager>().get_window_size();
 		glViewport(0, 0, window_size.x, window_size.y);
@@ -635,9 +638,6 @@ namespace Sandbox
 			for (unsigned int i = 0; i < mesh_primitives.size(); ++i)
 			{
 				ResourceManager::mesh_primitive_data primitive = mesh_primitives[i];
-				assert(primitive.m_index_buffer_handle != 0);
-				auto index_buffer_info = system_resource_manager.GetBufferInfo(primitive.m_index_buffer_handle);
-				auto ibo_info = system_resource_manager.GetIndexBufferInfo(primitive.m_index_buffer_handle);
 
 				// TODO: Use world transform
 				auto model_transform = renderable_transform.ComputeWorldTransform();
@@ -677,14 +677,23 @@ namespace Sandbox
 				}
 
 				GfxCall(glBindVertexArray(primitive.m_vao_gl_id));
-				GfxCall(glDrawElements(
-					primitive.m_render_mode,
-					(GLsizei)ibo_info.m_index_count,
-					ibo_info.m_type,
-					nullptr
-				));
+				if (primitive.m_index_buffer_handle != 0)
+				{
+					auto index_buffer_info = system_resource_manager.GetBufferInfo(primitive.m_index_buffer_handle);
+					auto ibo_info = system_resource_manager.GetIndexBufferInfo(primitive.m_index_buffer_handle);
+					GfxCall(glDrawElements(
+						primitive.m_render_mode,
+						(GLsizei)primitive.m_index_count,
+						ibo_info.m_type,
+						(GLvoid*)primitive.m_index_byte_offset
+					));
+				}
+				else
+				{
+					GfxCall(glDrawArrays(primitive.m_render_mode, 0, primitive.m_vertex_count));
+				}
 				glBindVertexArray(0);
-				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
 			
 			}
 
@@ -789,7 +798,7 @@ namespace Sandbox
 		glViewport(0, 0, (GLsizei)window_size.x, (GLsizei)window_size.y);
 
 		system_resource_manager.UnbindFramebuffer();
-		glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glEnable(GL_CULL_FACE);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glDepthMask(GL_TRUE);
