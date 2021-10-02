@@ -22,8 +22,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <GLM/gtx/quaternion.hpp>
 
-
-#include <ImGui/imgui_internal.h> // SetWindowHitTestHole()
+#include <ImGui/misc/cpp/imgui_stdlib.h>
 
 #include <string>
 #include <math.h>
@@ -465,12 +464,6 @@ namespace Sandbox
 
 		auto const & editor_scene_graph_data = transform_manager.GetEditorSceneGraphData();
 
-		if (ImGui::Begin("Component List"))
-		{
-			
-		}
-		ImGui::End();
-
 		if (ImGui::Begin("Component Editor"))
 		{
 			if (editor_scene_graph_data.selected_entities.size() == 1)
@@ -490,10 +483,32 @@ namespace Sandbox
 				ImGui::Button("Create Component");
 				if (ImGui::BeginPopupContextItem("CreatableComponentList", ImGuiPopupFlags_MouseButtonLeft))
 				{
+					static std::string s_search_input;
+					if (ImGui::IsWindowAppearing())
+						s_search_input.clear();
+
+					ImGui::InputText("Search", &s_search_input, ImGuiInputTextFlags_CharsNoBlank);
 					for (auto manager : Engine::ECS::ICompManager::GetRegisteredComponentManagers())
 					{
-						const char* comp_name = manager->GetComponentTypeName();
-						if (ImGui::Selectable(comp_name))
+						bool show_component = s_search_input.empty();
+						std::string const comp_name = manager->GetComponentTypeName();
+						if (!s_search_input.empty())
+						{
+							std::string lower_case_search_input;
+							std::transform(
+								s_search_input.begin(), s_search_input.end(), 
+								std::back_inserter(lower_case_search_input), std::tolower
+							);
+							std::string lower_case_comp_name;
+							std::transform(comp_name.begin(), comp_name.end(),
+								std::back_inserter(lower_case_comp_name), std::tolower
+							);
+							size_t result = lower_case_comp_name.find(lower_case_search_input);
+							if (result != std::string::npos)
+								show_component = true;
+						}
+
+						if (show_component && ImGui::Selectable(comp_name.c_str()))
 						{
 							for (auto entity : editor_scene_graph_data.selected_entities)
 								manager->CreateComponent(entity);

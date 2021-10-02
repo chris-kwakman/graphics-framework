@@ -331,7 +331,7 @@ namespace Component
 		}
 		ImGui::EndChild();
 
-		if (ImGui::IsKeyDown(SDL_SCANCODE_DELETE))
+		if (ImGui::IsWindowFocused() && ImGui::IsKeyDown(SDL_SCANCODE_DELETE))
 		{
 			for (auto entity : m_editor_scene_graph_data.selected_entities)
 				entity.DestroyEndOfFrame();

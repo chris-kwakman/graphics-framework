@@ -69,6 +69,7 @@ namespace ECS {
 	{
 		if (ComponentOwnedByEntity(_entity))
 		{
+			ImGui::SetNextItemOpen(true, ImGuiCond_Appearing);
 			bool const opened_collapsing_header = ImGui::CollapsingHeader(GetComponentTypeName());
 			bool component_destroyed = false;
 			if (ImGui::BeginPopupContextItem())
