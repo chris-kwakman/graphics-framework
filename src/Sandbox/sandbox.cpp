@@ -299,15 +299,15 @@ namespace Sandbox
 		// Create default light in scene
 		Entity light_entity;
 		Singleton<Engine::ECS::EntityManager>().EntityCreationRequest(&light_entity, 1);
-		Singleton<Component::TransformManager>().Create(light_entity);
+		Component::Transform light_transform_comp = Singleton<Component::TransformManager>().Create(light_entity);
+		light_transform_comp.SetLocalPosition(glm::vec3(0.0f, 50.0f, 0.0f));
 		Component::PointLight light_comp = Singleton<Component::PointLightManager>().Create(light_entity);
-		light_comp.SetRadius(100.0f);
+		light_comp.SetRadius(500.0f);
 
 		// Create editor camera
-		s_camera_entity;
 		Singleton<Engine::ECS::EntityManager>().EntityCreationRequest(&s_camera_entity, 1);
-		auto transform_comp = Component::Transform::GetManager().Create(s_camera_entity);
-		transform_comp.SetLocalPosition(glm::vec3(0.0f, 10.0f, 0.0f));
+		auto camera_transform_comp = Component::Transform::GetManager().Create(s_camera_entity);
+		camera_transform_comp.SetLocalPosition(glm::vec3(0.0f, 10.0f, 0.0f));
 		Component::Camera::GetManager().Create(s_camera_entity);
 
 		return !failure;
