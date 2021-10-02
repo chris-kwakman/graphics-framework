@@ -381,16 +381,29 @@ namespace Graphics {
 		for (unsigned int i = 0; i < _tinygltf_model.textures.size(); ++i)
 		{
 			tinygltf::Texture const& read_texture = _tinygltf_model.textures[i];
-			tinygltf::Sampler const& read_sampler = _tinygltf_model.samplers[read_texture.sampler];
 
 			texture_handle const current_texture = m_texture_handle_counter + read_texture.source;
 			texture_info current_texture_info = new_texture_info_map.at(current_texture);
 			glBindTexture(GL_TEXTURE_2D, current_texture_info.m_gl_source_id);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, read_sampler.wrapS);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, read_sampler.wrapT);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, read_sampler.minFilter);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, read_sampler.magFilter);
+			// If a sampler is defined, use sampler to define texture parameters
+			if (read_texture.sampler >= 0)
+			{
+				tinygltf::Sampler const& read_sampler = _tinygltf_model.samplers[read_texture.sampler];
+
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, read_sampler.wrapS);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, read_sampler.wrapT);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, read_sampler.minFilter);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, read_sampler.magFilter);
+			}
+			// If a sampler is NOT defined, sampler w/ repeat wrapping in all directions and auto filtering must be used
+			// (Accoriding to GLTF specification)
+			else
+			{
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+			}
 			glBindTexture(GL_TEXTURE_2D, 0);
+
 		}
 
 		/*
