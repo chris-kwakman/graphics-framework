@@ -233,6 +233,42 @@ namespace Sandbox
 		glBindVertexArray(0);
 	}
 
+	using ResMgr = Engine::Graphics::ResourceManager;
+	ResMgr::gltf_model_data LoadGLTFModel(const char * _filepath)
+	{
+		using namespace tinygltf;
+
+		Model model;
+
+		TinyGLTF loader;
+		std::string error, warning;
+
+		bool success = loader.LoadASCIIFromFile(&model, &error, &warning, _filepath);
+
+		if (!warning.empty()) {
+			Engine::Utils::print_base("TinyGLTF", "Warning: %s", warning.c_str());
+			return ResMgr::gltf_model_data{};
+		}
+
+		if (!error.empty()) {
+			Engine::Utils::print_base("TinyGLTF", "Error: %s", error.c_str());
+			return ResMgr::gltf_model_data{};
+		}
+
+		if (!success) {
+			Engine::Utils::print_base("TinyGLTF", "Failed to parse glTF.");
+			return ResMgr::gltf_model_data{};
+		}
+	
+		auto model_data = Singleton<Engine::Graphics::ResourceManager>().ImportModel_GLTF(model, _filepath);
+
+		nlohmann::json j = Engine::Serialisation::SerializeGLTFScene(model, model_data);
+		Engine::Serialisation::DeserialiseScene(j);
+		//std::cout << std::setw(4) << j.dump() << std::endl;
+
+		return model_data;
+	}
+
 	bool Initialize(int argc, char* argv[])
 	{
 		Engine::Graphics::ResourceManager & system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
@@ -242,49 +278,10 @@ namespace Sandbox
 		setup_framebuffer();
 		create_framebuffer_triangle();
 
-		auto LoadModel = [](const char* _filepath)->bool
-		{
-			using namespace tinygltf;
-
-			Model model;
-
-			TinyGLTF loader;
-			std::string error, warning;
-
-			bool success = loader.LoadASCIIFromFile(&model, &error, &warning, _filepath);
-
-			if (!warning.empty()) {
-				Engine::Utils::print_base("TinyGLTF", "Warning: %s", warning.c_str());
-			}
-
-			if (!error.empty()) {
-				Engine::Utils::print_base("TinyGLTF", "Error: %s", error.c_str());
-				return false;
-			}
-
-			if (!success) {
-				Engine::Utils::print_base("TinyGLTF", "Failed to parse glTF.");
-				return false;
-			}
-
-			//TODO: Take scene graph from model data
-			auto & model_data = Singleton<Engine::Graphics::ResourceManager>().ImportModel_GLTF(model, _filepath);
-
-			nlohmann::json j = Engine::Serialisation::SerializeGLTFScene(model, model_data);
-			Engine::Serialisation::DeserialiseScene(j);
-			std::cout << std::setw(4) << j.dump() << std::endl;
-
-			return true;
-		};
-
 		// Load glTF model
 		bool failure = false;
-		failure |= !LoadModel("data/gltf/sponza/Sponza.gltf");
-		failure |= !LoadModel("data/gltf/Sphere.gltf");
-		if (!failure)
-			printf("Assets loaded successfully.\n");
-		else
-			printf("Failed to load assets.\n");
+		//LoadGLTFModel("data/gltf/sponza/Sponza.gltf");
+		LoadGLTFModel("data/gltf/Sphere.gltf");
 
 		GfxCall(glDepthRange(-1.0f, 1.0f));
 
@@ -526,6 +523,19 @@ namespace Sandbox
 
 	void Update()
 	{
+		using sdl_manager = Engine::sdl_manager;
+		if (Singleton<sdl_manager>().is_file_dropped())
+		{
+			std::string const dropped_file_dir = Singleton<sdl_manager>().get_dropped_file();
+			LoadGLTFModel(dropped_file_dir.c_str());
+		}
+		
+
+		///////////////////////////////////////////
+		//		Scene Rendering Pipeline
+		///////////////////////////////////////////
+
+
 		DummyEditorRender();
 
 		auto & system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
@@ -570,9 +580,9 @@ namespace Sandbox
 
 		system_resource_manager.UseProgram(program_draw_gbuffer);
 
-		ResourceManager::mesh_handle mesh_to_render = system_resource_manager.FindMesh("Sponza/Mesh_0");
+		/*ResourceManager::mesh_handle mesh_to_render = system_resource_manager.FindMesh("Sponza/Mesh_0");
 		if (mesh_to_render == 0)
-			mesh_to_render = system_resource_manager.FindMesh("Sphere/Sphere");
+			mesh_to_render = system_resource_manager.FindMesh("Sphere/Sphere");*/
 
 		system_resource_manager.BindFramebuffer(s_framebuffer_gbuffer);
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -580,21 +590,21 @@ namespace Sandbox
 		auto window_size = Singleton<Engine::sdl_manager>().get_window_size();
 		glViewport(0, 0, window_size.x, window_size.y);
 
-		// If we cannot render anything, just clear framebuffer so editor can render.
-		if (mesh_to_render == 0)
-		{
-			glViewport(0, 0, (GLsizei)window_size.x, (GLsizei)window_size.y);
+		//// If we cannot render anything, just clear framebuffer so editor can render.
+		//if (mesh_to_render == 0)
+		//{
+		//	glViewport(0, 0, (GLsizei)window_size.x, (GLsizei)window_size.y);
 
-			system_resource_manager.UnbindFramebuffer();
-			glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-			glEnable(GL_CULL_FACE);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-			glDepthMask(GL_TRUE);
-			glEnable(GL_DEPTH_TEST);
-			glDepthFunc(GL_ALWAYS);
+		//	system_resource_manager.UnbindFramebuffer();
+		//	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		//	glEnable(GL_CULL_FACE);
+		//	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		//	glDepthMask(GL_TRUE);
+		//	glEnable(GL_DEPTH_TEST);
+		//	glDepthFunc(GL_ALWAYS);
 
-			return;
-		}
+		//	return;
+		//}
 
 		auto activate_texture = [&](ResourceManager::texture_handle _texture, unsigned int _shader_sampler_uniform_location, unsigned int _active_texture_index)
 		{

@@ -77,6 +77,10 @@ namespace Engine
 				if (event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(m_window))
 					m_want_quit = true;
 				break;
+			case SDL_DROPFILE:
+				m_dropped_file_dir = event.drop.file;
+				m_file_was_dropped = true;
+				break;
 			}
 		}
 
