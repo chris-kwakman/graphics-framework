@@ -173,6 +173,9 @@
     <ClCompile Include="include\ImGui\misc\cpp\imgui_stdlib.cpp" />
     <ClCompile Include="src\Engine\Components\Camera.cpp" />
     <ClCompile Include="src\Engine\Components\engine_components.cpp" />
+    <ClCompile Include="src\Engine\Components\Light.cpp">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)</ObjectFileName>
+    </ClCompile>
     <ClCompile Include="src\Engine\Components\Renderable.cpp" />
     <ClCompile Include="src\Engine\Components\Transform.cpp" />
     <ClCompile Include="src\Engine\ECS\component_manager.cpp" />
@@ -180,7 +183,6 @@
     <ClCompile Include="src\Engine\Editor\editor.cpp" />
     <ClCompile Include="src\Engine\ECS\entity.cpp" />
     <ClCompile Include="src\Engine\Graphics\camera_data.cpp" />
-    <ClCompile Include="src\Engine\Graphics\light.cpp" />
     <ClCompile Include="src\Engine\Graphics\manager.cpp" />
     <ClCompile Include="src\Engine\Graphics\sdl_window.cpp" />
     <ClCompile Include="src\Engine\Graphics\stb.cc" />
@@ -191,6 +193,7 @@
     <ClCompile Include="src\Engine\Serialisation\scene.cpp" />
     <ClCompile Include="src\Engine\Serialisation\serialise_gltf.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\Sandbox\lighting_pass.cpp" />
     <ClCompile Include="src\Sandbox\sandbox.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -207,6 +210,7 @@
     <ClInclude Include="include\ImGui\misc\single_file\imgui_single_file.h" />
     <ClInclude Include="src\Engine\Components\Camera.h" />
     <ClInclude Include="src\Engine\Components\engine_components.h" />
+    <ClInclude Include="src\Engine\Components\Light.h" />
     <ClInclude Include="src\Engine\Components\Renderable.h" />
     <ClInclude Include="src\Engine\Components\Transform.h" />
     <ClInclude Include="src\Engine\Editor\editor.h" />
@@ -214,7 +218,6 @@
     <ClInclude Include="src\Engine\ECS\component_manager.inl" />
     <ClInclude Include="src\Engine\ECS\entity.h" />
     <ClInclude Include="src\Engine\Graphics\camera_data.h" />
-    <ClInclude Include="src\Engine\Graphics\light.h" />
     <ClInclude Include="src\Engine\Graphics\manager.h" />
     <ClInclude Include="src\Engine\Graphics\sdl_window.h" />
     <ClInclude Include="src\Engine\Managers\input.h" />
@@ -224,6 +227,7 @@
     <ClInclude Include="src\Engine\Serialisation\serialise_gltf.h" />
     <ClInclude Include="src\Engine\Utils\logging.h" />
     <ClInclude Include="src\Engine\Utils\singleton.h" />
+    <ClInclude Include="src\Sandbox\lighting_pass.h" />
     <ClInclude Include="src\Sandbox\sandbox.h" />
   </ItemGroup>
   <ItemGroup>

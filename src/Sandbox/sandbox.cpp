@@ -1,19 +1,20 @@
 #include "sandbox.h"
 
+#include <Sandbox/lighting_pass.h>
 #include <Engine/Math/Transform3D.h>
 #include <Engine/Graphics/sdl_window.h>
 #include <Engine/Graphics/manager.h>
 #include <Engine/Graphics/camera_data.h>
-#include <Engine/Graphics/light.h>
 #include <Engine/Utils/singleton.h>
 #include <Engine/Managers/input.h>
 #include <Engine/Editor/editor.h>
 #include <Engine/Serialisation/serialise_gltf.h>
 #include <Engine/Utils/logging.h>
+
 #include <Engine/Components/Transform.h>
 #include <Engine/Components/Renderable.h>
 #include <Engine/Components/Camera.h>
-
+#include <Engine/Components/Light.h>
 
 #include <STB/stb_image_write.h>
 
@@ -30,9 +31,6 @@
 #include <iomanip>
 
 # define MATH_PI           3.14159265358979323846f
-
-std::vector<Engine::Graphics::light> s_lights;
-int s_edit_light_index = -1;
 
 // Lighting data
 static glm::vec3	s_ambient_color;
@@ -300,12 +298,11 @@ namespace Sandbox
 		}
 
 		// Create default light in scene
-		Engine::Graphics::light new_light;
-		new_light.m_color = glm::vec3{ 1.0f, 1.0f, 1.0f };
-		new_light.m_pos = glm::vec3{ 0.0f, 150.0f, 0.0f };
-		new_light.m_radius = 1500.0f;
-		s_lights.push_back(new_light);
-		s_edit_light_index = 0;
+		Entity light_entity;
+		Singleton<Engine::ECS::EntityManager>().EntityCreationRequest(&light_entity, 1);
+		Singleton<Component::TransformManager>().Create(light_entity);
+		Component::PointLight light_comp = Singleton<Component::PointLightManager>().Create(light_entity);
+		light_comp.SetRadius(100.0f);
 
 		// Create editor camera
 		s_camera_entity;
@@ -431,24 +428,6 @@ namespace Sandbox
 
 			ImGui::SliderFloat("Shininess Multiplier", &s_shininess_mult_factor, 1.0f, 500.0f, "%.1f");
 			ImGui::ColorEdit3("Ambient Light", &s_ambient_color.x);
-
-			if (ImGui::Button("Create New Light"))
-			{
-				s_lights.push_back(Engine::Graphics::light());
-				s_lights.back().m_color = glm::vec3(1.0f, 1.0f, 1.0f);
-				s_lights.back().m_radius = 500.0f;
-			}
-
-			ImGui::SliderInt("Edit Light", &s_edit_light_index, -1, (int)s_lights.size() - 1);
-
-			if (s_edit_light_index != -1)
-			{
-				Engine::Graphics::light* edit_light = &s_lights[s_edit_light_index];
-
-				ImGui::SliderFloat("###LightRadius", &edit_light->m_radius, 0.0f, 3000.0f, "Radius: %.1f");
-				ImGui::DragFloat3("Light Pos", &edit_light->m_pos.x, 1.0f, -1000.0f, 1000.0f);
-				ImGui::ColorEdit3("Color", &edit_light->m_color.x);
-			}
 
 			ImGui::Separator();
 
@@ -727,8 +706,7 @@ namespace Sandbox
 			activate_texture(s_fb_texture_metallic_roughness, 2, 2);
 			activate_texture(s_fb_texture_normal, 3, 3);
 
-			if (!s_lights.empty())
-				Engine::Graphics::RenderLights(sphere_mesh, camera_component.GetCameraData(), cam_transform, &s_lights[0], (unsigned int)s_lights.size());
+			Sandbox::RenderLights(sphere_mesh, camera_component.GetCameraData(), cam_transform);
 
 			glEnable(GL_CULL_FACE);
 			glDepthMask(GL_TRUE);
