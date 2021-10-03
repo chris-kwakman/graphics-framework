@@ -1,8 +1,14 @@
 #include "Transform.h"
 
 #include <ImGui/imgui.h>
+#include <ImGuizmo/ImGuizmo.h>
 
 #include <SDL2/SDL_scancode.h>
+
+#include <Engine/Editor/editor.h>
+#include <Engine/Components/Camera.h>
+
+#include <glm/gtx/matrix_decompose.hpp>
 
 namespace Component
 {
@@ -427,7 +433,76 @@ namespace Component
 
 	void TransformManager::impl_edit_component(Entity _entity)
 	{
+		static ImGuizmo::OPERATION s_imguizmo_current_operation = ImGuizmo::TRANSLATE;
+		static ImGuizmo::MODE s_imguizmo_current_mode = ImGuizmo::WORLD;
+
+		Transform transform_component = Get(_entity);
+
+		auto editor = Singleton<Engine::Editor::Editor>();
+		Transform const editor_cam_transform = editor.EditorCameraEntity.GetComponent<Transform>();
+		Camera const editor_cam_camera = editor.EditorCameraEntity.GetComponent<Camera>();
+
+		glm::mat4x4 const matrix_view = editor_cam_transform.ComputeWorldTransform().GetInvMatrix();
+		glm::mat4x4 const matrix_perspective = editor_cam_camera.GetCameraData().get_perspective_matrix();
+
+		glm::mat4x4 transform_matrix;
+		if (s_imguizmo_current_mode == ImGuizmo::WORLD)
+			transform_matrix = transform_component.ComputeWorldMatrix();
+		else
+			transform_matrix = transform_component.GetLocalTransform().GetMatrix();
+
+		ImGuizmo::Enable(true);
+
+		bool is_manipulated = ImGuizmo::Manipulate(
+			&matrix_view[0][0],
+			&matrix_perspective[0][0],
+			s_imguizmo_current_operation,
+			s_imguizmo_current_mode,
+			&transform_matrix[0][0]
+		);
+
+		if (is_manipulated)
+		{
+			glm::vec3 translation, scale;
+			glm::quat rotation;
+
+			ImGuizmo::DecomposeMatrixToComponents(&transform_matrix[0][0], &translation[0], &rotation[0], &scale[0]);
+
+			if (s_imguizmo_current_operation == ImGuizmo::TRANSLATE)
+			{
+				transform_component.SetLocalPosition(translation);
+			}
+			else if (s_imguizmo_current_operation == ImGuizmo::SCALE)
+			{
+				transform_component.SetLocalScale(scale);
+			}
+			else
+			{
+				transform_component.SetLocalRotation(rotation);
+			}
+		}
+
 		Engine::Math::transform3D& transform = m_local_transforms[get_entity_index(_entity)];
+		const char* name_gizmo_operation = s_imguizmo_current_operation == ImGuizmo::TRANSLATE
+			? "Translate"
+			: s_imguizmo_current_operation == ImGuizmo::SCALE
+			? "Scale"
+			: "Rotate";
+		if(ImGui::BeginCombo("Gizmo Operation", name_gizmo_operation))
+		{
+			if (ImGui::Selectable("Translate")) s_imguizmo_current_operation = ImGuizmo::TRANSLATE;
+			if (ImGui::Selectable("Scale")) s_imguizmo_current_operation = ImGuizmo::SCALE;
+			if (ImGui::Selectable("Rotate")) s_imguizmo_current_operation = ImGuizmo::ROTATE;
+			ImGui::EndCombo();
+		}
+		const char* name_gizmo_mode = s_imguizmo_current_mode == ImGuizmo::WORLD
+			? "World" : "Local";
+		if (ImGui::BeginCombo("Gizmo Mode", name_gizmo_mode))
+		{
+			if (ImGui::Selectable("World")) s_imguizmo_current_mode = ImGuizmo::WORLD;
+			if (ImGui::Selectable("Local")) s_imguizmo_current_mode = ImGuizmo::LOCAL;
+			ImGui::EndCombo();
+		}
 		ImGui::DragFloat3("Position", &transform.position.x, 1.0f, -FLT_MAX / INT_MIN, FLT_MAX / INT_MIN);
 		ImGui::DragFloat3("Scale", &transform.scale.x, 0.1f, 0.0f, FLT_MAX / INT_MIN);
 		ImGui::DragFloat4("Orientation", &transform.quaternion.x, 0.1f);
@@ -542,21 +617,23 @@ namespace Component
 		{
 			glm::mat4x4 transformation_matrix = GetManager().m_local_transforms[owner_index].GetMatrix();
 			Entity parent_iter = GetManager().m_parent[owner_index];
-			unsigned int parent_index = GetManager().get_entity_index(parent_iter);
-			while (parent_iter != Entity::InvalidEntity)
+			if (parent_iter != Entity::InvalidEntity)
 			{
-				// If parent is NOT dirty, use precomputed matrix and exit early.
-				if (!GetManager().check_index_dirty(parent_index))
+				while (parent_iter != Entity::InvalidEntity)
 				{
-					transformation_matrix = GetManager().m_world_matrices[parent_index] * transformation_matrix;
-					break;
-				}
-				// Otherwise, keep going up the hierarchy until we reach the end or reach a valid precomputed matrix
-				else
-				{
-					transformation_matrix = GetManager().m_world_matrices[parent_index] * transformation_matrix;
-					parent_iter = GetManager().m_parent[parent_index];
-					parent_index = GetManager().get_entity_index(parent_iter);
+					unsigned int parent_index = GetManager().get_entity_index(parent_iter);
+					// If parent is NOT dirty, use precomputed matrix and exit early.
+					if (!GetManager().check_index_dirty(parent_index))
+					{
+						transformation_matrix = GetManager().m_world_matrices[parent_index] * transformation_matrix;
+						break;
+					}
+					// Otherwise, keep going up the hierarchy until we reach the end or reach a valid precomputed matrix
+					else
+					{
+						transformation_matrix = GetManager().m_world_matrices[parent_index] * transformation_matrix;
+						parent_iter = GetManager().m_parent[parent_index];
+					}
 				}
 			}
 			return transformation_matrix;

@@ -64,6 +64,11 @@ namespace Component
 		return m_camera_data_map.at(_e);
 	}
 
+	void CameraManager::impl_clear()
+	{
+		m_camera_data_map.clear();
+	}
+
 
 	float Camera::GetVerticalFOV() const
 	{

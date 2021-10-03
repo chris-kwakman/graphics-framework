@@ -56,6 +56,7 @@ namespace ECS {
 	private:
 
 		virtual void receive_entity_destruction_message(std::vector<Entity> const& _destroyed_entities) = 0;
+		bool mb_registered = false;
 
 		friend class Engine::ECS::EntityManager;
 	};
@@ -91,7 +92,7 @@ namespace ECS {
 		void			CreateComponent(Entity _entity) final { Create(_entity); }
 		void			DestroyComponent(Entity _entity) final { Destroy(&_entity, 1); }
 
-		virtual void impl_clear() {}
+		virtual void impl_clear() = 0;
 
 		virtual bool impl_create(Entity _e) = 0;
 		virtual void impl_destroy(Entity const* _entities, unsigned int _count) = 0;

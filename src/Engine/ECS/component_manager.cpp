@@ -13,8 +13,12 @@ namespace ECS {
 
 	bool ICompManager::RegisterComponentManager(ICompManager* _component_manager)
 	{
-		Singleton<EntityManager>().RegisterComponentManager(_component_manager);
-		s_registered_component_managers.push_back(_component_manager);
+		if (!_component_manager->mb_registered)
+		{
+			_component_manager->mb_registered = true;
+			Singleton<EntityManager>().RegisterComponentManager(_component_manager);
+			s_registered_component_managers.push_back(_component_manager);
+		}
 		return true;
 	}
 

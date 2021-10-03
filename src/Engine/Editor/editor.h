@@ -3,6 +3,7 @@
 
 #include <SDL2/SDL_events.h>
 #include <ImGui/imgui.h>
+#include <Engine/ECS/entity.h>
 
 namespace Engine {
 namespace Editor {
@@ -16,6 +17,8 @@ namespace Editor {
 		void NewFrame();
 		void Render();
 		void Shutdown();
+
+		Engine::ECS::Entity EditorCameraEntity;
 
 	private:
 

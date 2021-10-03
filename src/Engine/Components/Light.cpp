@@ -29,6 +29,7 @@ namespace Component
 				std::swap(m_light_radius_arr[swap_index_to_back], m_light_radius_arr.back());
 				m_light_color_arr.pop_back();
 				m_light_radius_arr.pop_back();
+				iter = m_entity_map.erase(iter);
 			}
 		}
 	}
@@ -54,12 +55,28 @@ namespace Component
 	{
 		Collection new_collection;
 		new_collection.m_light_count = m_light_color_arr.size();
-		new_collection.m_light_color_arr = &m_light_color_arr[0];
-		new_collection.m_light_radius_arr = &m_light_radius_arr[0];
-		new_collection.m_light_pos_arr.reserve(m_entity_map.size());
-		for (auto pair : m_entity_map)
-			new_collection.m_light_pos_arr.push_back(pair.first.GetComponent<Component::Transform>().ComputeWorldTransform().position);
+		if (!m_light_color_arr.empty())
+		{
+			new_collection.m_light_color_arr = &m_light_color_arr[0];
+			new_collection.m_light_radius_arr = &m_light_radius_arr[0];
+			new_collection.m_light_pos_arr.reserve(m_entity_map.size());
+			for (auto pair : m_entity_map)
+				new_collection.m_light_pos_arr.push_back(pair.first.GetComponent<Component::Transform>().ComputeWorldTransform().position);
+		}
+		else
+		{
+			new_collection.m_light_color_arr = nullptr;
+			new_collection.m_light_radius_arr = nullptr;
+			new_collection.m_light_pos_arr.clear();
+		}
 		return new_collection;
+	}
+
+	void PointLightManager::impl_clear()
+	{
+		m_entity_map.clear();
+		m_light_color_arr.clear();
+		m_light_radius_arr.clear();
 	}
 
 	float PointLight::GetRadius() const

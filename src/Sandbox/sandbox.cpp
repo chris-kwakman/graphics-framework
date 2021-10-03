@@ -42,6 +42,8 @@ static glm::vec3	s_bloom_treshhold_color(0.2126f, 0.7152f, 0.0722f);
 static unsigned int	s_bloom_blur_count = 5;
 static bool			s_render_infinite_grid = false;
 
+static Engine::Math::transform3D s_camera_default_transform;
+
 namespace Sandbox
 {
 
@@ -312,6 +314,9 @@ namespace Sandbox
 		auto camera_transform_comp = Component::Transform::GetManager().Create(s_camera_entity);
 		camera_transform_comp.SetLocalPosition(glm::vec3(0.0f, 10.0f, 0.0f));
 		Component::Camera::GetManager().Create(s_camera_entity);
+		s_camera_default_transform = camera_transform_comp.GetLocalTransform();
+
+		Singleton<Engine::Editor::Editor>().EditorCameraEntity = s_camera_entity;
 
 		return !failure;
 	}
@@ -406,6 +411,9 @@ namespace Sandbox
 		cam_transform.position += DT * CAM_MOVE_SPEED * move_speed_mult * accum_move_left_right * perp_proj_cam_dir;
 
 		camera_transform_comp.SetLocalTransform(cam_transform);
+
+		if (input_manager.GetKeyboardButtonState(SDL_SCANCODE_V) == button_state::eDown)
+			camera_transform_comp.SetLocalTransform(s_camera_default_transform);
 
 		// Set camera aspect ratio every frame
 		SDL_Surface const* surface = Singleton<Engine::sdl_manager>().m_surface;
@@ -550,10 +558,12 @@ namespace Sandbox
 
 		using button_state = Engine::Managers::InputManager::button_state;
 
-		if((input_manager.GetKeyboardButtonState(SDL_SCANCODE_F5) == button_state::ePress) ||
+		if ((input_manager.GetKeyboardButtonState(SDL_SCANCODE_F5) == button_state::ePress) ||
 			(input_manager.GetKeyboardButtonState(SDL_SCANCODE_LCTRL) == button_state::eDown && input_manager.GetKeyboardButtonState(SDL_SCANCODE_LSHIFT) == button_state::eDown && input_manager.GetKeyboardButtonState(SDL_SCANCODE_R) == button_state::ePress)
-		)
-			system_resource_manager.RefreshShaders();
+			)
+		{
+			Singleton<Engine::sdl_manager>().m_want_restart = true;
+		}
 
 		if (input_manager.GetKeyboardButtonState(SDL_SCANCODE_LCTRL) == button_state::eDown && input_manager.GetKeyboardButtonState(SDL_SCANCODE_Q) == button_state::ePress)
 			Singleton<Engine::sdl_manager>().m_want_quit = true;

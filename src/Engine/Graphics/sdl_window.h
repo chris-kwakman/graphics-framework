@@ -20,6 +20,7 @@ namespace Engine
 		SDL_GLContext	m_gl_context = 0;
 
 		bool m_want_quit = false;
+		bool m_want_restart = false;
 
 		bool setup(glm::uvec2 _window_size);
 		void update();

@@ -7,6 +7,8 @@
 #include <ImGui/imgui_impl_sdl.h>
 #include <ImGui/imgui_impl_opengl3.h>
 
+#include <ImGuizmo/ImGuizmo.h>
+
 #include <Engine/Utils/singleton.h>
 #include <Engine/Graphics/sdl_window.h>
 
@@ -32,7 +34,7 @@ namespace Editor {
 		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
 		//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
-		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+		//io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
 		//io.ConfigViewportsNoAutoMerge = true;
 		//io.ConfigViewportsNoTaskBarIcon = true;
 	}
@@ -77,6 +79,7 @@ namespace Editor {
 #endif
 
 		ImGui_ImplOpenGL3_Init(glsl_version);
+		ImGuizmo::SetImGuiContext(ImGui::GetCurrentContext());
 	}
 
 	void imgui_shutdown()
@@ -92,6 +95,9 @@ namespace Editor {
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplSDL2_NewFrame();
 		ImGui::NewFrame();
+		ImGuizmo::BeginFrame();
+		ImGuiIO& io = ImGui::GetIO();
+		ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
 	}
 
 	void imgui_render()
@@ -101,11 +107,7 @@ namespace Editor {
 
 		auto& io = ImGui::GetIO();
 
-		ImVec4 const clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-
 		glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
-		//glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
-		//glClear(GL_COLOR_BUFFER_BIT);
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 		// Update and Render additional Platform Windows

@@ -43,5 +43,8 @@ namespace Component
 	public:
 
 		const char* GetComponentTypeName() const final { return "Camera"; }
+
+		// Inherited via TCompManager
+		virtual void impl_clear() override;
 	};
 }

@@ -53,6 +53,10 @@ namespace Component
 		const char* GetComponentTypeName() const final { return "PointLight"; }
 		Collection GetPointLightCollection() const;
 
+
+		// Inherited via TCompManager
+		virtual void impl_clear() override;
+
 	};
 }
 

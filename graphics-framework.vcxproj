@@ -163,6 +163,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="include\ImGuizmo\GraphEditor.cpp" />
+    <ClCompile Include="include\ImGuizmo\ImCurveEdit.cpp" />
+    <ClCompile Include="include\ImGuizmo\ImGradient.cpp" />
+    <ClCompile Include="include\ImGuizmo\ImGuizmo.cpp" />
+    <ClCompile Include="include\ImGuizmo\ImSequencer.cpp" />
     <ClCompile Include="include\ImGui\imgui.cpp" />
     <ClCompile Include="include\ImGui\imgui_demo.cpp" />
     <ClCompile Include="include\ImGui\imgui_draw.cpp" />
@@ -197,6 +202,12 @@
     <ClCompile Include="src\Sandbox\sandbox.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\ImGuizmo\GraphEditor.h" />
+    <ClInclude Include="include\ImGuizmo\ImCurveEdit.h" />
+    <ClInclude Include="include\ImGuizmo\ImGradient.h" />
+    <ClInclude Include="include\ImGuizmo\ImGuizmo.h" />
+    <ClInclude Include="include\ImGuizmo\ImSequencer.h" />
+    <ClInclude Include="include\ImGuizmo\ImZoomSlider.h" />
     <ClInclude Include="include\ImGui\imconfig.h" />
     <ClInclude Include="include\ImGui\imgui.h" />
     <ClInclude Include="include\ImGui\imgui_impl_opengl3.h" />

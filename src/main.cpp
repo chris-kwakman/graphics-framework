@@ -31,6 +31,8 @@ void update_loop()
 	auto frame_start = std::chrono::high_resolution_clock::now();
 	frametime = ms(0);
 
+	Engine::sdl_manager& sdl_manager = Singleton<Engine::sdl_manager>();
+
 	while (true)
 	{
 		auto frame_end = std::chrono::high_resolution_clock::now();
@@ -46,7 +48,6 @@ void update_loop()
 
 		// Logic
 
-		Engine::sdl_manager & sdl_manager = Singleton<Engine::sdl_manager>();
 		sdl_manager.update();
 
 		char window_title[128];
@@ -62,7 +63,7 @@ void update_loop()
 
 		SDL_GL_SwapWindow(Singleton<Engine::sdl_manager>().m_window);
 
-		if (sdl_manager.m_want_quit)
+		if (sdl_manager.m_want_quit || sdl_manager.m_want_restart)
 			break;
 	}
 }
@@ -72,19 +73,27 @@ int main(int argc, char* argv[])
 	std::string const cwd = std::filesystem::current_path().string();
 	printf("Working directory: %s\n", cwd.c_str());
 
-	Component::InitializeEngineComponentManagers();
 	
 	Engine::sdl_manager& sdl_manager = Singleton<Engine::sdl_manager>();
 	if (sdl_manager.setup(glm::uvec2(SCREEN_WIDTH, SCREEN_HEIGHT)))
 	{
-		Singleton<Engine::Editor::Editor>().Initialise();
-		Singleton<Engine::ECS::EntityManager>().Reset();
-		if (Sandbox::Initialize(argc, argv))
-			update_loop();
-		else
-			std::cout << "Sandbox initialization failed.\n";
-		Sandbox::Shutdown();
-		Singleton<Engine::Editor::Editor>().Shutdown();
+		sdl_manager.m_want_restart = true;
+		while (sdl_manager.m_want_restart)
+		{
+			Component::InitializeEngineComponentManagers();
+
+			sdl_manager.m_want_restart = false;
+			Singleton<Engine::Editor::Editor>().Initialise();
+			Singleton<Engine::ECS::EntityManager>().Reset();
+			if (Sandbox::Initialize(argc, argv))
+				update_loop();
+			else
+				std::cout << "Sandbox initialization failed.\n";
+			Sandbox::Shutdown();
+			Singleton<Engine::Editor::Editor>().Shutdown();
+
+			Component::ShutdownEngineComponentManagers();
+		}
 	}
 
 	Component::ShutdownEngineComponentManagers();
