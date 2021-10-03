@@ -86,7 +86,7 @@ namespace Graphics {
 		struct pbr_metallic_roughness_data
 		{
 			// Defaults are according to specification of glTF
-			double					m_base_color_factor[4]{ 1.0,1.0,1.0,1.0 };
+			glm::vec4				m_base_color_factor{ 1.0,1.0,1.0,1.0 };
 			double					m_metallic_factor = 1.0;	// [0,1]
 			double					m_roughness_factor = 1.0;	// [0,1]
 			texture_handle			m_texture_base_color;

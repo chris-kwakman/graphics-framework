@@ -430,6 +430,7 @@ namespace Component
 		Engine::Math::transform3D& transform = m_local_transforms[get_entity_index(_entity)];
 		ImGui::DragFloat3("Position", &transform.position.x, 1.0f, -FLT_MAX / INT_MIN, FLT_MAX / INT_MIN);
 		ImGui::DragFloat3("Scale", &transform.scale.x, 0.1f, 0.0f, FLT_MAX / INT_MIN);
+		ImGui::DragFloat4("Orientation", &transform.quaternion.x, 0.1f);
 	}
 
 	/*

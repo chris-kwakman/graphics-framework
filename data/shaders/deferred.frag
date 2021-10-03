@@ -5,6 +5,7 @@
 layout(location = 0) uniform sampler2D u_sampler_base_color;
 layout(location = 1) uniform sampler2D u_sampler_metallic_roughness;
 layout(location = 2) uniform sampler2D u_sampler_normal;
+layout(location = 3) uniform vec4 u_base_color_factor;
 layout(location = 10) uniform float	u_alpha_cutoff;
 
 layout(location = 0) out float fb_depth;
@@ -23,7 +24,7 @@ out vec4 out_color;
 
 void main()
 {
-	vec4 frag_color = texture(u_sampler_base_color, f_uv_1);
+	vec4 frag_color = u_base_color_factor * texture(u_sampler_base_color, f_uv_1);
 	if(frag_color.a < u_alpha_cutoff)
 		discard;
 

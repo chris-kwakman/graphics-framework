@@ -71,6 +71,7 @@ namespace Sandbox
 
 	using framebuffer_handle = Engine::Graphics::ResourceManager::framebuffer_handle;
 	using texture_handle = Engine::Graphics::ResourceManager::texture_handle;
+	static texture_handle s_texture_white = 0;
 
 	static framebuffer_handle s_framebuffer_gbuffer, s_framebuffer_lighting, s_framebuffer_bloom[2];
 
@@ -154,6 +155,7 @@ namespace Sandbox
 		s_fb_texture_luminance = system_resource_manager.CreateTexture("FB Luminance");
 		for (unsigned int i = 0; i < 2; ++i)
 			s_fb_texture_bloom_pingpong[i] = system_resource_manager.CreateTexture("FB Bloom Pingpong");
+		s_texture_white = system_resource_manager.CreateTexture("White Texture");
 
 		//system_resource_manager.SpecifyAndUploadTexture2D(s_fb_texture_depth, GL_DEPTH_COMPONENT, surface_size, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
 		using tex_params = Engine::Graphics::ResourceManager::texture_parameters;
@@ -176,6 +178,8 @@ namespace Sandbox
 			// TODO: Half size of bloom blur textures
 			system_resource_manager.AllocateTextureStorage2D(s_fb_texture_bloom_pingpong[i], GL_RGB16F, s_bloom_texture_size, default_fb_texture_params);
 		}
+		glm::vec3 color_white{ 1.0f,1.0f,1.0f };
+		system_resource_manager.SpecifyAndUploadTexture2D(s_texture_white, GL_RGB8, glm::uvec2(1, 1), 0, GL_RGB, GL_FLOAT, (void*)&color_white);
 
 		// Attach textures to framebuffer.
 		system_resource_manager.BindFramebuffer(s_framebuffer_gbuffer);
@@ -588,7 +592,7 @@ namespace Sandbox
 			mesh_to_render = system_resource_manager.FindMesh("Sphere/Sphere");*/
 
 		system_resource_manager.BindFramebuffer(s_framebuffer_gbuffer);
-		glClearColor(s_clear_color.x, s_clear_color.y, s_clear_color.z, 0.0f);
+		glClearColor(0.0f,0.0f,0.0f, 0.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		auto window_size = Singleton<Engine::sdl_manager>().get_window_size();
 		glViewport(0, 0, window_size.x, window_size.y);
@@ -654,11 +658,21 @@ namespace Sandbox
 				{
 					ResourceManager::material_data material = system_resource_manager.GetMaterial(primitive.m_material_handle);
 
-					activate_texture(material.m_pbr_metallic_roughness.m_texture_base_color, 0, 0);
-					activate_texture(material.m_pbr_metallic_roughness.m_texture_metallic_roughness, 1, 1);
+					texture_handle const use_base_color = material.m_pbr_metallic_roughness.m_texture_base_color
+						? material.m_pbr_metallic_roughness.m_texture_base_color
+						: s_texture_white;
+					texture_handle const use_metallic_roughness = material.m_pbr_metallic_roughness.m_texture_metallic_roughness
+						? material.m_pbr_metallic_roughness.m_texture_metallic_roughness
+						: s_texture_white;
+
+					// TODO: Implement metallic roughness color factors
+					activate_texture(use_base_color, 0, 0);
+					activate_texture(use_metallic_roughness, 1, 1);
 					activate_texture(material.m_texture_normal, 2, 2);
-					activate_texture(material.m_texture_occlusion, 3, 3);
-					activate_texture(material.m_texture_emissive, 4, 4);
+					system_resource_manager.SetBoundProgramUniform(3, material.m_pbr_metallic_roughness.m_base_color_factor);
+					/*activate_texture(material.m_texture_occlusion, 3, 3);
+					activate_texture(material.m_texture_emissive, 4, 4);*/
+
 
 					using alpha_mode = ResourceManager::material_data::alpha_mode;
 					system_resource_manager.SetBoundProgramUniform(
@@ -707,7 +721,7 @@ namespace Sandbox
 		{
 			system_resource_manager.BindFramebuffer(s_framebuffer_lighting);
 			glViewport(0, 0, window_size.x, window_size.y);
-
+			glClearColor(s_clear_color.x, s_clear_color.y, s_clear_color.z, 0.0f);
 			glClear(GL_COLOR_BUFFER_BIT);
 
 			if (s_ambient_color != glm::vec3(0))

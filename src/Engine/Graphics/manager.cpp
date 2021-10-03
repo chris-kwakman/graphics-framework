@@ -436,11 +436,10 @@ namespace Graphics {
 
 			// Set up PBR metallic roughness data
 			pbr_metallic_roughness_data new_pbr_mrd;
-			memcpy(
-				new_pbr_mrd.m_base_color_factor, 
-				&read_pbr_mr.baseColorFactor.front(), 
-				sizeof(pbr_metallic_roughness_data::m_base_color_factor)
-			);
+			for (unsigned int i = 0; i < 4; i++)
+			{
+				new_pbr_mrd.m_base_color_factor[i] = read_material.pbrMetallicRoughness.baseColorFactor[i];
+			}
 
 			auto get_source_of_texture_index = [&](unsigned int _index)->unsigned int
 			{
@@ -990,32 +989,32 @@ namespace Graphics {
 
 	void ResourceManager::SetBoundProgramUniform(unsigned int _uniform_location, glm::uvec2 _uniform_value)
 	{
-		glProgramUniform2ui(m_bound_gl_program_object, _uniform_location, _uniform_value.x, _uniform_value.y);
+		GfxCall(glProgramUniform2ui(m_bound_gl_program_object, _uniform_location, _uniform_value.x, _uniform_value.y));
 	}
 
 	void ResourceManager::SetBoundProgramUniform(unsigned int _uniform_location, glm::vec2 _uniform_value)
 	{
-		glProgramUniform2f(m_bound_gl_program_object, _uniform_location, _uniform_value.x, _uniform_value.y);
+		GfxCall(glProgramUniform2f(m_bound_gl_program_object, _uniform_location, _uniform_value.x, _uniform_value.y));
 	}
 
 	void ResourceManager::SetBoundProgramUniform(unsigned int _uniform_location, glm::vec3 _uniform_value)
 	{
-		glProgramUniform3f(m_bound_gl_program_object, _uniform_location, _uniform_value.x, _uniform_value.y, _uniform_value.z);
+		GfxCall(glProgramUniform3f(m_bound_gl_program_object, _uniform_location, _uniform_value.x, _uniform_value.y, _uniform_value.z));
 	}
 
 	void ResourceManager::SetBoundProgramUniform(unsigned int _uniform_location, glm::vec4 _uniform_value)
 	{
-		glProgramUniform4f(m_bound_gl_program_object, _uniform_location, _uniform_value.x, _uniform_value.y, _uniform_value.z, _uniform_value.w);
+		GfxCall(glProgramUniform4f(m_bound_gl_program_object, _uniform_location, _uniform_value.x, _uniform_value.y, _uniform_value.z, _uniform_value.w));
 	}
 
 	void ResourceManager::SetBoundProgramUniform(unsigned int _uniform_location, glm::mat3 const & _uniform_value)
 	{
-		glProgramUniformMatrix3fv(m_bound_gl_program_object, _uniform_location, 1, false, glm::value_ptr(_uniform_value));
+		GfxCall(glProgramUniformMatrix3fv(m_bound_gl_program_object, _uniform_location, 1, false, glm::value_ptr(_uniform_value)));
 	}
 
 	void ResourceManager::SetBoundProgramUniform(unsigned int _uniform_location, glm::mat4 const & _uniform_value)
 	{
-		glProgramUniformMatrix4fv(m_bound_gl_program_object, _uniform_location, 1, false, glm::value_ptr(_uniform_value));
+		GfxCall(glProgramUniformMatrix4fv(m_bound_gl_program_object, _uniform_location, 1, false, glm::value_ptr(_uniform_value)));
 	}
 
 	GLenum ResourceManager::get_extension_shader_type(filepath_string const & _extension)
