@@ -1,0 +1,5 @@
+DECLARE_MANAGER(TransformManager)
+DECLARE_MANAGER(RenderableManager)
+DECLARE_MANAGER(CameraManager)
+DECLARE_MANAGER(PointLightManager)
+DECLARE_MANAGER(NameableManager)

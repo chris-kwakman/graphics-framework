@@ -81,9 +81,6 @@
     <ClCompile Include="src\Engine\ECS\component_manager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\Engine\Components\engine_components.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\Engine\Serialisation\serialise_gltf.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -118,6 +115,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="include\ImGuizmo\ImSequencer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Engine\Components\Nameable.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Engine\Components\EngineCompManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -194,9 +197,6 @@
     <ClInclude Include="src\Engine\Components\Renderable.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\Engine\Components\engine_components.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\Engine\Serialisation\serialise_gltf.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -236,6 +236,12 @@
     <ClInclude Include="include\ImGuizmo\ImZoomSlider.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\Engine\Components\Nameable.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Engine\Components\EngineCompManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="working_dir\data\shaders\deferred.frag" />
@@ -249,5 +255,8 @@
     <None Include="working_dir\data\shaders\postprocessing.frag" />
     <None Include="data\shaders\infinite_grid.vert" />
     <None Include="data\shaders\infinite_grid.frag" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="src\Engine\Components\EngineComponents.txt" />
   </ItemGroup>
 </Project>

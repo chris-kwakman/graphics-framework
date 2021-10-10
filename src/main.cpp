@@ -5,7 +5,7 @@
 #include "Engine/ECS/entity.h"
 
 #include <Engine/ECS/component_manager.h>
-#include <Engine/Components/engine_components.h>
+#include <Engine/Components/EngineCompManager.h>
 
 #include "Sandbox/sandbox.h"
 

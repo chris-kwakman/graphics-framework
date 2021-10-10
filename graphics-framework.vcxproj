@@ -177,10 +177,11 @@
     <ClCompile Include="include\ImGui\imgui_widgets.cpp" />
     <ClCompile Include="include\ImGui\misc\cpp\imgui_stdlib.cpp" />
     <ClCompile Include="src\Engine\Components\Camera.cpp" />
-    <ClCompile Include="src\Engine\Components\engine_components.cpp" />
+    <ClCompile Include="src\Engine\Components\EngineCompManager.cpp" />
     <ClCompile Include="src\Engine\Components\Light.cpp">
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)</ObjectFileName>
     </ClCompile>
+    <ClCompile Include="src\Engine\Components\Nameable.cpp" />
     <ClCompile Include="src\Engine\Components\Renderable.cpp" />
     <ClCompile Include="src\Engine\Components\Transform.cpp" />
     <ClCompile Include="src\Engine\ECS\component_manager.cpp" />
@@ -220,8 +221,9 @@
     <ClInclude Include="include\ImGui\misc\cpp\imgui_stdlib.h" />
     <ClInclude Include="include\ImGui\misc\single_file\imgui_single_file.h" />
     <ClInclude Include="src\Engine\Components\Camera.h" />
-    <ClInclude Include="src\Engine\Components\engine_components.h" />
+    <ClInclude Include="src\Engine\Components\EngineCompManager.h" />
     <ClInclude Include="src\Engine\Components\Light.h" />
+    <ClInclude Include="src\Engine\Components\Nameable.h" />
     <ClInclude Include="src\Engine\Components\Renderable.h" />
     <ClInclude Include="src\Engine\Components\Transform.h" />
     <ClInclude Include="src\Engine\Editor\editor.h" />
@@ -253,6 +255,9 @@
     <None Include="working_dir\data\shaders\display_framebuffer.vert" />
     <None Include="working_dir\data\shaders\phong.frag" />
     <None Include="working_dir\data\shaders\postprocessing.frag" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="src\Engine\Components\EngineComponents.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
