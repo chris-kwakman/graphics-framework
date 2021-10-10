@@ -79,7 +79,7 @@ namespace Editor {
 #endif
 
 		ImGui_ImplOpenGL3_Init(glsl_version);
-		ImGuizmo::SetImGuiContext(ImGui::GetCurrentContext());
+		//ImGuizmo::SetImGuiContext(ImGui::GetCurrentContext());
 	}
 
 	void imgui_shutdown()
@@ -95,9 +95,10 @@ namespace Editor {
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplSDL2_NewFrame();
 		ImGui::NewFrame();
-		ImGuizmo::BeginFrame();
-		ImGuiIO& io = ImGui::GetIO();
-		ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
+		//ImGuizmo::BeginFrame();
+		//ImGuizmo::Enable(true);
+		//ImGuiIO& io = ImGui::GetIO();
+		//ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
 	}
 
 	void imgui_render()
