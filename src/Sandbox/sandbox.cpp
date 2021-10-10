@@ -286,12 +286,14 @@ namespace Sandbox
 		setup_framebuffer();
 		create_framebuffer_triangle();
 
-		// Load glTF model
+		// Load glTF model Sponza by default, other if specified in commandline argument.
 		bool failure = false;
-		//LoadGLTFModel("data/gltf/sponza/Sponza.gltf");
-		LoadGLTFModel("data/gltf/Sphere.gltf");
+		if (argc >= 2)
+			LoadGLTFModel(argv[1]);
+		else
+			LoadGLTFModel("data/gltf/sponza/Sponza.gltf");
 
-		GfxCall(glDepthRange(-1.0f, 1.0f));
+		LoadGLTFModel("data/gltf/Sphere.gltf");
 
 		if (argc >= 3)
 		{
@@ -317,6 +319,8 @@ namespace Sandbox
 		s_camera_default_transform = camera_transform_comp.GetLocalTransform();
 
 		Singleton<Engine::Editor::Editor>().EditorCameraEntity = s_camera_entity;
+
+		GfxCall(glDepthRange(-1.0f, 1.0f));
 
 		return !failure;
 	}
@@ -822,7 +826,7 @@ namespace Sandbox
 		glViewport(0, 0, (GLsizei)window_size.x, (GLsizei)window_size.y);
 
 		system_resource_manager.UnbindFramebuffer();
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 		glEnable(GL_CULL_FACE);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glDepthMask(GL_TRUE);
@@ -862,9 +866,11 @@ namespace Sandbox
 			system_resource_manager.SetBoundProgramUniform(10, camera_component.GetNearDistance());
 			system_resource_manager.SetBoundProgramUniform(11, camera_component.GetFarDistance());
 
+			glEnable(GL_DEPTH_TEST);
+			glDepthMask(GL_TRUE);
+			glDepthFunc(GL_LEQUAL);
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-			glDepthFunc(GL_LESS);
 
 			glDrawArrays(GL_TRIANGLES, 0, 6);
 		}

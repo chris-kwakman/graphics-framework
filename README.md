@@ -38,8 +38,12 @@ Sandbox/Sandbox			- User-defined application code
 ## Known issues:
 
 - ImGuizmo refuses to take mouse input for some indiscernible reason.
+- ImGuizmo crashes in release for some reason.
 - Scene graph only shows nodes with entity IDs and not names.
 - CTRL+R (resource refresh) not implemented.
+- Picking via raycasting is not implemented. However, entities can be selected via the scene graph.
+- Infinite grid has issues with depth rendering (overlays ontop of other objects even while trying to respect depth)
+- Models are loaded on their side. Probably a scene deserialization issue.
 
 ## Time of implementation
 Too much time (>20 hours ontop of CS562?)
