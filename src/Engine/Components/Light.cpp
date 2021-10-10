@@ -14,6 +14,7 @@ namespace Component
 		m_entity_map.emplace(_e, new_light_index);
 		m_light_color_arr.emplace_back(1.0f, 1.0f, 1.0f);
 		m_light_radius_arr.emplace_back(10.0f);
+		m_index_entities.emplace_back(_e);
 		return true;
 	}
 
@@ -27,9 +28,12 @@ namespace Component
 				unsigned int const swap_index_to_back = iter->second;
 				std::swap(m_light_color_arr[swap_index_to_back], m_light_color_arr.back());
 				std::swap(m_light_radius_arr[swap_index_to_back], m_light_radius_arr.back());
+				std::swap(m_index_entities[swap_index_to_back], m_index_entities.back());
+				m_entity_map[m_index_entities[swap_index_to_back]] = swap_index_to_back;
 				m_light_color_arr.pop_back();
 				m_light_radius_arr.pop_back();
-				iter = m_entity_map.erase(iter);
+				m_index_entities.pop_back();
+				m_entity_map.erase(iter);
 			}
 		}
 	}
@@ -77,6 +81,7 @@ namespace Component
 		m_entity_map.clear();
 		m_light_color_arr.clear();
 		m_light_radius_arr.clear();
+		m_index_entities.clear();
 	}
 
 	float PointLight::GetRadius() const

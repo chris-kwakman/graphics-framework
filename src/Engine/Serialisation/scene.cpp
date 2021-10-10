@@ -27,6 +27,7 @@ namespace Serialisation {
 		for (unsigned int entity_idx = 0; entity_idx < entities.size(); ++entity_idx)
 		{
 			Entity current_entity = scene_context.m_index_entities[entity_idx];
+			current_entity.SetName("Model Scene Node");
 			for (auto manager : component_managers)
 			{
 				json const& entity_components = entities[entity_idx]["Components"];

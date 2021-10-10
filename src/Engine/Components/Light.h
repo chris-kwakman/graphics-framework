@@ -30,6 +30,7 @@ namespace Component
 
 		std::unordered_map<Entity, unsigned int, Entity::hash> m_entity_map;
 		// Store light data in SOA format so we can pass many lights at once if we desire to do so.
+		std::vector<Entity> m_index_entities;
 		std::vector<glm::vec3> m_light_color_arr;
 		std::vector<float> m_light_radius_arr;
 
