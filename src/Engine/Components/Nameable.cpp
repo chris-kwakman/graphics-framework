@@ -99,7 +99,7 @@ namespace Component
 		return &GetManager().m_index_names[entity_index].front();
 	}
 
-	uint8_t Nameable::MaxNameLength()
+	constexpr uint8_t Nameable::MaxNameLength()
 	{
 		return NameableManager::MAX_STRING_SIZE-1;
 	}

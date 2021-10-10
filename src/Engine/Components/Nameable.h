@@ -11,11 +11,13 @@ namespace Component
 
 		const char* GetName() const;
 		const char* SetName(const char* _name);
-		static uint8_t MaxNameLength(); // Excludes null-terminator
+		static constexpr uint8_t MaxNameLength(); // Excludes null-terminator
 	};
 	class NameableManager : public TCompManager<Nameable>
 	{
-		static unsigned int const MAX_STRING_SIZE = 16;
+	public:
+		static unsigned int const MAX_STRING_SIZE = 64;
+	private:
 
 		std::unordered_map<Entity, unsigned int, Entity::hash> m_entity_index_map;
 		std::vector<Entity> m_index_entities;

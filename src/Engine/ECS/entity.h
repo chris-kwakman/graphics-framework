@@ -47,6 +47,8 @@ namespace ECS {
 		uint16_t	Counter() const { return m_counter; }
 		void		DestroyEndOfFrame();
 		bool		Alive() const;
+		const char* GetName() const;
+		void		SetName(const char* _name);
 
 		bool operator==(Entity const & _other) const { return m_data == _other.m_data; }
 		bool operator!=(Entity const & _other) const { return m_data != _other.m_data; }

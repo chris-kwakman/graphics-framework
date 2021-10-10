@@ -356,9 +356,20 @@ namespace Component
 
 	static void entity_node_context(Entity _e)
 	{
-		ImGui::Text("Entity ID: %d", _e.ID());
+		uint8_t const MAX_STRING_SIZE = Component::Nameable::comp_manager::MAX_STRING_SIZE;
+		static char name_buffer[MAX_STRING_SIZE];
+
+		if (ImGui::IsWindowAppearing()) {
+			strncpy(name_buffer, _e.GetName(), MAX_STRING_SIZE);
+		}
+
+		if (ImGui::InputText("Edit Name", name_buffer, MAX_STRING_SIZE))
+			_e.SetName(name_buffer);
+
 		if (ImGui::Button("Destroy"))
 			_e.DestroyEndOfFrame();
+
+		ImGui::Text("Entity ID: %d", _e.ID());
 	}
 
 	void TransformManager::display_node_recursively(Entity _e)
@@ -375,14 +386,7 @@ namespace Component
 		if (selected_entities.find(_e) != selected_entities.end())
 			entity_node_flags |= ImGuiTreeNodeFlags_Selected;
 
-		const char* entity_name;
-		auto nameable = _e.GetComponent<Nameable>();
-		if (nameable.IsValid())
-			entity_name = nameable.GetName();
-		else
-			entity_name = "Unnamed";
-
-		bool const node_open = ImGui::TreeNodeEx((void*)_e.ID(), entity_node_flags, "%s", entity_name);
+		bool const node_open = ImGui::TreeNodeEx((void*)_e.ID(), entity_node_flags, "%s", _e.GetName());
 
 		if (ImGui::IsItemClicked())
 		{

@@ -6,6 +6,8 @@
 
 #include <Engine/Serialisation/common.h>
 
+#include <Engine/Components/Nameable.h>
+
 namespace Engine {
 namespace ECS {
 
@@ -173,6 +175,20 @@ namespace ECS {
 	bool Entity::Alive() const
 	{
 		return Singleton<EntityManager>().DoesEntityExist(*this);
+	}
+
+	const char* Entity::GetName() const
+	{
+		auto name_comp = GetComponent<Component::Nameable>();
+		return name_comp.IsValid() ? name_comp.GetName() : "Unnamed";
+	}
+
+	void Entity::SetName(const char* _name)
+	{
+		auto nameable_comp = GetComponent<Component::Nameable>();
+		if (!nameable_comp.IsValid())
+			nameable_comp = Component::Create<Component::Nameable>(*this);
+		nameable_comp.SetName(_name);
 	}
 
 }

@@ -112,6 +112,15 @@ namespace ECS {
 }
 }
 
+namespace Component
+{
+	template<typename TComp>
+	TComp Create(Engine::ECS::Entity _e) {
+		return TComp::GetManager().Create(_e);
+	}
+
+}
+
 #include "component_manager.inl"  
 
 #endif // !ENGINE_ECS_COMPONENT_MANAGER_H
