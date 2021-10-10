@@ -7,6 +7,7 @@
 
 #include <Engine/Editor/editor.h>
 #include <Engine/Components/Camera.h>
+#include <Engine/Components/Nameable.h>
 
 #include <glm/gtx/matrix_decompose.hpp>
 
@@ -355,6 +356,7 @@ namespace Component
 
 	static void entity_node_context(Entity _e)
 	{
+		ImGui::Text("Entity ID: %d", _e.ID());
 		if (ImGui::Button("Destroy"))
 			_e.DestroyEndOfFrame();
 	}
@@ -373,7 +375,14 @@ namespace Component
 		if (selected_entities.find(_e) != selected_entities.end())
 			entity_node_flags |= ImGuiTreeNodeFlags_Selected;
 
-		bool const node_open = ImGui::TreeNodeEx((void*)_e.ID(), entity_node_flags, "%d", _e.ID());
+		const char* entity_name;
+		auto nameable = _e.GetComponent<Nameable>();
+		if (nameable.IsValid())
+			entity_name = nameable.GetName();
+		else
+			entity_name = "Unnamed";
+
+		bool const node_open = ImGui::TreeNodeEx((void*)_e.ID(), entity_node_flags, "%s", entity_name);
 
 		if (ImGui::IsItemClicked())
 		{
