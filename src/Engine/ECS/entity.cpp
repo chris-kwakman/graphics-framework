@@ -70,7 +70,8 @@ namespace ECS {
 				temp_handle_idx_arr[handles_found] = i;
 				handles_found++;
 			}
-		} while (handles_found != _request_count && (++i % MAX_ENTITIES) != m_entity_id_iter);
+			i = (++i % MAX_ENTITIES);
+		} while (handles_found != _request_count && i != m_entity_id_iter);
 		m_entity_id_iter = i + 1;
 
 		bool found_requested_handles = (handles_found == _request_count);

@@ -16,42 +16,47 @@ namespace Component
 
 	void TransformManager::impl_clear()
 	{
-		m_entity_data_index_map.clear();
-		m_data_index_entity_map.clear();
+		m_entity_indexer_map.clear();
 
 		m_local_transforms.clear();
-		m_world_matrices.clear();
-
 		m_parent.clear();
 		m_first_child.clear();
 		m_next_sibling.clear();
 
+		m_world_matrix_data.clear();
+		m_world_matrix_owners.clear();
+
 		m_root_entities.clear();
 
-		m_dirty_element_count = 0;
+		m_dirty_matrix_count = 0;
 	}
 
 	bool TransformManager::impl_create(Entity _e)
 	{
-		unsigned int const new_index = (unsigned int)m_local_transforms.size();
 		// Insert new entity transform data at back index of all data vectors
-		m_entity_data_index_map.emplace(_e, new_index);
-		m_data_index_entity_map.emplace(new_index, _e);
+		indexer_data new_indexer;
+		new_indexer.transform = (unsigned int)m_local_transforms.size();
+		new_indexer.matrix = (unsigned int)m_world_matrix_data.size();
+
+		m_entity_indexer_map.emplace(_e, new_indexer);
 		
 		using math_transform = Engine::Math::transform3D;
 
 		// Initialize default transform data.
-		m_local_transforms.push_back(math_transform());
-		m_world_matrices.push_back(math_transform().GetMatrix());
-
 		// Set new transform to have no parent, no child and no siblings
+		m_transform_owners.push_back(_e);
+		m_local_transforms.push_back(math_transform());
 		m_parent.push_back(Entity::InvalidEntity);
 		m_first_child.push_back(Entity::InvalidEntity);
 		m_next_sibling.push_back(Entity::InvalidEntity);
 
+
+		m_world_matrix_owners.push_back(_e);
+		m_world_matrix_data.push_back(math_transform().GetMatrix());
+
 		m_root_entities.insert(_e);
 
-		m_dirty_element_count++;
+		m_dirty_matrix_count++;
 
 		return true;
 	}
@@ -67,79 +72,107 @@ namespace Component
 
 	bool TransformManager::impl_component_owned_by_entity(Entity _entity) const
 	{
-		return m_entity_data_index_map.find(_entity) != m_entity_data_index_map.end();
+		return m_entity_indexer_map.find(_entity) != m_entity_indexer_map.end();
 	}
 
 	void TransformManager::remove_entry(Entity _e)
 	{
-		uint16_t entity_index = get_entity_index(_e);
+		indexer_data entity_indexer = get_entity_indexer_data(_e);
 
 		detach_all_entity_children(_e);
+		detach_entity_from_parent(_e);
 
-		// Swap index data such that entity index data is in back of dirty partition
+		// Swap matrix indices such that entity matrix data is in back of dirty partition
 
-		// if index is not dirty, swap with back of clean partition.
-		if (!check_index_dirty(entity_index) && entity_index != last_clean_index())
+		// If matrix is not dirty, swap with back of clean partition.
+		if (!check_matrix_dirty(entity_indexer.matrix) && entity_indexer.matrix != last_clean_matrix_index())
 		{
-			swap_data_indices(entity_index, last_clean_index());
-			entity_index = last_clean_index();
+			swap_matrix_indices(entity_indexer.matrix, last_clean_matrix_index());
+			entity_indexer.matrix = last_clean_matrix_index();
 
 			// Swap backmost clean index with backmost dirty index
-			swap_data_indices(entity_index, (uint16_t)m_local_transforms.size() - 1);
+			swap_matrix_indices(entity_indexer.matrix, (uint16_t)m_local_transforms.size() - 1);
 		}
 		// If index IS dirty, swap with back index of dirty partition
 		else
 		{
-			swap_data_indices(entity_index, (uint16_t)m_local_transforms.size() - 1);
-			m_dirty_element_count--;
+			swap_matrix_indices(entity_indexer.matrix, (uint16_t)m_local_transforms.size() - 1);
+			m_dirty_matrix_count--;
 		}
 
-		m_data_index_entity_map.erase(get_entity_index(_e));
-		m_entity_data_index_map.erase(_e);
+		swap_transform_index_to_back(entity_indexer.transform);
+
+		m_entity_indexer_map.erase(_e);
 
 		// Pop back of all data containers
+		m_transform_owners.pop_back();
 		m_local_transforms.pop_back();
-		m_world_matrices.pop_back();
 		m_parent.pop_back();
 		m_first_child.pop_back();
 		m_next_sibling.pop_back();
+		// Pop back all matrix data contianers
+		m_world_matrix_owners.pop_back();
+		m_world_matrix_data.pop_back();
 
 		m_root_entities.erase(_e);
 	}
 
-	uint16_t TransformManager::get_entity_index(Entity _e) const
+	TransformManager::indexer_data TransformManager::get_entity_indexer_data(Entity _e) const
 	{
-		return m_entity_data_index_map.at(_e);
+		return m_entity_indexer_map.at(_e);
+	}
+
+	/*
+	* Swap transform data at given index with that of back index.
+	* @param	uint16_t		Index to swap with back
+	*/
+	void TransformManager::swap_transform_index_to_back(uint16_t _idx)
+	{
+		if (m_local_transforms.empty() || _idx == m_local_transforms.size() - 1)
+			return;
+
+		unsigned int const back_entity_idx = m_transform_owners.size() - 1;
+		Entity const index_entity = m_transform_owners[_idx];
+		Entity const back_entity = m_transform_owners[back_entity_idx];
+
+		// Update indexers in entity to indexer map
+		std::swap(m_entity_indexer_map.at(index_entity).transform, m_entity_indexer_map.at(back_entity).transform);
+		// Swap data at indices in actual transform data vectors.
+		std::swap(m_local_transforms[_idx], m_local_transforms[back_entity_idx]);
+		std::swap(m_transform_owners[_idx], m_transform_owners[back_entity_idx]);
+		std::swap(m_parent[_idx], m_parent[back_entity_idx]);
+		std::swap(m_first_child[_idx], m_first_child[back_entity_idx]);
+		std::swap(m_next_sibling[_idx], m_next_sibling[back_entity_idx]);
 	}
 
 	void TransformManager::mark_matrix_dirty(Entity _e)
 	{
-		mark_index_dirty(m_entity_data_index_map.at(_e));
+		mark_matrix_dirty(get_entity_indexer_data(_e).matrix);
 	}
 
-	void TransformManager::mark_index_dirty(uint16_t _idx)
+	void TransformManager::mark_matrix_dirty(uint16_t _idx)
 	{
 		// Return early if index is already early
-		if (check_index_dirty(_idx))
+		if (check_matrix_dirty(_idx))
 			return;
 
 		// If not dirty yet, swap with back clean index (unless already in back)
-		if (_idx == last_clean_index())
+		if (_idx == last_clean_matrix_index())
 		{
-			swap_data_indices(_idx, last_clean_index());
-			m_dirty_element_count++;
+			swap_matrix_indices(_idx, last_clean_matrix_index());
+			m_dirty_matrix_count++;
 		}
 	}
 
-	bool TransformManager::check_index_dirty(uint16_t _idx) const
+	bool TransformManager::check_matrix_dirty(uint16_t _idx) const
 	{
-		return (m_local_transforms.size() - _idx <= m_dirty_element_count);
+		return (m_local_transforms.size() - _idx <= m_dirty_matrix_count);
 	}
 
 	bool TransformManager::attach_entity_to_parent(Entity _entity, Entity _target)
 	{
-		uint16_t const target_index = get_entity_index(_target);
-		uint16_t const entity_index = get_entity_index(_entity);
+		uint16_t const target_index = get_entity_indexer_data(_target).transform;
+		uint16_t const entity_index = get_entity_indexer_data(_entity).transform;
 
 		// Return early if given child entity is already attached to parent.
 		if (m_parent[entity_index] == _target)
@@ -154,11 +187,11 @@ namespace Component
 		{
 			// Iterate through linked sibling list
 			Entity iter_child_entity = m_first_child[target_index];
-			uint16_t iter_child_index = get_entity_index(iter_child_entity);
+			uint16_t iter_child_index = get_entity_indexer_data(iter_child_entity).transform;
 			while (m_next_sibling[iter_child_index] != Entity::InvalidEntity)
 			{
 				iter_child_entity = m_next_sibling[iter_child_index];
-				iter_child_index = get_entity_index(iter_child_entity);
+				iter_child_index = get_entity_indexer_data(iter_child_entity).transform;
 			}
 			m_next_sibling[iter_child_index] = _entity;
 		}
@@ -181,18 +214,14 @@ namespace Component
 	*/
 	void TransformManager::detach_entity_from_parent(Entity _entity)
 	{
-		uint16_t const entity_index = get_entity_index(_entity);
-		Entity const parent = m_parent[entity_index];
+		uint16_t const entity_transform_index = get_entity_indexer_data(_entity).transform;
+		Entity const parent = m_parent[entity_transform_index];
 
 		// Return early if child has no parent to detach from.
 		if (parent == Entity::InvalidEntity)
 			return;
 
-		uint16_t const parent_index = get_entity_index(parent);
-
-		// Return early if child does not have a parent to detach from
-		if (parent == Entity::InvalidEntity)
-			return;
+		uint16_t const parent_index = get_entity_indexer_data(parent).transform;
 
 		// Remove child from children list
 
@@ -200,8 +229,8 @@ namespace Component
 		// make next sibling new first child of parent
 		if (m_first_child[parent_index] == _entity)
 		{
-			m_first_child[parent_index] = m_next_sibling[entity_index];
-			m_next_sibling[entity_index] = Entity::InvalidEntity;
+			m_first_child[parent_index] = m_next_sibling[entity_transform_index];
+			m_next_sibling[entity_transform_index] = Entity::InvalidEntity;
 		}
 
 		// If entity is NOT first child, remove from linked list. If entity has next sibling,
@@ -209,22 +238,22 @@ namespace Component
 		else
 		{
 			Entity child_iter = m_first_child[parent_index];
-			uint16_t child_iter_index = get_entity_index(child_iter);
+			uint16_t child_iter_index = get_entity_indexer_data(child_iter).transform;
 			// No bounds checking since we know that entity is guaranteed to be a child of parent.
 			while (m_next_sibling[child_iter_index] != _entity)
 			{
 				child_iter = m_next_sibling[child_iter_index];
-				child_iter_index = get_entity_index(child_iter);
+				child_iter_index = get_entity_indexer_data(child_iter).transform;
 			}
-			m_next_sibling[child_iter_index] = m_next_sibling[entity_index];
+			m_next_sibling[child_iter_index] = m_next_sibling[entity_transform_index];
 		}
 
 		// Maintain world transform of entity that we are detaching from parent
-		Engine::Math::transform3D const parent_transform = Get(m_parent[entity_index]).ComputeWorldTransform();
-		m_local_transforms[entity_index] = parent_transform * m_local_transforms[entity_index];
+		Engine::Math::transform3D const parent_transform = Get(m_parent[entity_transform_index]).ComputeWorldTransform();
+		m_local_transforms[entity_transform_index] = parent_transform * m_local_transforms[entity_transform_index];
 
-		m_parent[entity_index] = Entity::InvalidEntity;
-		m_next_sibling[entity_index] = Entity::InvalidEntity;
+		m_parent[entity_transform_index] = Entity::InvalidEntity;
+		m_next_sibling[entity_transform_index] = Entity::InvalidEntity;
 
 		m_root_entities.insert(_entity);
 
@@ -233,13 +262,13 @@ namespace Component
 
 	void TransformManager::detach_all_entity_children(Entity _entity)
 	{
-		unsigned int entity_index = get_entity_index(_entity);
+		unsigned int entity_index = get_entity_indexer_data(_entity).transform;
 		// Detach all children
 		Entity child_iter = m_first_child[entity_index];
 		while (child_iter != Entity::InvalidEntity)
 		{
 			detach_entity_from_parent(child_iter);
-			child_iter = m_next_sibling[get_entity_index(child_iter)];
+			child_iter = m_next_sibling[get_entity_indexer_data(child_iter).transform];
 		}
 		m_first_child[entity_index] = Entity::InvalidEntity;
 	}
@@ -254,43 +283,39 @@ namespace Component
 		Entity entity_iter = _entity;
 		while (!(entity_iter == Entity::InvalidEntity || entity_iter == _target))
 		{
-			entity_iter = m_parent[get_entity_index(entity_iter)];
+			entity_iter = m_parent[get_entity_indexer_data(entity_iter).transform];
 		}
 		return entity_iter == _target;
 	}
 
 	/*
-	* Swap element data at index 1 and index 2 with each other.
+	* Swap matrices at input indices with each other
 	* This is used for maintaining the correct update order when
 	* computing matrices, or when removing entities
 	* @param	uint16_t	Index 1
 	* @param	uint16_t	Index 2
 	*/
-	void TransformManager::swap_data_indices(uint16_t _idx1, uint16_t _idx2)
+	void TransformManager::swap_matrix_indices(uint16_t _idx1, uint16_t _idx2)
 	{
-		// Update double-linked entity-index map
-		Entity const e1 = m_data_index_entity_map[_idx1];
-		Entity const e2 = m_data_index_entity_map[_idx2];
-		m_data_index_entity_map[_idx1] = e2;
-		m_data_index_entity_map[_idx2] = e1;
-		m_entity_data_index_map[e1] = _idx2;
-		m_entity_data_index_map[e2] = _idx1;
+		// Update bi-directional entity-matrix-index map
+		Entity const e1 = m_world_matrix_owners[_idx1];
+		Entity const e2 = m_world_matrix_owners[_idx2];
+		m_world_matrix_owners[_idx1] = e2;
+		m_world_matrix_owners[_idx2] = e1;
+		m_entity_indexer_map[e1].matrix = _idx2;
+		m_entity_indexer_map[e2].matrix = _idx1;
 
-		// Swap transform data
-		std::swap(m_local_transforms[_idx1], m_local_transforms[_idx2]);
-		std::swap(m_world_matrices[_idx1], m_world_matrices[_idx2]);
-		std::swap(m_parent[_idx1], m_parent[_idx2]);
-		std::swap(m_first_child[_idx1], m_first_child[_idx2]);
-		std::swap(m_next_sibling[_idx1], m_next_sibling[_idx2]);
+		// Swap matrix data
+		std::swap(m_world_matrix_data[_idx1], m_world_matrix_data[_idx2]);
 	}
 
 	/*
 	* Returns last clean index in internal data list.
 	* @returns	uint16_t	Back index of clean partition
 	*/
-	uint16_t TransformManager::last_clean_index() const
+	uint16_t TransformManager::last_clean_matrix_index() const
 	{
-		return (uint16_t)m_local_transforms.size() - m_dirty_element_count - 1;
+		return (uint16_t)m_local_transforms.size() - m_dirty_matrix_count - 1;
 	}
 
 
@@ -375,7 +400,7 @@ namespace Component
 	void TransformManager::display_node_recursively(Entity _e)
 	{
 		auto & transform_manager = Singleton<TransformManager>();
-		unsigned int const entity_index = transform_manager.get_entity_index(_e);
+		unsigned int const entity_transform_index = transform_manager.get_entity_indexer_data(_e).transform;
 		ImGuiTreeNodeFlags entity_node_flags = ImGuiTreeNodeFlags_OpenOnDoubleClick;
 
 		if (!transform_manager.Get(_e).HasChildren())
@@ -431,13 +456,13 @@ namespace Component
 		if (node_open)
 		{
 			// Iterate through all children
-			Entity child_iter = transform_manager.m_first_child[entity_index];
-			unsigned int child_index = -1;
+			Entity child_iter = transform_manager.m_first_child[entity_transform_index];
+			unsigned int child_transform_index = -1;
 			while (child_iter != Entity::InvalidEntity)
 			{
-				child_index = transform_manager.get_entity_index(child_iter);
+				child_transform_index = transform_manager.get_entity_indexer_data(child_iter).transform;
 				display_node_recursively(child_iter);
-				child_iter = transform_manager.m_next_sibling[child_index];
+				child_iter = transform_manager.m_next_sibling[child_transform_index];
 			}
 
 			ImGui::TreePop();
@@ -493,7 +518,7 @@ namespace Component
 		//	}
 		//}
 
-		Engine::Math::transform3D& transform = m_local_transforms[get_entity_index(_entity)];
+		Engine::Math::transform3D& transform = m_local_transforms[get_entity_indexer_data(_entity).transform];
 		const char* name_gizmo_operation = s_imguizmo_current_operation == ImGuizmo::TRANSLATE
 			? "Translate"
 			: s_imguizmo_current_operation == ImGuizmo::SCALE
@@ -545,7 +570,7 @@ namespace Component
 
 	Entity Transform::GetParent() const
 	{
-		return GetManager().m_parent[GetManager().get_entity_index(m_owner)];
+		return GetManager().m_parent[GetManager().get_entity_indexer_data(m_owner).transform];
 	}
 
 	void Transform::SetParent(Entity _e)
@@ -577,7 +602,7 @@ namespace Component
 
 	Engine::Math::transform3D Transform::GetLocalTransform() const
 	{
-		return GetManager().m_local_transforms[GetManager().get_entity_index(m_owner)];
+		return GetManager().m_local_transforms[GetManager().get_entity_indexer_data(m_owner).transform];
 	}
 	glm::vec3 Transform::GetLocalPosition() const
 	{
@@ -598,14 +623,14 @@ namespace Component
 	*/
 	Engine::Math::transform3D Transform::ComputeWorldTransform() const
 	{
-		unsigned int entity_iter_idx = GetManager().get_entity_index(m_owner);
-		Engine::Math::transform3D model_to_world_transform = GetManager().m_local_transforms[entity_iter_idx];
-		Entity parent_entity = GetManager().m_parent[entity_iter_idx];
+		unsigned int entity_iter_transform_idx = GetManager().get_entity_indexer_data(m_owner).transform;
+		Engine::Math::transform3D model_to_world_transform = GetManager().m_local_transforms[entity_iter_transform_idx];
+		Entity parent_entity = GetManager().m_parent[entity_iter_transform_idx];
 		while (parent_entity != Entity::InvalidEntity)
 		{
-			unsigned int const parent_index = GetManager().get_entity_index(parent_entity);;
-			model_to_world_transform = GetManager().m_local_transforms[parent_index] * model_to_world_transform;
-			parent_entity = GetManager().m_parent[parent_index];
+			unsigned int const parent_transform_index = GetManager().get_entity_indexer_data(parent_entity).transform;
+			model_to_world_transform = GetManager().m_local_transforms[parent_transform_index] * model_to_world_transform;
+			parent_entity = GetManager().m_parent[parent_transform_index];
 		}
 		return model_to_world_transform;
 	}
@@ -617,33 +642,34 @@ namespace Component
 	*/
 	glm::mat4x4 Transform::ComputeWorldMatrix() const
 	{
-		unsigned int const owner_index = GetManager().get_entity_index(m_owner);
+		using indexer_data = TransformManager::indexer_data;
+		indexer_data owner_indexer = GetManager().get_entity_indexer_data(m_owner);
 		// If owner index is NOT dirty, use pre-computed matrix
-		if (!GetManager().check_index_dirty(owner_index))
+		if (!GetManager().check_matrix_dirty(owner_indexer.matrix))
 		{
-			return GetManager().m_world_matrices[owner_index];
+			return GetManager().m_world_matrix_data[owner_indexer.matrix];
 		}
 		// If owner index IS dirty, re-compute model to world matrix.
 		else
 		{
-			glm::mat4x4 transformation_matrix = GetManager().m_local_transforms[owner_index].GetMatrix();
-			Entity parent_iter = GetManager().m_parent[owner_index];
+			glm::mat4x4 transformation_matrix = GetManager().m_local_transforms[owner_indexer.transform].GetMatrix();
+			Entity parent_iter = GetManager().m_parent[owner_indexer.transform];
 			if (parent_iter != Entity::InvalidEntity)
 			{
 				while (parent_iter != Entity::InvalidEntity)
 				{
-					unsigned int parent_index = GetManager().get_entity_index(parent_iter);
+					indexer_data parent_indexer = GetManager().get_entity_indexer_data(parent_iter);
 					// If parent is NOT dirty, use precomputed matrix and exit early.
-					if (!GetManager().check_index_dirty(parent_index))
+					if (!GetManager().check_matrix_dirty(parent_indexer.matrix))
 					{
-						transformation_matrix = GetManager().m_world_matrices[parent_index] * transformation_matrix;
+						transformation_matrix = GetManager().m_world_matrix_data[parent_indexer.matrix] * transformation_matrix;
 						break;
 					}
 					// Otherwise, keep going up the hierarchy until we reach the end or reach a valid precomputed matrix
 					else
 					{
-						transformation_matrix = GetManager().m_world_matrices[parent_index] * transformation_matrix;
-						parent_iter = GetManager().m_parent[parent_index];
+						transformation_matrix = GetManager().m_world_matrix_data[parent_indexer.matrix] * transformation_matrix;
+						parent_iter = GetManager().m_parent[parent_indexer.transform];
 					}
 				}
 			}
@@ -653,32 +679,32 @@ namespace Component
 
 	void Transform::SetLocalTransform(Engine::Math::transform3D _value)
 	{
-		unsigned int entity_index = GetManager().get_entity_index(m_owner);
-		GetManager().m_local_transforms[entity_index] = _value;
-		GetManager().mark_index_dirty(entity_index);
+		unsigned int const entity_transform_index = GetManager().get_entity_indexer_data(m_owner).transform;
+		GetManager().m_local_transforms[entity_transform_index] = _value;
+		GetManager().mark_matrix_dirty(entity_transform_index);
 	}
 	void Transform::SetLocalPosition(glm::vec3 _value)
 	{
-		unsigned int entity_index = GetManager().get_entity_index(m_owner);
-		GetManager().m_local_transforms[entity_index].position = _value;
-		GetManager().mark_index_dirty(entity_index);
+		unsigned int const entity_transform_index = GetManager().get_entity_indexer_data(m_owner).transform;
+		GetManager().m_local_transforms[entity_transform_index].position = _value;
+		GetManager().mark_matrix_dirty(entity_transform_index);
 	}
 	void Transform::SetLocalScale(glm::vec3 _value)
 	{
-		unsigned int entity_index = GetManager().get_entity_index(m_owner);
-		GetManager().m_local_transforms[entity_index].scale = _value;
-		GetManager().mark_index_dirty(entity_index);
+		unsigned int const entity_transform_index = GetManager().get_entity_indexer_data(m_owner).transform;
+		GetManager().m_local_transforms[entity_transform_index].scale = _value;
+		GetManager().mark_matrix_dirty(entity_transform_index);
 	}
 	void Transform::SetLocalRotation(glm::quat _value)
 	{
-		unsigned int entity_index = GetManager().get_entity_index(m_owner);
-		GetManager().m_local_transforms[entity_index].quaternion = _value;
-		GetManager().mark_index_dirty(entity_index);
+		unsigned int const entity_transform_index = GetManager().get_entity_indexer_data(m_owner).transform;
+		GetManager().m_local_transforms[entity_transform_index].quaternion = _value;
+		GetManager().mark_matrix_dirty(entity_transform_index);
 	}
 	bool Transform::HasChildren() const
 	{
-		unsigned int entity_index = GetManager().get_entity_index(m_owner);
+		unsigned int const entity_transform_index = GetManager().get_entity_indexer_data(m_owner).transform;
 		auto manager = GetManager();
-		return manager.m_first_child[entity_index] != Entity::InvalidEntity;
+		return manager.m_first_child[entity_transform_index] != Entity::InvalidEntity;
 	}
 }
