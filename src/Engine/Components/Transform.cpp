@@ -104,6 +104,9 @@ namespace Component
 
 		m_entity_indexer_map.erase(_e);
 
+		// Remove from root entity list
+		m_root_entities.erase(_e);
+
 		// Pop back of all data containers
 		m_transform_owners.pop_back();
 		m_local_transforms.pop_back();
@@ -267,8 +270,9 @@ namespace Component
 		Entity child_iter = m_first_child[entity_index];
 		while (child_iter != Entity::InvalidEntity)
 		{
+			Entity next_child_iter = m_next_sibling[get_entity_indexer_data(child_iter).transform];
 			detach_entity_from_parent(child_iter);
-			child_iter = m_next_sibling[get_entity_indexer_data(child_iter).transform];
+			child_iter = next_child_iter;
 		}
 		m_first_child[entity_index] = Entity::InvalidEntity;
 	}
