@@ -396,7 +396,22 @@ namespace Component
 			_e.SetName(name_buffer);
 
 		if (ImGui::Button("Destroy"))
+		{
+			std::vector<Entity> entities_to_delete, children_to_delete;
+			children_to_delete = _e.GetComponent<Transform>().GetChildren();
+			entities_to_delete.push_back(_e);
+			entities_to_delete.insert(entities_to_delete.end(), children_to_delete.begin(), children_to_delete.end());
 			_e.DestroyEndOfFrame();
+			for (unsigned int i = 0; i < entities_to_delete.size(); ++i)
+			{
+				auto more_children_to_delete = entities_to_delete[i].GetComponent<Transform>().GetChildren();
+				entities_to_delete.insert(
+					entities_to_delete.end(), 
+					more_children_to_delete.begin(), more_children_to_delete.end()
+				);
+			}
+			Singleton<EntityManager>().EntityDelayedDeletion(&entities_to_delete.front(), entities_to_delete.size());
+		}
 
 		ImGui::Text("Entity ID: %d", _e.ID());
 	}
@@ -710,5 +725,18 @@ namespace Component
 		unsigned int const entity_transform_index = GetManager().get_entity_indexer_data(m_owner).transform;
 		auto manager = GetManager();
 		return manager.m_first_child[entity_transform_index] != Entity::InvalidEntity;
+	}
+	std::vector<Entity> Transform::GetChildren() const
+	{
+		unsigned int const entity_transform_index = GetManager().get_entity_indexer_data(m_owner).transform;
+		auto manager = GetManager();
+		std::vector<Entity> children;
+		Entity child_iter = manager.m_first_child[entity_transform_index];
+		while (child_iter != Entity::InvalidEntity)
+		{
+			children.push_back(child_iter);
+			child_iter = manager.m_next_sibling[manager.get_entity_indexer_data(child_iter).transform];
+		}
+		return children;
 	}
 }

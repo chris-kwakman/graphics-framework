@@ -33,6 +33,7 @@ namespace Component
 		void SetLocalRotation(glm::quat _value);
 
 		bool HasChildren() const;
+		std::vector<Entity> GetChildren() const;
 	};
 
 	class TransformManager : public TCompManager<Transform>
