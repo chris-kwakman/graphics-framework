@@ -38,12 +38,13 @@ namespace Component
 			if (back_index_entity != delete_entity)
 			{
 				unsigned int const deleted_entity_index = iter->second;
-				std::swap(m_index_names[deleted_entity_index], m_index_names[m_index_names.size() - 1]);
-				std::swap(m_index_entities[deleted_entity_index], m_index_entities[m_index_names.size() - 1]);
-				m_entity_index_map[m_index_entities[deleted_entity_index]] = deleted_entity_index;
+				std::swap(m_index_names.at(deleted_entity_index), m_index_names.at(m_index_names.size() - 1));
+				std::swap(m_index_entities[deleted_entity_index], m_index_entities.at(m_index_names.size() - 1));
+				m_entity_index_map.at(m_index_entities.at(deleted_entity_index)) = deleted_entity_index;
 			}
 			m_entity_index_map.erase(delete_entity);
 			m_index_entities.pop_back();
+			m_index_names.pop_back();
 		}
 	}
 
