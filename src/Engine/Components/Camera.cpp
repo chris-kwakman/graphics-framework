@@ -27,9 +27,7 @@ namespace Component
 		for (unsigned int i = 0; i < _count; ++i)
 		{
 			Entity const current_entity = _entities[i];
-			auto iter = m_camera_data_map.find(current_entity);
-			if (iter != m_camera_data_map.end())
-				m_camera_data_map.erase(iter);
+			m_camera_data_map.erase(current_entity);
 		}
 	}
 
