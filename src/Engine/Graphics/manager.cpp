@@ -105,13 +105,37 @@ namespace Graphics {
 		return success;
 	}*/
 
-	ResourceManager::gltf_model_data const & ResourceManager::ImportModel_GLTF(tinygltf::Model& _tinygltf_model, const char* _filepath)
+	ResourceManager::gltf_model_data const & ResourceManager::ImportModel_GLTF(const char* _filepath)
 	{
 		using namespace tinygltf;
 
 		/*
 				Load gltf model into internal manager.
 		*/
+
+		using namespace tinygltf;
+
+		Model tinygltf_model;
+
+		TinyGLTF loader;
+		std::string error, warning;
+
+		bool success = loader.LoadASCIIFromFile(&tinygltf_model, &error, &warning, _filepath);
+
+		if (!warning.empty()) {
+			Engine::Utils::print_base("TinyGLTF", "Warning: %s", warning.c_str());
+			return gltf_model_data{};
+		}
+
+		if (!error.empty()) {
+			Engine::Utils::print_base("TinyGLTF", "Error: %s", error.c_str());
+			return gltf_model_data{};
+		}
+
+		if (!success) {
+			Engine::Utils::print_base("TinyGLTF", "Failed to parse glTF.");
+			return gltf_model_data{};
+		}
 
 		//decltype(m_node_data_map) new_node_data_map;
 		//decltype(m_node_mesh_map) new_node_mesh_map;
@@ -130,7 +154,7 @@ namespace Graphics {
 		*/
 
 		// Generate all GL buffers at once.
-		unsigned int const new_bufferview_count = (unsigned int)_tinygltf_model.bufferViews.size();
+		unsigned int const new_bufferview_count = (unsigned int)tinygltf_model.bufferViews.size();
 		std::vector<GLuint> new_gl_buffer_arr;
 		new_gl_buffer_arr.resize(new_bufferview_count);
 		glGenBuffers(new_bufferview_count, &new_gl_buffer_arr[0]);
@@ -145,8 +169,8 @@ namespace Graphics {
 		for (unsigned int i = 0; i < new_bufferview_count; ++i)
 		{
 			buffer_handle const curr_new_handle = m_buffer_handle_counter + gpu_buffer_count;	
-			tinygltf::BufferView const& read_bufferview = _tinygltf_model.bufferViews[i];
-			tinygltf::Buffer const& read_buffer = _tinygltf_model.buffers[read_bufferview.buffer];
+			tinygltf::BufferView const& read_bufferview = tinygltf_model.bufferViews[i];
+			tinygltf::Buffer const& read_buffer = tinygltf_model.buffers[read_bufferview.buffer];
 
 
 			buffer_info new_buffer_info;
@@ -175,11 +199,11 @@ namespace Graphics {
 		* Set up meshes (lists of VAOs)
 		*/
 
-		unsigned int const new_mesh_count = (unsigned int)_tinygltf_model.meshes.size();
+		unsigned int const new_mesh_count = (unsigned int)tinygltf_model.meshes.size();
 		
 		for (unsigned int i = 0; i < new_mesh_count; ++i)
 		{
-			tinygltf::Mesh const& read_mesh = _tinygltf_model.meshes[i];
+			tinygltf::Mesh const& read_mesh = tinygltf_model.meshes[i];
 
 			mesh_handle const new_mesh_handle = m_mesh_handle_counter + i;
 
@@ -206,7 +230,7 @@ namespace Graphics {
 				new_primitive.m_vao_gl_id = new_gl_vao_array[p];
 				new_primitive.m_material_handle = m_material_handle_counter + read_primitive.material;
 				new_primitive.m_index_buffer_handle = read_primitive.indices >= 0 
-					? m_buffer_handle_counter + _tinygltf_model.accessors[read_primitive.indices].bufferView
+					? m_buffer_handle_counter + tinygltf_model.accessors[read_primitive.indices].bufferView
 					: 0;
 				new_primitive.m_render_mode = read_primitive.mode;
 
@@ -219,7 +243,7 @@ namespace Graphics {
 					glBindBuffer(primitive_index_buffer.m_target, primitive_index_buffer.m_gl_id);
 					// Insert component type of IBO into index buffer component map if it hasn't been done already
 					// Overwriting pre-existing index buffer info element is fine since it should be a copy anyways.
-					auto const& indices_accessor = _tinygltf_model.accessors[read_primitive.indices];
+					auto const& indices_accessor = tinygltf_model.accessors[read_primitive.indices];
 					index_buffer_info new_index_buffer_info;
 					new_index_buffer_info.m_type = indices_accessor.componentType;
 					new_index_buffer_info.m_index_count = indices_accessor.count;
@@ -237,8 +261,8 @@ namespace Graphics {
 				for (auto const & primitive_attrib : read_primitive.attributes)
 				{
 					// Get buffer pointed to by bufferView pointed to by current attribute in primitive
-					tinygltf::Accessor const& read_accessor = _tinygltf_model.accessors[primitive_attrib.second];
-					tinygltf::BufferView const& read_bufferview = _tinygltf_model.bufferViews[read_accessor.bufferView];
+					tinygltf::Accessor const& read_accessor = tinygltf_model.accessors[primitive_attrib.second];
+					tinygltf::BufferView const& read_bufferview = tinygltf_model.bufferViews[read_accessor.bufferView];
 					buffer_handle const attribute_buffer_handle =
 						m_buffer_handle_counter + read_accessor.bufferView;
 					buffer_info const attribute_referenced_buffer = new_buffer_info_map.at(attribute_buffer_handle);
@@ -298,14 +322,14 @@ namespace Graphics {
 
 		// Generate openGL textures beforehand
 		std::vector<GLuint> new_gl_texture_objects;
-		new_gl_texture_objects.resize(_tinygltf_model.images.size());
+		new_gl_texture_objects.resize(tinygltf_model.images.size());
 
 		if(!new_gl_texture_objects.empty())
 			glGenTextures((GLsizei)new_gl_texture_objects.size(), &new_gl_texture_objects[0]);
-		for (unsigned int i = 0; i < _tinygltf_model.images.size(); ++i)
+		for (unsigned int i = 0; i < tinygltf_model.images.size(); ++i)
 		{
 			texture_handle const current_texture = m_texture_handle_counter + i;
-			tinygltf::Image & read_texture_source = _tinygltf_model.images[i];
+			tinygltf::Image & read_texture_source = tinygltf_model.images[i];
 			texture_info new_texture_info;
 			new_texture_info.m_gl_source_id = new_gl_texture_objects[i];
 			new_texture_info.m_target = GL_TEXTURE_2D; // Assume all glTF textures are 2D.
@@ -339,8 +363,8 @@ namespace Graphics {
 				else
 				{
 					// Assume bufferview data for image is contiguous
-					tinygltf::BufferView const& read_bufferview = _tinygltf_model.bufferViews[read_texture_source.bufferView];
-					stbi_uc* image_ptr = (stbi_uc*)&_tinygltf_model.buffers[read_bufferview.buffer].data[read_bufferview.byteOffset];
+					tinygltf::BufferView const& read_bufferview = tinygltf_model.bufferViews[read_texture_source.bufferView];
+					stbi_uc* image_ptr = (stbi_uc*)&tinygltf_model.buffers[read_bufferview.buffer].data[read_bufferview.byteOffset];
 					image_data = stbi_load_from_memory(
 						image_ptr,
 						(int)read_texture_source.image.size(),
@@ -392,9 +416,9 @@ namespace Graphics {
 		}
 
 		// Go through textures one more time and set parameters properly.
-		for (unsigned int i = 0; i < _tinygltf_model.textures.size(); ++i)
+		for (unsigned int i = 0; i < tinygltf_model.textures.size(); ++i)
 		{
-			tinygltf::Texture const& read_texture = _tinygltf_model.textures[i];
+			tinygltf::Texture const& read_texture = tinygltf_model.textures[i];
 
 			texture_handle const current_texture = m_texture_handle_counter + read_texture.source;
 			texture_info current_texture_info = new_texture_info_map.at(current_texture);
@@ -402,7 +426,7 @@ namespace Graphics {
 			// If a sampler is defined, use sampler to define texture parameters
 			if (read_texture.sampler >= 0)
 			{
-				tinygltf::Sampler const& read_sampler = _tinygltf_model.samplers[read_texture.sampler];
+				tinygltf::Sampler const& read_sampler = tinygltf_model.samplers[read_texture.sampler];
 
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, read_sampler.wrapS);
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, read_sampler.wrapT);
@@ -426,9 +450,9 @@ namespace Graphics {
 
 		//TODO: Load material data into new map
 		decltype(m_material_data_map) new_material_data_map;
-		for (unsigned int i = 0; i < _tinygltf_model.materials.size(); ++i)
+		for (unsigned int i = 0; i < tinygltf_model.materials.size(); ++i)
 		{
-			tinygltf::Material const& read_material = _tinygltf_model.materials[i];
+			tinygltf::Material const& read_material = tinygltf_model.materials[i];
 			tinygltf::PbrMetallicRoughness const read_pbr_mr = read_material.pbrMetallicRoughness;
 
 			material_handle new_material_handle = m_material_handle_counter + i;
@@ -443,7 +467,7 @@ namespace Graphics {
 
 			auto get_source_of_texture_index = [&](unsigned int _index)->unsigned int
 			{
-				return _tinygltf_model.textures[_index].source;
+				return tinygltf_model.textures[_index].source;
 			};
 
 			auto determine_texture_handle = [&](int _texture_index)->texture_handle
@@ -514,6 +538,11 @@ namespace Graphics {
 	ResourceManager::gltf_model_data const& ResourceManager::GetImportedGLTFModelData(const char* _filepath) const
 	{
 		return m_imported_gltf_models.at(_filepath);
+	}
+
+	bool ResourceManager::IsGLTFModelImported(const char* _filepath) const
+	{
+		return m_imported_gltf_models.find(_filepath) != m_imported_gltf_models.end();
 	}
 
 	//////////////////////////////////////////////////////////////////

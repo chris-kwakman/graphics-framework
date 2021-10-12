@@ -221,8 +221,9 @@ namespace Graphics {
 
 	public:
 
-		gltf_model_data const & ImportModel_GLTF(tinygltf::Model & _tinygltf_model, const char * _filepath);
+		gltf_model_data const & ImportModel_GLTF(const char * _filepath);
 		gltf_model_data const & GetImportedGLTFModelData(const char* _filepath) const;
+		bool					IsGLTFModelImported(const char* _filepath) const;
 
 	private:
 

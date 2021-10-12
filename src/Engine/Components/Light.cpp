@@ -52,7 +52,9 @@ namespace Component
 
 	void PointLightManager::impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context)
 	{
-		assert(false);
+		unsigned int const entity_index = m_entity_map.at(_e);
+		m_light_color_arr[entity_index] = _json_comp["color"];
+		m_light_radius_arr[entity_index] = _json_comp["radius"];
 	}
 
 	PointLightManager::Collection PointLightManager::GetPointLightCollection() const

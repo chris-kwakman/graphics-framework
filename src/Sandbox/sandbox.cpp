@@ -18,6 +18,7 @@
 
 #include <STB/stb_image_write.h>
 
+#include "LoadScene.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <GLM/gtx/quaternion.hpp>
@@ -241,42 +242,6 @@ namespace Sandbox
 		glBindVertexArray(0);
 	}
 
-	using ResMgr = Engine::Graphics::ResourceManager;
-	ResMgr::gltf_model_data LoadGLTFModel(const char * _filepath)
-	{
-		using namespace tinygltf;
-
-		Model model;
-
-		TinyGLTF loader;
-		std::string error, warning;
-
-		bool success = loader.LoadASCIIFromFile(&model, &error, &warning, _filepath);
-
-		if (!warning.empty()) {
-			Engine::Utils::print_base("TinyGLTF", "Warning: %s", warning.c_str());
-			return ResMgr::gltf_model_data{};
-		}
-
-		if (!error.empty()) {
-			Engine::Utils::print_base("TinyGLTF", "Error: %s", error.c_str());
-			return ResMgr::gltf_model_data{};
-		}
-
-		if (!success) {
-			Engine::Utils::print_base("TinyGLTF", "Failed to parse glTF.");
-			return ResMgr::gltf_model_data{};
-		}
-	
-		auto model_data = Singleton<Engine::Graphics::ResourceManager>().ImportModel_GLTF(model, _filepath);
-
-		nlohmann::json j = Engine::Serialisation::SerializeGLTFScene(model, model_data);
-		Engine::Serialisation::DeserialiseScene(j);
-		//std::cout << std::setw(4) << j.dump() << std::endl;
-
-		return model_data;
-	}
-
 	bool Initialize(int argc, char* argv[])
 	{
 		Engine::Graphics::ResourceManager & system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
@@ -289,11 +254,17 @@ namespace Sandbox
 		// Load glTF model Sponza by default, other if specified in commandline argument.
 		bool failure = false;
 		if (argc >= 2)
-			LoadGLTFModel(argv[1]);
+		{
+			LoadScene(LoadJSON(argv[1]));
+			//LoadGLTFModel(argv[1]);
+		}
 		else
-			LoadGLTFModel("data/gltf/sponza/Sponza.gltf");
+		{
+			LoadScene(LoadJSON("data/scenes/scene.json"));
+			//LoadGLTFModel("data/gltf/sponza/Sponza.gltf");
+		}
 
-		LoadGLTFModel("data/gltf/Sphere.gltf");
+		system_resource_manager.ImportModel_GLTF("data/gltf/Sphere.gltf");
 
 		if (argc >= 3)
 		{
@@ -543,10 +514,14 @@ namespace Sandbox
 	void Update()
 	{
 		using sdl_manager = Engine::sdl_manager;
+
+		auto& system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
+		auto& input_manager = Singleton<Engine::Managers::InputManager>();
+
 		if (Singleton<sdl_manager>().is_file_dropped())
 		{
 			std::string const dropped_file_dir = Singleton<sdl_manager>().get_dropped_file();
-			LoadGLTFModel(dropped_file_dir.c_str());
+			system_resource_manager.ImportModel_GLTF(dropped_file_dir.c_str());
 		}
 		
 
@@ -556,9 +531,6 @@ namespace Sandbox
 
 
 		DummyEditorRender();
-
-		auto & system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
-		auto& input_manager = Singleton<Engine::Managers::InputManager>();
 
 		using button_state = Engine::Managers::InputManager::button_state;
 

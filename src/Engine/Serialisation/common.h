@@ -20,6 +20,9 @@ namespace glm
 
 	void from_json(nlohmann::json const& j, glm::quat& q);
 	void to_json(nlohmann::json& j, glm::quat const& q);
+
+	void from_json(nlohmann::json const& j, glm::mat4& m);
+	void to_json(nlohmann::json & j, glm::mat4 const & m);
 }
 
 #endif // !ENGINE_SERIALISATION_COMMON_H

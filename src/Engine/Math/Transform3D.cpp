@@ -1,4 +1,6 @@
 #include "Transform3D.h"
+#include <glm/gtx/euler_angles.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
 
 namespace Engine {
 namespace Math
@@ -62,9 +64,39 @@ namespace Math
 
 	void from_json(json const& j, Engine::Math::transform3D& t)
 	{
-		t.scale = j["scale"];
-		t.position = j["position"];
-		t.quaternion = j["quaternion"];
+		// If we find matrix in json first, load everything simultaneously and return early.
+		auto matrix_iter = j.find("matrix");
+		if (matrix_iter != j.end())
+		{
+			glm::mat4x4 transform = *matrix_iter;
+			glm::vec3 skew;
+			glm::vec4 perspective;
+
+			glm::decompose(transform, t.scale, t.quaternion, t.position, skew, perspective);
+			return;
+		}
+
+		// Otherwise, go through each possible component one-by-one and check possible variations
+		auto translation_iter = j.find("translate");
+		auto rotation_iter = j.find("rotate");
+		auto quaternion_iter = j.find("quaternion");
+		auto scale_iter = j.find("scale");
+		if (translation_iter != j.end())
+			t.position = (*translation_iter).get<glm::vec3>();
+		else 
+			t.position = glm::vec3(0.0f, 0.0f, 0.0f);
+
+		if (scale_iter != j.end()) 
+			t.scale = (*scale_iter).get<glm::vec3>();
+		else 
+			t.scale = glm::vec3(1.0f, 1.0f, 1.0f);
+
+		if (rotation_iter != j.end()) 
+			t.quaternion = glm::quat_cast(glm::orientate3((*rotation_iter).get<glm::vec3>()));
+		else if (quaternion_iter != j.end()) 
+			t.quaternion = (*quaternion_iter).get<glm::quat>();
+		else 
+			t.quaternion = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
 	}
 
 	void to_json(json& j, Engine::Math::transform3D const& t)

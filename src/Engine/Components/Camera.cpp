@@ -52,6 +52,10 @@ namespace Component
 
 	void CameraManager::impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context)
 	{
+		Camera comp = Get(_e);
+		comp.SetVerticalFOV(_json_comp["FOVy"]);
+		comp.SetNearDistance(_json_comp["near"]);
+		comp.SetFarDistance(_json_comp["far"]);
 	}
 
 	Engine::Graphics::camera_data& CameraManager::get_camera_data(Entity _e)
