@@ -47,7 +47,7 @@ static Engine::Math::transform3D s_camera_default_transform;
 
 namespace Sandbox
 {
-
+	static std::string s_scene_loaded;
 	static bool s_bool_save_screenshot = false;
 	static std::string s_saved_screenshot_name;
 
@@ -93,7 +93,6 @@ namespace Sandbox
 		s_fb_texture_final_depth;
 
 	using Entity = Engine::ECS::Entity;
-	static Entity s_camera_entity;
 
 	void setup_shaders()
 	{
@@ -242,8 +241,29 @@ namespace Sandbox
 		glBindVertexArray(0);
 	}
 
+	void InitializeSandboxComponentManagers()
+	{
+		Singleton<Component::SceneEntityComponentManager>().Initialize();
+	}
+	void ShutdownSandboxComponentManagers()
+	{
+		Singleton<Component::SceneEntityComponentManager>().Clear();
+	}
+
+	static bool s_reset_editor_camera_data = false;
+	void ResetEditorCameraData()
+	{
+		s_reset_editor_camera_data = false;
+
+		Entity& editor_camera_entity = Singleton<Engine::Editor::Editor>().EditorCameraEntity;
+		editor_camera_entity = Singleton<Component::CameraManager>().AllCameras().begin()->first;
+		s_camera_default_transform = editor_camera_entity.GetComponent<Component::Transform>().GetLocalTransform();
+	}
+
 	bool Initialize(int argc, char* argv[])
 	{
+		InitializeSandboxComponentManagers();
+
 		Engine::Graphics::ResourceManager & system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
 		system_resource_manager.Reset();
 
@@ -252,17 +272,11 @@ namespace Sandbox
 		create_framebuffer_triangle();
 
 		// Load glTF model Sponza by default, other if specified in commandline argument.
-		bool failure = false;
 		if (argc >= 2)
-		{
-			LoadScene(LoadJSON(argv[1]));
-			//LoadGLTFModel(argv[1]);
-		}
+			s_scene_loaded = argv[1];
 		else
-		{
-			LoadScene(LoadJSON("data/scenes/scene.json"));
-			//LoadGLTFModel("data/gltf/sponza/Sponza.gltf");
-		}
+			s_scene_loaded = "data/scenes/scene.json";
+		LoadScene(LoadJSON(s_scene_loaded.c_str()), s_scene_loaded.c_str());
 
 		system_resource_manager.ImportModel_GLTF("data/gltf/Sphere.gltf");
 
@@ -274,26 +288,25 @@ namespace Sandbox
 			Singleton<Engine::sdl_manager>().m_want_quit = true;
 		}
 
-		// Create default light in scene
-		Entity light_entity;
-		Singleton<Engine::ECS::EntityManager>().EntityCreationRequest(&light_entity, 1);
-		Component::Transform light_transform_comp = Singleton<Component::TransformManager>().Create(light_entity);
-		light_transform_comp.SetLocalPosition(glm::vec3(0.0f, 50.0f, 0.0f));
-		Component::PointLight light_comp = Singleton<Component::PointLightManager>().Create(light_entity);
-		light_comp.SetRadius(500.0f);
+		//// Create default light in scene
+		//Entity light_entity;
+		//Singleton<Engine::ECS::EntityManager>().EntityCreationRequest(&light_entity, 1);
+		//Component::Transform light_transform_comp = Singleton<Component::TransformManager>().Create(light_entity);
+		//light_transform_comp.SetLocalPosition(glm::vec3(0.0f, 50.0f, 0.0f));
+		//Component::PointLight light_comp = Singleton<Component::PointLightManager>().Create(light_entity);
+		//light_comp.SetRadius(500.0f);
 
-		// Create editor camera
-		Singleton<Engine::ECS::EntityManager>().EntityCreationRequest(&s_camera_entity, 1);
-		auto camera_transform_comp = Component::Transform::GetManager().Create(s_camera_entity);
-		camera_transform_comp.SetLocalPosition(glm::vec3(0.0f, 10.0f, 0.0f));
-		Component::Camera::GetManager().Create(s_camera_entity);
-		s_camera_default_transform = camera_transform_comp.GetLocalTransform();
+		//// Create editor camera
+		//Singleton<Engine::ECS::EntityManager>().EntityCreationRequest(&s_camera_entity, 1);
+		//auto camera_transform_comp = Component::Transform::GetManager().Create(s_camera_entity);
+		//camera_transform_comp.SetLocalPosition(glm::vec3(0.0f, 10.0f, 0.0f));
+		//Component::Camera::GetManager().Create(s_camera_entity);
 
-		Singleton<Engine::Editor::Editor>().EditorCameraEntity = s_camera_entity;
+		s_reset_editor_camera_data = true;
 
 		GfxCall(glDepthRange(-1.0f, 1.0f));
 
-		return !failure;
+		return true;
 	}
 
 	unsigned int frame_counter = 0;
@@ -307,6 +320,8 @@ namespace Sandbox
 	{
 		auto& input_manager = Singleton<Engine::Managers::InputManager>();
 		using button_state = Engine::Managers::InputManager::button_state;
+
+		Engine::ECS::Entity camera_entity = Singleton<Engine::Editor::Editor>().EditorCameraEntity;
 
 		float const DT = (1.0f / 60.0f);
 
@@ -345,7 +360,7 @@ namespace Sandbox
 			glm::vec3(0.0f, 1.0f, 0.0f)
 		);
 
-		auto camera_transform_comp = s_camera_entity.GetComponent<Component::Transform>();
+		auto camera_transform_comp = camera_entity.GetComponent<Component::Transform>();
 		auto cam_transform = camera_transform_comp.GetLocalTransform();
 		cam_transform.quaternion = quat_rotate_around_y * cam_transform.quaternion;
 
@@ -393,7 +408,7 @@ namespace Sandbox
 		// Set camera aspect ratio every frame
 		SDL_Surface const* surface = Singleton<Engine::sdl_manager>().m_surface;
 		float const ar = (float)surface->w / (float)surface->h;
-		s_camera_entity.GetComponent<Component::Camera>().SetAspectRatio(ar);
+		camera_entity.GetComponent<Component::Camera>().SetAspectRatio(ar);
 	}
 
 	bool show_demo_window = false;
@@ -513,6 +528,8 @@ namespace Sandbox
 
 	void Update()
 	{
+		ResetEditorCameraData();
+
 		using sdl_manager = Engine::sdl_manager;
 
 		auto& system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
@@ -534,12 +551,11 @@ namespace Sandbox
 
 		using button_state = Engine::Managers::InputManager::button_state;
 
-		if ((input_manager.GetKeyboardButtonState(SDL_SCANCODE_F5) == button_state::ePress) ||
-			(input_manager.GetKeyboardButtonState(SDL_SCANCODE_LCTRL) == button_state::eDown && input_manager.GetKeyboardButtonState(SDL_SCANCODE_LSHIFT) == button_state::eDown && input_manager.GetKeyboardButtonState(SDL_SCANCODE_R) == button_state::ePress)
-			)
-		{
+		if (input_manager.GetKeyboardButtonState(SDL_SCANCODE_F5) == button_state::ePress)
+			Singleton<Engine::Graphics::ResourceManager>().RefreshShaders();
+
+		if ((input_manager.GetKeyboardButtonState(SDL_SCANCODE_LCTRL) == button_state::eDown && input_manager.GetKeyboardButtonState(SDL_SCANCODE_LSHIFT) == button_state::eDown && input_manager.GetKeyboardButtonState(SDL_SCANCODE_R) == button_state::ePress))
 			Singleton<Engine::sdl_manager>().m_want_restart = true;
-		}
 
 		if (input_manager.GetKeyboardButtonState(SDL_SCANCODE_LCTRL) == button_state::eDown && input_manager.GetKeyboardButtonState(SDL_SCANCODE_Q) == button_state::ePress)
 			Singleton<Engine::sdl_manager>().m_want_quit = true;
@@ -555,7 +571,9 @@ namespace Sandbox
 		using index_buffer_handle = Engine::Graphics::ResourceManager::buffer_handle;
 		using namespace Engine::Graphics;
 
-		auto const cam_transform = s_camera_entity.GetComponent<Component::Transform>().ComputeWorldTransform();
+		Entity const & camera_entity = Singleton<Engine::Editor::Editor>().EditorCameraEntity;
+
+		auto const cam_transform = camera_entity.GetComponent<Component::Transform>().ComputeWorldTransform();
 		glm::vec3 const camera_forward = cam_transform.quaternion * glm::vec3(0.0f, 0.0f, -1.0f);
 		glm::vec3 const camera_right = glm::normalize(glm::cross(camera_forward, glm::vec3(0.0f, 1.0f, 0.0f)));
 		glm::vec3 const camera_up = glm::normalize(glm::cross(camera_forward, camera_right));
@@ -569,7 +587,7 @@ namespace Sandbox
 		shader_program_handle const program_draw_ambient_light = system_resource_manager.FindShaderProgram("draw_framebuffer_ambient_light");
 		assert(program_draw_gbuffer != 0);
 
-		auto camera_component = s_camera_entity.GetComponent<Component::Camera>();
+		auto camera_component = camera_entity.GetComponent<Component::Camera>();
 
 		system_resource_manager.UseProgram(program_draw_gbuffer);
 
@@ -849,10 +867,19 @@ namespace Sandbox
 
 		if (s_bool_save_screenshot)
 			SaveScreenShot(s_saved_screenshot_name.c_str());
+
+		if ((input_manager.GetKeyboardButtonState(SDL_SCANCODE_LCTRL) == button_state::eDown && input_manager.GetKeyboardButtonState(SDL_SCANCODE_R) == button_state::ePress))
+		{
+			Singleton<Component::SceneEntityComponentManager>().DestroyAllSceneEntities();
+			LoadScene(LoadJSON(s_scene_loaded.c_str()), s_scene_loaded.c_str());
+
+			s_reset_editor_camera_data = true;
+		}
 	}
 
 	void Shutdown()
 	{
+		ShutdownSandboxComponentManagers();
 		Singleton<Engine::Graphics::ResourceManager>().DeleteAllGraphicsResources();
 	}
 }

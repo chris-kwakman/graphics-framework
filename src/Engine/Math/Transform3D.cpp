@@ -78,9 +78,10 @@ namespace Math
 
 		// Otherwise, go through each possible component one-by-one and check possible variations
 		auto translation_iter = j.find("translate");
-		auto rotation_iter = j.find("rotate");
-		auto quaternion_iter = j.find("quaternion");
+		auto rotate_iter = j.find("rotate");
+		auto rotation_iter = j.find("rotation");
 		auto scale_iter = j.find("scale");
+
 		if (translation_iter != j.end())
 			t.position = (*translation_iter).get<glm::vec3>();
 		else 
@@ -91,10 +92,15 @@ namespace Math
 		else 
 			t.scale = glm::vec3(1.0f, 1.0f, 1.0f);
 
-		if (rotation_iter != j.end()) 
-			t.quaternion = glm::quat_cast(glm::orientate3((*rotation_iter).get<glm::vec3>()));
-		else if (quaternion_iter != j.end()) 
-			t.quaternion = (*quaternion_iter).get<glm::quat>();
+		// Euler-angle to quaternion rotation
+		if (rotate_iter != j.end())
+		{
+			t.quaternion = glm::quat(rotate_iter->get<glm::vec3>());
+		}
+		// Direct quaternion rotation
+		else if (rotation_iter != j.end())
+			t.quaternion = glm::normalize((*rotation_iter).get<glm::quat>());
+		// Default rotation
 		else 
 			t.quaternion = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
 	}
@@ -103,7 +109,7 @@ namespace Math
 	{
 		j["scale"] = t.scale;
 		j["position"] = t.position;
-		j["quaternion"] = t.quaternion;
+		j["rotation"] = t.quaternion;
 	}
 }
 }

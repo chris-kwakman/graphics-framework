@@ -34,6 +34,7 @@ namespace Component
 		bool impl_component_owned_by_entity(Entity _entity) const final;
 		void impl_edit_component(Entity _entity) final;
 		void impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context) final;
+		virtual void impl_clear() override;
 
 		Engine::Graphics::camera_data& get_camera_data(Entity _e);
 		Engine::Graphics::camera_data const & get_camera_data(Entity _e) const;
@@ -43,8 +44,7 @@ namespace Component
 	public:
 
 		const char* GetComponentTypeName() const final { return "Camera"; }
+		auto const& AllCameras() const { return m_camera_data_map; }
 
-		// Inherited via TCompManager
-		virtual void impl_clear() override;
 	};
 }
