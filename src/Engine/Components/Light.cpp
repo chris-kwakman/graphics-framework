@@ -66,8 +66,8 @@ namespace Component
 			new_collection.m_light_color_arr = &m_light_color_arr[0];
 			new_collection.m_light_radius_arr = &m_light_radius_arr[0];
 			new_collection.m_light_pos_arr.reserve(m_entity_map.size());
-			for (auto pair : m_entity_map)
-				new_collection.m_light_pos_arr.push_back(pair.first.GetComponent<Component::Transform>().ComputeWorldTransform().position);
+			for (auto entity : m_index_entities)
+				new_collection.m_light_pos_arr.push_back(entity.GetComponent<Component::Transform>().ComputeWorldTransform().position);
 		}
 		else
 		{
