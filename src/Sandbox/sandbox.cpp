@@ -32,6 +32,7 @@
 
 # define MATH_PI           3.14159265358979323846f
 
+Engine::Graphics::ResourceManager::texture_handle		s_display_gbuffer_texture = 0;
 // Lighting data
 static glm::vec3	s_ambient_color;
 static float		s_exposure = 1.0f;
@@ -82,15 +83,16 @@ namespace Sandbox
 
 	static glm::vec4 s_clear_color{ 0.0f,0.0f,0.0f,0.0f };
 
-	static texture_handle
+	texture_handle
 		s_fb_texture_depth,
 		s_fb_texture_base_color,
 		s_fb_texture_normal,
 		s_fb_texture_metallic_roughness,
 		s_fb_texture_light_color,
 		s_fb_texture_luminance,
-		s_fb_texture_bloom_pingpong[2],
-		s_fb_texture_final_depth;
+		s_fb_texture_bloom_pingpong[2];
+
+	static std::vector<texture_handle> g_gbuffer_textures;
 
 	using Entity = Engine::ECS::Entity;
 
@@ -159,6 +161,8 @@ namespace Sandbox
 			s_fb_texture_bloom_pingpong[i] = system_resource_manager.CreateTexture("FB Bloom Pingpong");
 		s_texture_white = system_resource_manager.CreateTexture("White Texture");
 
+		s_display_gbuffer_texture = s_fb_texture_base_color;
+
 		//system_resource_manager.SpecifyAndUploadTexture2D(s_fb_texture_depth, GL_DEPTH_COMPONENT, surface_size, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
 		using tex_params = Engine::Graphics::ResourceManager::texture_parameters;
 		tex_params default_fb_texture_params;
@@ -206,6 +210,15 @@ namespace Sandbox
 			GLenum const blur_texture_attachment_point = GL_COLOR_ATTACHMENT0;
 			system_resource_manager.DrawFramebuffers(s_framebuffer_bloom[i], 1, &blur_texture_attachment_point);
 		}
+
+		g_gbuffer_textures = {
+			s_fb_texture_base_color,
+			s_fb_texture_depth,
+			s_fb_texture_normal,
+			s_fb_texture_metallic_roughness,
+			s_fb_texture_light_color,
+			s_fb_texture_luminance
+		};
 	}
 
 	void create_framebuffer_triangle()
@@ -414,6 +427,23 @@ namespace Sandbox
 	bool show_demo_window = false;
 	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
+	const char * get_texture_name(texture_handle _texture)
+	{
+		if (s_fb_texture_base_color == _texture)
+			return "Diffuse";
+		else if (s_fb_texture_depth == _texture)
+			return "Depth";
+		else if (s_fb_texture_normal == _texture)
+			return "Normal";
+		else if (s_fb_texture_metallic_roughness == _texture)
+			return "Metallic Roughness";
+		else if (s_fb_texture_light_color == _texture)
+			return "Light Color";
+		else if (s_fb_texture_luminance == _texture)
+			return "Luminance";
+		else return "Undefined";
+	}
+
 	void DummyEditorRender()
 	{
 		// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
@@ -453,6 +483,29 @@ namespace Sandbox
 				s_bloom_blur_count = std::max(2, bloom_blur_count);
 			ImGui::ColorEdit3("Bloom Luminance Treshhold", &s_bloom_treshhold_color.x);
 			ImGui::EndDisabled();
+
+			if (ImGui::BeginCombo("Show GBuffer Texture", get_texture_name(s_display_gbuffer_texture)))
+			{
+				for (auto gbuffer_texture : g_gbuffer_textures)
+				{
+					if (ImGui::Selectable(get_texture_name(gbuffer_texture)))
+						s_display_gbuffer_texture = gbuffer_texture;
+				}
+				ImGui::EndCombo();
+			}
+			auto texture_info = system_resource_manager.GetTextureInfo(s_display_gbuffer_texture);
+			glm::vec2 image_size(texture_info.m_size.x, texture_info.m_size.y);
+			ImVec2 content_region_avail = ImGui::GetContentRegionAvail();
+			float image_ar = image_size.y / image_size.x;
+			float content_region_ar = content_region_avail.y / content_region_avail.x;
+
+			
+
+			ImGui::Image(
+				(void*)texture_info.m_gl_source_id,
+				ImVec2(content_region_avail.x, content_region_avail.x * image_ar),
+				ImVec2(0, 1), ImVec2(1, 0)
+			);
 		}
 		ImGui::End();
 

@@ -682,6 +682,7 @@ namespace Graphics {
 			tex_info.m_target, _texture_levels, _internal_format,
 			(GLsizei)_size.x, (GLsizei)_size.y
 		));
+		tex_info.m_size = glm::uvec3(_size, 1);
 		SetTextureParameters(_texture_handle, _params);
 	}
 
@@ -707,7 +708,7 @@ namespace Graphics {
 			_input_format, _input_component_type, _data
 		));
 		GfxCall(glGenerateMipmap(tex_info.m_target));
-		tex_info.m_size = glm::vec3(_size, 1);
+		tex_info.m_size = glm::uvec3(_size, 1);
 	}
 
 	/*
