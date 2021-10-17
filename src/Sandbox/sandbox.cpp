@@ -34,12 +34,12 @@
 
 Engine::Graphics::ResourceManager::texture_handle		s_display_gbuffer_texture = 0;
 // Lighting data
-static glm::vec3	s_ambient_color;
+static glm::vec3	s_ambient_color = glm::vec3(1);
 static float		s_exposure = 1.0f;
-static float		s_gamma_correction_factor = 2.2f;
+static float		s_gamma_correction_factor = 1.1f;
 static float		s_shininess_mult_factor = 100.0f;
 // Blur data
-static bool			s_bloom_enabled = true;
+static bool			s_bloom_enabled = false;
 static glm::vec3	s_bloom_treshhold_color(0.2126f, 0.7152f, 0.0722f);
 static unsigned int	s_bloom_blur_count = 5;
 static bool			s_render_infinite_grid = false;
@@ -288,7 +288,7 @@ namespace Sandbox
 		if (argc >= 2)
 			s_scene_loaded = argv[1];
 		else
-			s_scene_loaded = "data/scenes/scene.json";
+			s_scene_loaded = "data/scenes/sceneShadow.json";
 		LoadScene(LoadJSON(s_scene_loaded.c_str()), s_scene_loaded.c_str());
 
 		system_resource_manager.ImportModel_GLTF("data/gltf/Sphere.gltf");
@@ -323,7 +323,7 @@ namespace Sandbox
 	}
 
 	unsigned int frame_counter = 0;
-	float const CAM_MOVE_SPEED = 50.0f;
+	float const CAM_MOVE_SPEED = 20.0f;
 	float const CAM_MOV_SHIFT_MULT = 4.0f;
 	float const CAM_ROTATE_SPEED = MATH_PI * 0.75f;
 	float const MOUSE_SENSITIVITY = 0.05f;
