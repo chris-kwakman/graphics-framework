@@ -15,9 +15,9 @@ namespace Component
 		DECLARE_COMPONENT(Transform);
 
 		Entity						GetParent() const;
-		void						SetParent(Entity _e);
-		void						DetachFromParent();
-		void						AttachChild(Entity _e);
+		void						SetParent(Entity _e, bool _maintainWorldTransform = true);
+		void						DetachFromParent(bool _maintainWorldTransform = true);
+		void						AttachChild(Entity _e, bool _maintainWorldTransform = true);
 
 		Engine::Math::transform3D	GetLocalTransform() const;
 		glm::vec3					GetLocalPosition() const;
@@ -82,9 +82,9 @@ namespace Component
 		void swap_matrix_indices(uint16_t _idx1, uint16_t _idx2);
 		uint16_t last_clean_matrix_index() const;
 
-		bool attach_entity_to_parent(Entity _entity, Entity _target);
-		void detach_entity_from_parent(Entity _child);
-		void detach_all_entity_children(Entity _entity);
+		bool attach_entity_to_parent(Entity _entity, Entity _target, bool _maintainWorldTransform = true);
+		void detach_entity_from_parent(Entity _child, bool _maintainWorldTransform = true);
+		void detach_all_entity_children(Entity _entity, bool _maintainWorldTransform = true);
 		bool is_entity_attached_to_entity(Entity _entity, Entity _target) const;
 
 

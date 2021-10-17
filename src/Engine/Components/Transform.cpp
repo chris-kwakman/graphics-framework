@@ -172,7 +172,7 @@ namespace Component
 		return (m_local_transforms.size() - _idx <= m_dirty_matrix_count);
 	}
 
-	bool TransformManager::attach_entity_to_parent(Entity _entity, Entity _target)
+	bool TransformManager::attach_entity_to_parent(Entity _entity, Entity _target, bool _maintainWorldTransform)
 	{
 		uint16_t const target_index = get_entity_indexer_data(_target).transform;
 		uint16_t const entity_index = get_entity_indexer_data(_entity).transform;
@@ -200,9 +200,12 @@ namespace Component
 		}
 
 		// Maintain world transform of entity that we are attaching to parent
-		auto parent_component = Get(m_parent[entity_index]);
-		Engine::Math::transform3D const parent_transform = parent_component.ComputeWorldTransform();
-		m_local_transforms[entity_index] = parent_transform.GetInverse() * m_local_transforms[entity_index];
+		if (_maintainWorldTransform)
+		{
+			auto parent_component = Get(m_parent[entity_index]);
+			Engine::Math::transform3D const parent_transform = parent_component.ComputeWorldTransform();
+			m_local_transforms[entity_index] = parent_transform.GetInverse() * m_local_transforms[entity_index];
+		}
 
 		mark_matrix_dirty(_entity);
 
@@ -215,7 +218,7 @@ namespace Component
 	* Detach input entity from parent (if it's attached to one)
 	* @param	Entity		(Child) entity to detach
 	*/
-	void TransformManager::detach_entity_from_parent(Entity _entity)
+	void TransformManager::detach_entity_from_parent(Entity _entity, bool _maintainWorldTransform)
 	{
 		uint16_t const entity_transform_index = get_entity_indexer_data(_entity).transform;
 		Entity const parent = m_parent[entity_transform_index];
@@ -252,8 +255,11 @@ namespace Component
 		}
 
 		// Maintain world transform of entity that we are detaching from parent
-		Engine::Math::transform3D const parent_transform = Get(m_parent[entity_transform_index]).ComputeWorldTransform();
-		m_local_transforms[entity_transform_index] = parent_transform * m_local_transforms[entity_transform_index];
+		if (_maintainWorldTransform)
+		{
+			Engine::Math::transform3D const parent_transform = Get(m_parent[entity_transform_index]).ComputeWorldTransform();
+			m_local_transforms[entity_transform_index] = parent_transform * m_local_transforms[entity_transform_index];
+		}
 
 		m_parent[entity_transform_index] = Entity::InvalidEntity;
 		m_next_sibling[entity_transform_index] = Entity::InvalidEntity;
@@ -263,7 +269,7 @@ namespace Component
 		mark_matrix_dirty(_entity);
 	}
 
-	void TransformManager::detach_all_entity_children(Entity _entity)
+	void TransformManager::detach_all_entity_children(Entity _entity, bool _maintainWorldTransform)
 	{
 		unsigned int entity_index = get_entity_indexer_data(_entity).transform;
 		// Detach all children
@@ -271,7 +277,7 @@ namespace Component
 		while (child_iter != Entity::InvalidEntity)
 		{
 			Entity next_child_iter = m_next_sibling[get_entity_indexer_data(child_iter).transform];
-			detach_entity_from_parent(child_iter);
+			detach_entity_from_parent(child_iter, _maintainWorldTransform);
 			child_iter = next_child_iter;
 		}
 		m_first_child[entity_index] = Entity::InvalidEntity;
@@ -592,7 +598,7 @@ namespace Component
 		return GetManager().m_parent[GetManager().get_entity_indexer_data(m_owner).transform];
 	}
 
-	void Transform::SetParent(Entity _e)
+	void Transform::SetParent(Entity _e, bool _maintainWorldTransform)
 	{
 		// Ignore if:
 		// - Given target is self
@@ -603,20 +609,20 @@ namespace Component
 			!GetManager().is_entity_attached_to_entity(_e, m_owner))
 		{
 			DetachFromParent();
-			GetManager().attach_entity_to_parent(m_owner, _e);
+			GetManager().attach_entity_to_parent(m_owner, _e, _maintainWorldTransform);
 		}
 	}
 
-	void Transform::DetachFromParent()
+	void Transform::DetachFromParent(bool _maintainWorldTransform)
 	{
 		if (GetParent() != Entity::InvalidEntity)
-			GetManager().detach_entity_from_parent(m_owner);
+			GetManager().detach_entity_from_parent(m_owner, _maintainWorldTransform);
 	}
 
-	void Transform::AttachChild(Entity _e)
+	void Transform::AttachChild(Entity _e, bool _maintainWorldTransform)
 	{
 		if(_e != Entity::InvalidEntity && _e != m_owner)
-			GetManager().Get(_e).SetParent(m_owner);
+			GetManager().Get(_e).SetParent(m_owner, _maintainWorldTransform);
 	}
 
 	Engine::Math::transform3D Transform::GetLocalTransform() const

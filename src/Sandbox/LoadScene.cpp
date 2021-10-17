@@ -75,7 +75,7 @@ namespace Sandbox
 				json const gltf_json = LoadJSON(model_path.c_str());
 				auto model_scene_entities = LoadGLTFScene(gltf_json, model_path.c_str(), _scene_path);
 				for (Entity model_scene_entity : model_scene_entities)
-					model_scene_entity.GetComponent<Transform>().SetParent(current_entity);
+					model_scene_entity.GetComponent<Transform>().SetParent(current_entity, false);
 			}
 			current_entity.SetName(object_iter->at(i).at("mesh").get<std::string>().c_str());
 		}
