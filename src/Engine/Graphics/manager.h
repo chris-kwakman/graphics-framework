@@ -303,7 +303,7 @@ namespace Graphics {
 		void				DeleteFramebuffer(framebuffer_handle _framebuffer);
 		framebuffer_info	BindFramebuffer(framebuffer_handle _framebuffer) const;
 		void				UnbindFramebuffer(GLenum _framebuffer_target = GL_FRAMEBUFFER) const;
-		void				AttachTextureToFramebuffer(framebuffer_handle _framebuffer, GLenum _attachment_point, texture_handle _texture);
+		void				AttachTextureToFramebuffer(framebuffer_handle _framebuffer, GLenum _attachment_point, texture_handle _texture, unsigned int _layer = 0);
 		void				DrawFramebuffers(framebuffer_handle _framebuffer, unsigned int _arr_size, GLenum const* _arr_attachment_points) const;
 
 	private:

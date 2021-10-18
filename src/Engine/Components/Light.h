@@ -41,7 +41,7 @@ namespace Component
 
 		uint8_t GetPartitionCount() const;
 		float	GetPartitionMinDepth(uint8_t _partition, float _near, float _far) const;
-		texture_handle GetPartitionTexture(uint8_t _partition) const;
+		texture_handle GetShadowMapTexture() const;
 		framebuffer_handle GetPartitionFrameBuffer(uint8_t _partition) const;
 	};
 
@@ -91,8 +91,8 @@ namespace Component
 		Entity m_directional_light_entity = Entity::InvalidEntity;
 		glm::vec3 m_light_color = glm::vec3(1.0f);
 		// CSM textures sorted from nearest to furthest.
-		// Number of textures equals number of subdivisions.
-		std::vector<texture_handle> m_cascade_shadow_map_textures;
+		// Uses mipmap layers to define textures for different cascades
+		texture_handle m_cascade_shadow_map_texture;
 		std::vector<framebuffer_handle> m_cascade_shadow_map_framebuffers;
 		// Size of first shadow map in cascade shadow map.
 		// Each subsequent shadow map will have its size halved.

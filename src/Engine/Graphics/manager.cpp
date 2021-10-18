@@ -795,12 +795,12 @@ namespace Graphics {
 	}
 
 
-	void ResourceManager::AttachTextureToFramebuffer(framebuffer_handle _framebuffer, GLenum _attachment_point, texture_handle _texture)
+	void ResourceManager::AttachTextureToFramebuffer(framebuffer_handle _framebuffer, GLenum _attachment_point, texture_handle _texture, unsigned int _layer)
 	{
 		framebuffer_info const framebuffer_info = BindFramebuffer(_framebuffer);
 		texture_info const texture_info = m_texture_info_map.at(_texture);
 		assert(texture_info.m_target == GL_TEXTURE_2D);
-		GfxCall(glFramebufferTexture2D(framebuffer_info.m_target, _attachment_point, texture_info.m_target, texture_info.m_gl_source_id, 0));
+		GfxCall(glFramebufferTexture2D(framebuffer_info.m_target, _attachment_point, texture_info.m_target, texture_info.m_gl_source_id, _layer));
 		GLuint const complete_status = glCheckFramebufferStatus(framebuffer_info.m_target);
 		Engine::Utils::assert_print_error(
 			complete_status == GL_FRAMEBUFFER_COMPLETE,

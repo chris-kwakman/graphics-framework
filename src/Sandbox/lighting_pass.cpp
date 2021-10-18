@@ -116,13 +116,19 @@ namespace Sandbox {
 		if (dl_program == 0 || !dl.IsValid() || dl.Owner() == Entity::InvalidEntity)
 			return;
 
-		Transform const dl_transform = dl.Owner().GetComponent<Transform>();
+		// Compute our own directional light "camera" lookat matrix that we use to transform
+		// from world space to the space of the directional light.
+		// Compute the camera such that the roll is fixed.
+		Engine::Math::transform3D dl_transform3d = dl.Owner().GetComponent<Transform>().ComputeWorldTransform();
+		glm::vec3 const dl_view = dl_transform3d.GetMatrix() * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+		glm::vec3 const dl_right = glm::normalize(glm::cross(dl_view, glm::vec3(0.0f, 1.0f, 0.0f)));
+		glm::vec3 const dl_up = glm::normalize(glm::cross(dl_right, dl_view));
+
 
 		// Camera viewspace to light viewspace matrix.
-		auto dl_light_world_transform = dl_transform.ComputeWorldTransform();
 		glm::mat4x4 const mat_cam_view_to_world = _camera_transform.GetMatrix();
 		glm::mat4x4 const mat_cam_persp_to_view = glm::inverse(_camera.get_perspective_matrix());
-		glm::mat4x4 const mat_world_to_light_view = dl_light_world_transform.GetInvMatrix();
+		glm::mat4x4 const mat_world_to_light_view = glm::lookAt(dl_transform3d.position, dl_transform3d.position + dl_view, dl_up);
 		glm::mat4x4 const mat_cam_persp_to_world = mat_cam_view_to_world * mat_cam_persp_to_view;
 
 		// Compute frustum corners in world-space.
@@ -211,7 +217,7 @@ namespace Sandbox {
 		res_mgr.UseProgram(dl_program);
 		for (unsigned int csm_partition = 0; csm_partition < dl.GetPartitionCount(); ++csm_partition)
 		{
-			texture_handle const csm_partition_texture = dl.GetPartitionTexture(csm_partition);
+			texture_handle const csm_partition_texture = dl.GetShadowMapTexture();
 			framebuffer_handle const csm_partition_buffer = dl.GetPartitionFrameBuffer(csm_partition);
 			auto csm_partition_tex_info = res_mgr.GetTextureInfo(csm_partition_texture);
 
