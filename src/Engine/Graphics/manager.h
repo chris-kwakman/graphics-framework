@@ -349,6 +349,10 @@ namespace Graphics {
 
 	public:
 
+		ResourceManager() { Reset(); }
+		ResourceManager(ResourceManager const&) = delete;
+		ResourceManager& operator=(ResourceManager const&) = delete;
+
 		void Reset();
 		void DeleteAllGraphicsResources();
 

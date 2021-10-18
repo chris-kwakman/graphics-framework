@@ -23,6 +23,8 @@ namespace Component
 		void SetFarDistance(float _value);
 		void SetAspectRatio(float _value);
 		void SetCameraData(Engine::Graphics::camera_data _camera_data);
+
+		bool IsOrthogonal() const;
 	};
 	class CameraManager : public TCompManager<Camera>
 	{

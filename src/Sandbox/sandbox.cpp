@@ -1,6 +1,8 @@
 #include "sandbox.h"
 
 #include <Sandbox/lighting_pass.h>
+#include <Sandbox/render_common.h>
+
 #include <Engine/Math/Transform3D.h>
 #include <Engine/Graphics/sdl_window.h>
 #include <Engine/Graphics/manager.h>
@@ -113,18 +115,23 @@ namespace Sandbox
 			"data/shaders/display_framebuffer_ambient_light.frag",
 			"data/shaders/phong.frag",
 			"data/shaders/bloom.frag",
-			"data/shaders/postprocessing.frag"
+			"data/shaders/postprocessing.frag",
+			"data/shaders/dirlight_shadowmap.vert",
+			"data/shaders/dirlight_shadowmap.frag"
 		};
 		std::vector<Engine::Graphics::ResourceManager::shader_handle> output_shader_handles;
 		output_shader_handles = system_resource_manager.LoadShaders(shader_paths);
 
-		std::vector<std::filesystem::path> const draw_infinite_grid_shaders = { "data/shaders/infinite_grid.vert", "data/shaders/infinite_grid.frag" };
-		std::vector<std::filesystem::path> const draw_gbuffer_shaders = { "data/shaders/default.vert", "data/shaders/deferred.frag" };
-		std::vector<std::filesystem::path> const draw_framebuffer_plain_shaders = { "data/shaders/display_framebuffer.vert", "data/shaders/display_framebuffer_plain.frag" };
-		std::vector<std::filesystem::path> const draw_framebuffer_ambient_light = { "data/shaders/display_framebuffer.vert", "data/shaders/display_framebuffer_ambient_light.frag" };
-		std::vector<std::filesystem::path> const draw_phong_shaders = { "data/shaders/default.vert", "data/shaders/phong.frag" };
-		std::vector<std::filesystem::path> const process_bloom_blur_shaders = { "data/shaders/display_framebuffer.vert", "data/shaders/bloom.frag" };
-		std::vector<std::filesystem::path> const draw_postprocessing_shaders = { "data/shaders/display_framebuffer.vert", "data/shaders/postprocessing.frag" };
+		using program_shader_path_list = std::vector<std::filesystem::path>;
+
+		program_shader_path_list const draw_infinite_grid_shaders = { "data/shaders/infinite_grid.vert", "data/shaders/infinite_grid.frag" };
+		program_shader_path_list const draw_gbuffer_shaders = { "data/shaders/default.vert", "data/shaders/deferred.frag" };
+		program_shader_path_list const draw_framebuffer_plain_shaders = { "data/shaders/display_framebuffer.vert", "data/shaders/display_framebuffer_plain.frag" };
+		program_shader_path_list const draw_framebuffer_ambient_light = { "data/shaders/display_framebuffer.vert", "data/shaders/display_framebuffer_ambient_light.frag" };
+		program_shader_path_list const draw_phong_shaders = { "data/shaders/default.vert", "data/shaders/phong.frag" };
+		program_shader_path_list const process_bloom_blur_shaders = { "data/shaders/display_framebuffer.vert", "data/shaders/bloom.frag" };
+		program_shader_path_list const draw_postprocessing_shaders = { "data/shaders/display_framebuffer.vert", "data/shaders/postprocessing.frag" };
+		program_shader_path_list const directional_light_shaders = { "data/shaders/dirlight_shadowmap.vert", "data/shaders/dirlight_shadowmap.frag" };
 
 		system_resource_manager.LoadShaderProgram("draw_infinite_grid", draw_infinite_grid_shaders);
 		system_resource_manager.LoadShaderProgram("draw_gbuffer", draw_gbuffer_shaders);
@@ -133,6 +140,7 @@ namespace Sandbox
 		system_resource_manager.LoadShaderProgram("draw_phong", draw_phong_shaders);
 		system_resource_manager.LoadShaderProgram("process_bloom_blur", process_bloom_blur_shaders);
 		system_resource_manager.LoadShaderProgram("postprocessing", draw_postprocessing_shaders);
+		system_resource_manager.LoadShaderProgram("dirlight_shadowmap", directional_light_shaders);
 	}
 
 	glm::uvec2 s_bloom_texture_size;
@@ -421,7 +429,8 @@ namespace Sandbox
 		// Set camera aspect ratio every frame
 		SDL_Surface const* surface = Singleton<Engine::sdl_manager>().m_surface;
 		float const ar = (float)surface->w / (float)surface->h;
-		camera_entity.GetComponent<Component::Camera>().SetAspectRatio(ar);
+		auto camera_entity_component = camera_entity.GetComponent<Component::Camera>();
+		camera_entity_component.SetAspectRatio(ar);
 	}
 
 	bool show_demo_window = false;
@@ -649,7 +658,7 @@ namespace Sandbox
 			mesh_to_render = system_resource_manager.FindMesh("Sphere/Sphere");*/
 
 		system_resource_manager.BindFramebuffer(s_framebuffer_gbuffer);
-		glClearColor(0.0f,0.0f,0.0f, 0.0f);
+		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		auto window_size = Singleton<Engine::sdl_manager>().get_window_size();
 		glViewport(0, 0, window_size.x, window_size.y);
@@ -670,20 +679,10 @@ namespace Sandbox
 		//	return;
 		//}
 
-		auto activate_texture = [&](ResourceManager::texture_handle _texture, unsigned int _shader_sampler_uniform_location, unsigned int _active_texture_index)
-		{
-			// If no texture handle exists, ignore
-			if (_texture == 0)
-				return;
-			auto texture_info = system_resource_manager.GetTextureInfo(_texture);
-			GfxCall(glActiveTexture(GL_TEXTURE0 + _active_texture_index));
-			GfxCall(glBindTexture(texture_info.m_target, texture_info.m_gl_source_id));
-
-			system_resource_manager.SetBoundProgramUniform(_shader_sampler_uniform_location, (int)_active_texture_index);
-		};
-
 		glm::mat4 const camera_view_matrix = cam_transform.GetInvMatrix();
-		glm::mat4 const camera_perspective_matrix = camera_component.GetCameraData().get_perspective_matrix();
+		auto camera_data = camera_component.GetCameraData();
+		glm::mat4 const camera_perspective_matrix = camera_data.is_orthogonal_camera() ? 
+			camera_data.get_orthogonal_matrix() : camera_data.get_perspective_matrix();
 		glm::mat4 const matrix_vp = camera_perspective_matrix * camera_view_matrix;
 
 		auto all_renderables = Singleton<Component::RenderableManager>().GetAllRenderables();
@@ -695,20 +694,19 @@ namespace Sandbox
 				continue;
 
 			Component::Transform renderable_transform = renderable_entity.GetComponent<Component::Transform>();
+			auto model_transform = renderable_transform.ComputeWorldTransform();
+			glm::mat4 const mesh_model_matrix = model_transform.GetMatrix();
+			glm::mat4 const matrix_mv = camera_view_matrix * mesh_model_matrix;
+			glm::mat4 const matrix_t_inv_mv = glm::transpose(glm::inverse(matrix_mv));
+
+			system_resource_manager.SetBoundProgramUniform(5, matrix_vp * mesh_model_matrix);
+			system_resource_manager.SetBoundProgramUniform(6, matrix_t_inv_mv);
+			system_resource_manager.SetBoundProgramUniform(9, matrix_vp * mesh_model_matrix);
+
 			auto& mesh_primitives = system_resource_manager.GetMeshPrimitives(renderable_mesh);
 			for (unsigned int i = 0; i < mesh_primitives.size(); ++i)
 			{
 				ResourceManager::mesh_primitive_data primitive = mesh_primitives[i];
-
-				// TODO: Use world transform
-				auto model_transform = renderable_transform.ComputeWorldTransform();
-				glm::mat4 const mesh_model_matrix = model_transform.GetMatrix();
-				glm::mat4 const matrix_mv = camera_view_matrix * mesh_model_matrix;
-				glm::mat4 const matrix_t_inv_mv = glm::transpose(glm::inverse(matrix_mv));
-
-				system_resource_manager.SetBoundProgramUniform(5, matrix_vp * mesh_model_matrix);
-				system_resource_manager.SetBoundProgramUniform(6, matrix_t_inv_mv);
-				system_resource_manager.SetBoundProgramUniform(9, matrix_vp * mesh_model_matrix);
 
 				// Set texture slots
 				if (primitive.m_material_handle != 0)
@@ -778,7 +776,7 @@ namespace Sandbox
 		{
 			system_resource_manager.BindFramebuffer(s_framebuffer_lighting);
 			glViewport(0, 0, window_size.x, window_size.y);
-			glClearColor(s_clear_color.x, s_clear_color.y, s_clear_color.z, 0.0f);
+			glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 			glClear(GL_COLOR_BUFFER_BIT);
 
 			if (s_ambient_color != glm::vec3(0))
@@ -811,7 +809,8 @@ namespace Sandbox
 			activate_texture(s_fb_texture_metallic_roughness, 2, 2);
 			activate_texture(s_fb_texture_normal, 3, 3);
 
-			Sandbox::RenderLights(sphere_mesh, camera_component.GetCameraData(), cam_transform);
+			Sandbox::RenderPointLights(sphere_mesh, camera_component.GetCameraData(), cam_transform);
+			Sandbox::RenderDirectionalLight(camera_component.GetCameraData(), cam_transform);
 
 			glEnable(GL_CULL_FACE);
 			glDepthMask(GL_TRUE);
@@ -933,6 +932,5 @@ namespace Sandbox
 	void Shutdown()
 	{
 		ShutdownSandboxComponentManagers();
-		Singleton<Engine::Graphics::ResourceManager>().DeleteAllGraphicsResources();
 	}
 }

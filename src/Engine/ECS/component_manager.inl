@@ -14,6 +14,12 @@ namespace ECS {
 	///////////////////////////////////////////////////////////////
 
 	template<class TCompManager>
+	inline Entity IComp<TCompManager>::Owner() const
+	{
+		return m_owner;
+	}
+
+	template<class TCompManager>
 	inline bool IComp<TCompManager>::IsValid() const
 	{
 		return GetManager().ComponentOwnedByEntity(m_owner);

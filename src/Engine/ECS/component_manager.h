@@ -22,6 +22,8 @@ namespace ECS {
 		IComp& operator=(IComp const& _other) { m_owner = _other.m_owner; return *this; }
 		bool operator==(IComp const& _other) { return m_owner == _other.m_owner; }
 
+		Entity Owner() const;
+
 		bool IsValid() const;
 		void Destroy();
 

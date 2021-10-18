@@ -126,6 +126,9 @@
     <ClCompile Include="src\Sandbox\LoadScene.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\Sandbox\render_common.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Sandbox\sandbox.h">
@@ -248,6 +251,9 @@
     <ClInclude Include="src\Sandbox\LoadScene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\Sandbox\render_common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="working_dir\data\shaders\deferred.frag" />
@@ -261,6 +267,8 @@
     <None Include="working_dir\data\shaders\postprocessing.frag" />
     <None Include="data\shaders\infinite_grid.vert" />
     <None Include="data\shaders\infinite_grid.frag" />
+    <None Include="data\shaders\dirlight_shadowmap.vert" />
+    <None Include="data\shaders\dirlight_shadowmap.frag" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="src\Engine\Components\EngineComponents.txt" />

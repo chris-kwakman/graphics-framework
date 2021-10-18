@@ -637,8 +637,11 @@ namespace Graphics {
 	void ResourceManager::DeleteTexture(texture_handle _texture_handle)
 	{
 		auto iter = m_texture_info_map.find(_texture_handle);
-		glDeleteTextures(1, &iter->second.m_gl_source_id);
-		m_texture_info_map.erase(iter);
+		if (iter != m_texture_info_map.end())
+		{
+			glDeleteTextures(1, &iter->second.m_gl_source_id);
+			m_texture_info_map.erase(iter);
+		}
 	}
 
 	/*

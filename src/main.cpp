@@ -6,6 +6,7 @@
 
 #include <Engine/ECS/component_manager.h>
 #include <Engine/Components/EngineCompManager.h>
+#include <Engine/Graphics/manager.h>
 
 #include "Sandbox/sandbox.h"
 
@@ -85,18 +86,19 @@ int main(int argc, char* argv[])
 			sdl_manager.m_want_restart = false;
 			Singleton<Engine::Editor::Editor>().Initialise();
 			Singleton<Engine::ECS::EntityManager>().Reset();
+			Singleton<Engine::Graphics::ResourceManager>().Reset();
+
 			if (Sandbox::Initialize(argc, argv))
 				update_loop();
 			else
 				std::cout << "Sandbox initialization failed.\n";
 			Sandbox::Shutdown();
-			Singleton<Engine::Editor::Editor>().Shutdown();
 
+			Singleton<Engine::Editor::Editor>().Shutdown();
 			Component::ShutdownEngineComponentManagers();
+			Singleton<Engine::Graphics::ResourceManager>().DeleteAllGraphicsResources();
 		}
 	}
-
-	Component::ShutdownEngineComponentManagers();
 
 	sdl_manager.shutdown();
 

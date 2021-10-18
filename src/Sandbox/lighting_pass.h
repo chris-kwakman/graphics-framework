@@ -9,8 +9,13 @@ namespace Sandbox {
 
 	using mesh_handle = Engine::Graphics::ResourceManager::mesh_handle;
 
-	void RenderLights(
+	void RenderPointLights(
 		mesh_handle _light_mesh,
+		Engine::Graphics::camera_data _camera,
+		Engine::Math::transform3D _camera_transform
+	);
+
+	void RenderDirectionalLight(
 		Engine::Graphics::camera_data _camera,
 		Engine::Math::transform3D _camera_transform
 	);

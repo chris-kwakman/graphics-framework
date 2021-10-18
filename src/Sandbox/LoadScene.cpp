@@ -6,6 +6,7 @@
 #include <Engine/Components/Renderable.h>
 #include <Engine/Components/Light.h>
 
+#include <glm/gtx/quaternion.hpp>
 #include <algorithm>
 #include <fstream>
 
@@ -35,18 +36,24 @@ namespace Sandbox
 		auto object_iter = _scene.find("objects");
 		auto camera_iter = _scene.find("camera");
 		auto light_iter = _scene.find("lights");
+		auto dirlight_iter = _scene.find("directional_light");
 		if (object_iter != _scene.end()) entity_count += object_iter->size();
 		if (camera_iter != _scene.end()) entity_count += 1;
 		if (light_iter != _scene.end()) entity_count += light_iter->size();
+		if (dirlight_iter != _scene.end()) entity_count += 1;
 
 		// Create entities up-front.
 		std::vector<Entity> created_entities;
 		created_entities.resize(entity_count);
 		bool result = Singleton<EntityManager>().EntityCreationRequest(&created_entities.front(), entity_count);
 		assert(result);
-		unsigned int const lights_offset = object_iter->size();
-		unsigned int const camera_offset = lights_offset + light_iter->size();
-		unsigned int const node_count = lights_offset;
+
+		unsigned int lights_offset, dirlight_offset, camera_offset;
+
+		lights_offset = object_iter->size();
+		dirlight_offset = lights_offset + light_iter->size();
+		camera_offset = (dirlight_iter != _scene.end()) ? dirlight_offset + 1 : dirlight_offset;
+		unsigned int const node_count = object_iter->size();
 
 		Singleton<SceneEntityComponentManager>().RegisterScene(_scene_path);
 
@@ -80,7 +87,7 @@ namespace Sandbox
 			current_entity.SetName(object_iter->at(i).at("mesh").get<std::string>().c_str());
 		}
 
-		for (unsigned int i = lights_offset; i < camera_offset; ++i)
+		for (unsigned int i = lights_offset; i < dirlight_offset; ++i)
 		{
 			Entity current_object = created_entities[i];
 			json const& object_json = light_iter->at(i - lights_offset);
@@ -90,6 +97,24 @@ namespace Sandbox
 			current_object.GetComponent<Transform>().SetLocalPosition(object_json.at("position"));
 			char name_buffer[64];
 			current_object.SetName("Light");
+		}
+
+		for (unsigned int i = dirlight_offset; i < camera_offset; ++i)
+		{
+			Entity current_object = created_entities[i];
+			json const& object_json = *dirlight_iter;
+			auto light = Create<DirectionalLight>(current_object);
+			light.SetColor(object_json.at("color"));
+			auto light_transform = current_object.GetComponent<Transform>();
+			light_transform.SetLocalRotation(
+				glm::quatLookAt(
+					glm::vec3(object_json.at("direction")), 
+					glm::vec3(0.0f, 1.0f, 0.0f)
+				)
+			);
+
+			char name_buffer[64];
+			current_object.SetName("Directional Light");
 		}
 
 		for (unsigned int i = camera_offset; i <= camera_offset; ++i)

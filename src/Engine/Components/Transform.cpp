@@ -508,40 +508,40 @@ namespace Component
 		glm::mat4x4 const matrix_view = editor_cam_transform.ComputeWorldTransform().GetInvMatrix();
 		glm::mat4x4 const matrix_perspective = editor_cam_camera.GetCameraData().get_perspective_matrix();
 
-		//glm::mat4x4 transform_matrix;
-		//if (s_imguizmo_current_mode == ImGuizmo::WORLD)
-		//	transform_matrix = transform_component.ComputeWorldMatrix();
-		//else
-		//	transform_matrix = transform_component.GetLocalTransform().GetMatrix();
+		glm::mat4x4 transform_matrix;
+		if (s_imguizmo_current_mode == ImGuizmo::WORLD)
+			transform_matrix = transform_component.ComputeWorldMatrix();
+		else
+			transform_matrix = transform_component.GetLocalTransform().GetMatrix();
 
-		//bool is_manipulated = ImGuizmo::Manipulate(
-		//	&matrix_view[0][0],
-		//	&matrix_perspective[0][0],
-		//	s_imguizmo_current_operation,
-		//	s_imguizmo_current_mode,
-		//	&transform_matrix[0][0]
-		//);
+		bool is_manipulated = ImGuizmo::Manipulate(
+			&matrix_view[0][0],
+			&matrix_perspective[0][0],
+			s_imguizmo_current_operation,
+			s_imguizmo_current_mode,
+			&transform_matrix[0][0]
+		);
 
-		//if (is_manipulated)
-		//{
-		//	glm::vec3 translation, scale;
-		//	glm::quat rotation;
+		if (is_manipulated)
+		{
+			glm::vec3 translation, scale;
+			glm::quat rotation;
 
-		//	ImGuizmo::DecomposeMatrixToComponents(&transform_matrix[0][0], &translation[0], &rotation[0], &scale[0]);
+			ImGuizmo::DecomposeMatrixToComponents(&transform_matrix[0][0], &translation[0], &rotation[0], &scale[0]);
 
-		//	if (s_imguizmo_current_operation == ImGuizmo::TRANSLATE)
-		//	{
-		//		transform_component.SetLocalPosition(translation);
-		//	}
-		//	else if (s_imguizmo_current_operation == ImGuizmo::SCALE)
-		//	{
-		//		transform_component.SetLocalScale(scale);
-		//	}
-		//	else
-		//	{
-		//		transform_component.SetLocalRotation(rotation);
-		//	}
-		//}
+			if (s_imguizmo_current_operation == ImGuizmo::TRANSLATE)
+			{
+				transform_component.SetLocalPosition(translation);
+			}
+			else if (s_imguizmo_current_operation == ImGuizmo::SCALE)
+			{
+				transform_component.SetLocalScale(scale);
+			}
+			else
+			{
+				transform_component.SetLocalRotation(rotation);
+			}
+		}
 
 		Engine::Math::transform3D& transform = m_local_transforms[get_entity_indexer_data(_entity).transform];
 		const char* name_gizmo_operation = s_imguizmo_current_operation == ImGuizmo::TRANSLATE
@@ -567,6 +567,7 @@ namespace Component
 		ImGui::DragFloat3("Position", &transform.position.x, 1.0f, -FLT_MAX / INT_MIN, FLT_MAX / INT_MIN);
 		ImGui::DragFloat3("Scale", &transform.scale.x, 0.1f, 0.0f, FLT_MAX / INT_MIN);
 		ImGui::DragFloat4("Orientation", &transform.quaternion.x, 0.1f);
+		transform.quaternion = glm::normalize(transform.quaternion);
 	}
 
 	/*

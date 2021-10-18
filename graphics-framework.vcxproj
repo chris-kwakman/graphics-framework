@@ -201,6 +201,7 @@
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\Sandbox\lighting_pass.cpp" />
     <ClCompile Include="src\Sandbox\LoadScene.cpp" />
+    <ClCompile Include="src\Sandbox\render_common.cpp" />
     <ClCompile Include="src\Sandbox\sandbox.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -242,10 +243,13 @@
     <ClInclude Include="src\Engine\Utils\logging.h" />
     <ClInclude Include="src\Engine\Utils\singleton.h" />
     <ClInclude Include="src\Sandbox\lighting_pass.h" />
+    <ClInclude Include="src\Sandbox\render_common.h" />
     <ClInclude Include="src\Sandbox\sandbox.h" />
     <ClInclude Include="src\Sandbox\LoadScene.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="data\shaders\dirlight_shadowmap.frag" />
+    <None Include="data\shaders\dirlight_shadowmap.vert" />
     <None Include="data\shaders\infinite_grid.frag" />
     <None Include="data\shaders\infinite_grid.vert" />
     <None Include="working_dir\data\shaders\bloom.frag" />
