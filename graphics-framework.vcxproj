@@ -248,10 +248,19 @@
     <ClInclude Include="src\Sandbox\LoadScene.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="data\shaders\bloom.frag" />
+    <None Include="data\shaders\default.vert" />
+    <None Include="data\shaders\deferred.frag" />
     <None Include="data\shaders\dirlight_shadowmap.frag" />
     <None Include="data\shaders\dirlight_shadowmap.vert" />
+    <None Include="data\shaders\display_framebuffer.vert" />
+    <None Include="data\shaders\display_framebuffer_ambient_light.frag" />
+    <None Include="data\shaders\display_framebuffer_plain.frag" />
     <None Include="data\shaders\infinite_grid.frag" />
     <None Include="data\shaders\infinite_grid.vert" />
+    <None Include="data\shaders\phong.frag" />
+    <None Include="data\shaders\postprocessing.frag" />
+    <None Include="README.md" />
     <None Include="working_dir\data\shaders\bloom.frag" />
     <None Include="working_dir\data\shaders\default.vert" />
     <None Include="working_dir\data\shaders\deferred.frag" />
