@@ -7,7 +7,8 @@ layout(location = 1) uniform mat4 u_p;
 
 out vec3 near_point;
 out vec3 far_point;
-
+out mat4 f_v;
+out mat4 f_p;
 
 // Grid position are in clipped space
 vec3 gridPlane[6] = vec3[] (
@@ -27,4 +28,7 @@ void main() {
     near_point = UnprojectPoint(p.x, p.y, 0.0, u_v, u_p).xyz; // unprojecting on the near plane
     far_point = UnprojectPoint(p.x, p.y, 1.0, u_v, u_p).xyz; // unprojecting on the far plane
     gl_Position = vec4(p, 1.0); // using directly the clipped coordinates
+
+    f_v = u_v;
+    f_p = u_p;
 }

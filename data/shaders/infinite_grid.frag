@@ -2,8 +2,8 @@
 
 #extension GL_ARB_explicit_uniform_location : enable
 
-layout(location = 0) uniform mat4 u_v;
-layout(location = 1) uniform mat4 u_p;
+in mat4 f_v;
+in mat4 f_p;
 
 layout(location = 10) uniform float u_camera_near;
 layout(location = 11) uniform float u_camera_far;
@@ -30,14 +30,14 @@ vec4 grid(vec3 fragPos3D, float scale, bool drawAxis) {
     return color;
 }
 float computeDepth(vec3 pos) {
-    vec4 clip_space_pos = u_p * u_v * vec4(pos.xyz, 1.0);
-    return (clip_space_pos.z / clip_space_pos.w);
+    vec4 clip_space_pos = f_p * f_v * vec4(pos.xyz, 1.0);
+   return ((clip_space_pos.z / clip_space_pos.w)+1)/2;
 }
 float computeLinearDepth(vec3 pos) {
-    vec4 clip_space_pos = u_p * u_v* vec4(pos.xyz, 1.0);
+    vec4 clip_space_pos = f_p * f_v* vec4(pos.xyz, 1.0);
     float clip_space_depth = (clip_space_pos.z / clip_space_pos.w) * 2.0 - 1.0; // put back between -1 and 1
     float linearDepth = (2.0 * u_camera_near * u_camera_far) / (u_camera_far + u_camera_near - clip_space_depth * (u_camera_far - u_camera_near)); // get linear value between 0.01 and 100
-    return linearDepth / u_camera_far; // normalize
+    return linearDepth / (u_camera_far - u_camera_near); // normalize
 }
 void main() {
     float t = -near_point.y / (far_point.y - near_point.y);
