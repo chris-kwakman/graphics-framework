@@ -248,6 +248,8 @@
     <ClInclude Include="src\Sandbox\LoadScene.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include=".gitattributes" />
+    <None Include=".gitignore" />
     <None Include="data\shaders\bloom.frag" />
     <None Include="data\shaders\default.vert" />
     <None Include="data\shaders\deferred.frag" />
@@ -260,6 +262,8 @@
     <None Include="data\shaders\infinite_grid.vert" />
     <None Include="data\shaders\phong.frag" />
     <None Include="data\shaders\postprocessing.frag" />
+    <None Include="data\shaders\write_csm.frag" />
+    <None Include="data\shaders\write_csm.vert" />
     <None Include="README.md" />
     <None Include="working_dir\data\shaders\bloom.frag" />
     <None Include="working_dir\data\shaders\default.vert" />

@@ -11,7 +11,7 @@ layout(location = 11) uniform float u_gamma;
 
 in vec2 f_uv;
 
-out vec4 out_color;
+layout(location =0) out vec4 out_color;
 
 void main()
 {

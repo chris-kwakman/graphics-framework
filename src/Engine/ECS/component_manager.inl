@@ -22,7 +22,7 @@ namespace ECS {
 	template<class TCompManager>
 	inline bool IComp<TCompManager>::IsValid() const
 	{
-		return GetManager().ComponentOwnedByEntity(m_owner);
+		return m_owner != Entity::InvalidEntity && GetManager().ComponentOwnedByEntity(m_owner);
 	}
 
 	template<class TCompManager>

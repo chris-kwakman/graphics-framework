@@ -278,6 +278,10 @@
     <None Include="data\shaders\phong.frag" />
     <None Include="data\shaders\postprocessing.frag" />
     <None Include="README.md" />
+    <None Include=".gitignore" />
+    <None Include=".gitattributes" />
+    <None Include="data\shaders\write_csm.vert" />
+    <None Include="data\shaders\write_csm.frag" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="src\Engine\Components\EngineComponents.txt" />

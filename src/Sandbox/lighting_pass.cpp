@@ -2,7 +2,6 @@
 #include <Engine/Utils/singleton.h>
 #include <Engine/Math/Transform3D.h>
 #include <Engine/Graphics/sdl_window.h>
-#include <Engine/Components/Light.h>
 #include <Engine/Components/Transform.h>
 #include <Engine/Components/Camera.h>
 #include <Engine/Components/Renderable.h>
@@ -27,11 +26,11 @@ namespace Sandbox {
 		auto& resource_manager = Singleton<Engine::Graphics::ResourceManager>();
 
 		// OpenGL setup
-		glCullFace(GL_FRONT);
-		glDepthFunc(GL_GREATER);
-		glEnable(GL_BLEND);
-		glDepthMask(GL_FALSE);
-		glBlendFunc(GL_ONE, GL_ONE);
+		GfxCall(glCullFace(GL_FRONT));
+		GfxCall(glDepthFunc(GL_GREATER));
+		GfxCall(glEnable(GL_BLEND));
+		GfxCall(glDepthMask(GL_FALSE));
+		GfxCall(glBlendFunc(GL_ONE, GL_ONE));
 
 		auto const& primitives = resource_manager.GetMeshPrimitives(_light_mesh);
 		ResourceManager::mesh_primitive_data light_primitive = primitives.front();
@@ -98,7 +97,7 @@ namespace Sandbox {
 		glm::vec4(-1.0f,	1.0f,	1.0f,	1.0f),
 	};
 
-	void RenderDirectionalLight(Engine::Graphics::camera_data _camera, Engine::Math::transform3D _camera_transform)
+	cascading_shadow_map_data RenderDirectionalLightCSM(Engine::Graphics::camera_data _camera, Engine::Math::transform3D _camera_transform)
 	{
 		using namespace Component;
 		using camera_data = Engine::Graphics::camera_data;
@@ -106,15 +105,17 @@ namespace Sandbox {
 		using mesh_handle = Engine::Graphics::ResourceManager::mesh_handle;
 		using shader_program = Engine::Graphics::ResourceManager::shader_program_handle;
 
+		unsigned int constexpr CSM_PARTITION_COUNT = DirectionalLightManager::CSM_PARTITION_COUNT;
+		cascading_shadow_map_data csm_data;
+
 		auto & res_mgr = Singleton<Engine::Graphics::ResourceManager>();
 
 		DirectionalLight const dl = Singleton<Component::DirectionalLightManager>().GetDirectionalLight();
 		shader_program const dl_program = res_mgr.FindShaderProgram("dirlight_shadowmap");
 
-		// Early exit if we could not find appropriate shader program.
-		// Early exit if directional light entity / component is not valid.
-		if (dl_program == 0 || !dl.IsValid() || dl.Owner() == Entity::InvalidEntity)
-			return;
+		// Do not call if proper shader or directional light component does not exist.
+		assert(dl.IsValid());
+		assert(dl_program);
 
 		// Compute our own directional light "camera" lookat matrix that we use to transform
 		// from world space to the space of the directional light.
@@ -139,32 +140,33 @@ namespace Sandbox {
 			frustum_world_corners[i] /= frustum_world_corners[i].w;
 		}
 
-		std::vector<std::pair<glm::vec3, glm::vec3>>	light_partition_aabbs;
-		std::vector<glm::mat4x4>						light_partition_matrices;
+		std::pair<glm::vec3, glm::vec3>	light_partition_aabbs[CSM_PARTITION_COUNT];
+		glm::mat4x4						light_partition_matrices[CSM_PARTITION_COUNT];
 
 		// Find light view partition AABBs and world space to light projection matrices.
-		for (unsigned int i = 0; i < dl.GetPartitionCount(); ++i)
+		for (unsigned int partition = 0; partition < CSM_PARTITION_COUNT; ++partition)
 		{
 			glm::vec4 subfrustum_corners[8];
- 			float subfrustum_near = dl.GetPartitionMinDepth(i, _camera.m_near, _camera.m_far) / _camera.m_far;
-			float subfrustum_far = dl.GetPartitionMinDepth(i+1, _camera.m_near, _camera.m_far) / _camera.m_far;
+			float const subfrustum_far = dl.GetPartitionMinDepth(partition + 1, _camera.m_near, _camera.m_far);
+ 			float const subfrustum_near_frac = dl.GetPartitionMinDepth(partition, _camera.m_near, _camera.m_far) / _camera.m_far;
+			float const subfrustum_far_frac = subfrustum_far / _camera.m_far;
 
 			for (unsigned int j = 0; j < 8; j += 2)
 			{
-				subfrustum_corners[j]	= frustum_world_corners[j] + subfrustum_near * (frustum_world_corners[j+1] - frustum_world_corners[j]);
-				subfrustum_corners[j+1] = frustum_world_corners[j] + subfrustum_far * (frustum_world_corners[j + 1] - frustum_world_corners[j]);
+				subfrustum_corners[j]	= frustum_world_corners[j] + subfrustum_near_frac * (frustum_world_corners[j+1] - frustum_world_corners[j]);
+				subfrustum_corners[j+1] = frustum_world_corners[j] + subfrustum_far_frac * (frustum_world_corners[j+1] - frustum_world_corners[j]);
 			}
 
 			// Compute AABB corners in light view space.
 			glm::vec3
 				aabb_min = glm::vec3(std::numeric_limits<float>::max()),
-				aabb_max = glm::vec3(std::numeric_limits<float>::min());
+				aabb_max = glm::vec3(std::numeric_limits<float>::lowest());
 
 			for (unsigned int corner = 0; corner < 8; ++corner)
 			{
-				subfrustum_corners[corner] = mat_world_to_light_view * subfrustum_corners[corner];
-				aabb_min = glm::min(aabb_min, glm::vec3(subfrustum_corners[corner]));
-				aabb_max = glm::max(aabb_max, glm::vec3(subfrustum_corners[corner]));
+				glm::vec3 light_space_corner = mat_world_to_light_view * subfrustum_corners[corner];
+				aabb_min = glm::min(aabb_min, glm::vec3(light_space_corner));
+				aabb_max = glm::max(aabb_max, glm::vec3(light_space_corner));
 			}
 
 			// Make sure X and Y of bounding box are tight.
@@ -184,8 +186,10 @@ namespace Sandbox {
 			);
 
 			// Add data to vectors
-			light_partition_aabbs.emplace_back(aabb_min, aabb_max);
-			light_partition_matrices.emplace_back(mat_light_view_to_box_projection * mat_world_to_light_view);
+			light_partition_aabbs[partition] = std::pair{ aabb_min, aabb_max };
+			light_partition_matrices[partition] = mat_light_view_to_box_projection * mat_world_to_light_view;
+			csm_data.m_light_transformations[partition] = light_partition_matrices[partition];
+			csm_data.m_cascade_clipspace_end[partition] = _camera.get_clipping_depth(subfrustum_far);
 		}
 
 		// ### Render objects onto shadow map textures.
@@ -215,7 +219,7 @@ namespace Sandbox {
 		glDepthFunc(GL_LESS);
 
 		res_mgr.UseProgram(dl_program);
-		for (unsigned int csm_partition = 0; csm_partition < dl.GetPartitionCount(); ++csm_partition)
+		for (unsigned int csm_partition = 0; csm_partition < CSM_PARTITION_COUNT; ++csm_partition)
 		{
 			texture_handle const csm_partition_texture = dl.GetShadowMapTexture();
 			framebuffer_handle const csm_partition_buffer = dl.GetPartitionFrameBuffer(csm_partition);
@@ -250,5 +254,82 @@ namespace Sandbox {
 				}
 			}
 		}
+
+		return csm_data;
+	}
+
+	using namespace Engine::ECS;
+	using namespace Engine::Math;
+	using namespace Component;
+	void RenderShadowMapToFrameBuffer(
+		Entity _camera_entity, 
+		glm::uvec2 _viewport_size, 
+		cascading_shadow_map_data const& _csm_data,
+		texture_handle	  _depth_texture,
+		framebuffer_handle _shadow_frame_buffer
+	)
+	{
+		struct shader_camera_data
+		{
+			glm::mat4x4 m_inv_vp;
+			glm::vec2	m_viewport_size;
+			float		m_near;
+			float		m_far;
+		};
+
+		DirectionalLight dl						= Singleton<DirectionalLightManager>().GetDirectionalLight();
+		Camera camera							= _camera_entity.GetComponent<Camera>();
+		camera_data const cam_data				= camera.GetCameraData();
+		transform3D const cam_transform			= _camera_entity.GetComponent<Transform>().ComputeWorldTransform();
+		ResourceManager & res_mgr			= Singleton<ResourceManager>();
+		shader_program_handle const csm_program = res_mgr.FindShaderProgram("write_csm");
+		unsigned int constexpr CSM_PARTITION_COUNT = DirectionalLightManager::CSM_PARTITION_COUNT;
+
+		assert(csm_program != 0);
+
+		glm::mat4x4 const mat_cam_perspective = cam_data.get_perspective_matrix();
+		shader_camera_data shader_cam_data;
+		shader_cam_data.m_inv_vp = glm::inverse(mat_cam_perspective * cam_transform.GetInvMatrix());
+		shader_cam_data.m_viewport_size = glm::vec2(_viewport_size);
+		shader_cam_data.m_near = cam_data.m_near;
+		shader_cam_data.m_far = cam_data.m_far;
+
+		res_mgr.UseProgram(csm_program);
+		res_mgr.BindFramebuffer(_shadow_frame_buffer);
+
+		//GfxCall(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
+		//GfxCall(glClear(GL_COLOR_BUFFER_BIT));
+		GfxCall(glEnable(GL_CULL_FACE));
+		GfxCall(glViewport(0, 0, (GLsizei)_viewport_size.x, (GLsizei)_viewport_size.y));
+		GfxCall(glCullFace(GL_BACK));
+		GfxCall(glDisable(GL_BLEND));
+
+		// Upload camera data
+		res_mgr.SetBoundProgramUniform(2, shader_cam_data.m_inv_vp);
+		res_mgr.SetBoundProgramUniform(3, shader_cam_data.m_viewport_size);
+		res_mgr.SetBoundProgramUniform(4, shader_cam_data.m_near);
+		res_mgr.SetBoundProgramUniform(5, shader_cam_data.m_far);
+		// Upload CSM data
+		for (unsigned int i = 0; i < CSM_PARTITION_COUNT; ++i)
+		{
+			res_mgr.SetBoundProgramUniform(6+i, _csm_data.m_light_transformations[i]);
+			res_mgr.SetBoundProgramUniform(6 + CSM_PARTITION_COUNT + i, _csm_data.m_cascade_clipspace_end[i]);
+		}
+
+		activate_texture(_depth_texture, 0, 0);
+		activate_texture(dl.GetShadowMapTexture(), 1, 1);
+
+
+		GfxCall(glBindVertexArray(s_gl_tri_vao));
+		GfxCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_gl_tri_ibo));
+		GfxCall(glDrawElements(
+			GL_TRIANGLES,
+			3,
+			GL_UNSIGNED_BYTE,
+			nullptr
+		));
+		glBindVertexArray(0);
+
+		res_mgr.UnbindFramebuffer();
 	}
 }

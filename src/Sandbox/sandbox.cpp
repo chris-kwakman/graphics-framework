@@ -79,9 +79,7 @@ namespace Sandbox
 	using texture_handle = Engine::Graphics::ResourceManager::texture_handle;
 	static texture_handle s_texture_white = 0;
 
-	static framebuffer_handle s_framebuffer_gbuffer, s_framebuffer_lighting, s_framebuffer_bloom[2];
-
-	static GLuint s_gl_tri_vao, s_gl_tri_ibo, s_gl_tri_vbo;
+	static framebuffer_handle s_framebuffer_gbuffer, s_framebuffer_lighting, s_framebuffer_bloom[2], s_framebuffer_shadow;
 
 	static glm::vec4 s_clear_color{ 0.0f,0.0f,0.0f,0.0f };
 
@@ -92,7 +90,9 @@ namespace Sandbox
 		s_fb_texture_metallic_roughness,
 		s_fb_texture_light_color,
 		s_fb_texture_luminance,
-		s_fb_texture_bloom_pingpong[2];
+		s_fb_texture_bloom_pingpong[2],
+		s_fb_texture_shadow
+	;
 
 	static std::vector<texture_handle> g_gbuffer_textures;
 
@@ -117,7 +117,9 @@ namespace Sandbox
 			"data/shaders/bloom.frag",
 			"data/shaders/postprocessing.frag",
 			"data/shaders/dirlight_shadowmap.vert",
-			"data/shaders/dirlight_shadowmap.frag"
+			"data/shaders/dirlight_shadowmap.frag",
+			"data/shaders/write_csm.vert",
+			"data/shaders/write_csm.frag"
 		};
 		std::vector<Engine::Graphics::ResourceManager::shader_handle> output_shader_handles;
 		output_shader_handles = system_resource_manager.LoadShaders(shader_paths);
@@ -132,6 +134,7 @@ namespace Sandbox
 		program_shader_path_list const process_bloom_blur_shaders = { "data/shaders/display_framebuffer.vert", "data/shaders/bloom.frag" };
 		program_shader_path_list const draw_postprocessing_shaders = { "data/shaders/display_framebuffer.vert", "data/shaders/postprocessing.frag" };
 		program_shader_path_list const directional_light_shaders = { "data/shaders/dirlight_shadowmap.vert", "data/shaders/dirlight_shadowmap.frag" };
+		program_shader_path_list const write_csm_shaders = { "data/shaders/write_csm.vert", "data/shaders/write_csm.frag" };
 
 		system_resource_manager.LoadShaderProgram("draw_infinite_grid", draw_infinite_grid_shaders);
 		system_resource_manager.LoadShaderProgram("draw_gbuffer", draw_gbuffer_shaders);
@@ -141,82 +144,91 @@ namespace Sandbox
 		system_resource_manager.LoadShaderProgram("process_bloom_blur", process_bloom_blur_shaders);
 		system_resource_manager.LoadShaderProgram("postprocessing", draw_postprocessing_shaders);
 		system_resource_manager.LoadShaderProgram("dirlight_shadowmap", directional_light_shaders);
+		system_resource_manager.LoadShaderProgram("write_csm", write_csm_shaders);
 	}
 
 	glm::uvec2 s_bloom_texture_size;
 
 	void setup_framebuffer()
 	{
-		Engine::Graphics::ResourceManager& system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
+		Engine::Graphics::ResourceManager& resource_manager = Singleton<Engine::Graphics::ResourceManager>();
 
 		SDL_Surface const* surface = Singleton<Engine::sdl_manager>().m_surface;
 		glm::uvec2 const surface_size(surface->w, surface->h);
 
 		// Create framebuffer & textures.
-		s_framebuffer_gbuffer = system_resource_manager.CreateFramebuffer();
-		s_framebuffer_lighting = system_resource_manager.CreateFramebuffer();
+		s_framebuffer_gbuffer = resource_manager.CreateFramebuffer();
+		s_framebuffer_lighting = resource_manager.CreateFramebuffer();
+		s_framebuffer_shadow = resource_manager.CreateFramebuffer();
 		for (unsigned int i = 0; i < 2; ++i)
-			s_framebuffer_bloom[i] = system_resource_manager.CreateFramebuffer();
+			s_framebuffer_bloom[i] = resource_manager.CreateFramebuffer();
 		
 
-		s_fb_texture_depth = system_resource_manager.CreateTexture("FB Depth Texture");
-		s_fb_texture_base_color = system_resource_manager.CreateTexture("FB Base Color Texture");
-		s_fb_texture_normal = system_resource_manager.CreateTexture("FB Normal Texture");
-		s_fb_texture_metallic_roughness = system_resource_manager.CreateTexture("FB Metallic Roughness Texture");
-		s_fb_texture_light_color = system_resource_manager.CreateTexture("FB Light Color");
-		s_fb_texture_luminance = system_resource_manager.CreateTexture("FB Luminance");
+		s_fb_texture_depth = resource_manager.CreateTexture("FB Depth Texture");
+		s_fb_texture_base_color = resource_manager.CreateTexture("FB Base Color Texture");
+		s_fb_texture_normal = resource_manager.CreateTexture("FB Normal Texture");
+		s_fb_texture_metallic_roughness = resource_manager.CreateTexture("FB Metallic Roughness Texture");
+		s_fb_texture_light_color = resource_manager.CreateTexture("FB Light Color");
+		s_fb_texture_luminance = resource_manager.CreateTexture("FB Luminance");
+		s_fb_texture_shadow = resource_manager.CreateTexture("FB Shadow Map");
 		for (unsigned int i = 0; i < 2; ++i)
-			s_fb_texture_bloom_pingpong[i] = system_resource_manager.CreateTexture("FB Bloom Pingpong");
-		s_texture_white = system_resource_manager.CreateTexture("White Texture");
+			s_fb_texture_bloom_pingpong[i] = resource_manager.CreateTexture("FB Bloom Pingpong");
+		s_texture_white = resource_manager.CreateTexture("White Texture");
 
 		s_display_gbuffer_texture = s_fb_texture_base_color;
 
-		//system_resource_manager.SpecifyAndUploadTexture2D(s_fb_texture_depth, GL_DEPTH_COMPONENT, surface_size, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+		//resource_manager.SpecifyAndUploadTexture2D(s_fb_texture_depth, GL_DEPTH_COMPONENT, surface_size, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
 		using tex_params = Engine::Graphics::ResourceManager::texture_parameters;
 		tex_params default_fb_texture_params;
 		default_fb_texture_params.m_wrap_s = GL_CLAMP_TO_EDGE;
 		default_fb_texture_params.m_wrap_t = GL_CLAMP_TO_EDGE;
 		default_fb_texture_params.m_min_filter = GL_LINEAR;
 		default_fb_texture_params.m_mag_filter = GL_LINEAR;
-		system_resource_manager.AllocateTextureStorage2D(s_fb_texture_depth, GL_DEPTH_COMPONENT32F, surface_size, default_fb_texture_params);
-		system_resource_manager.AllocateTextureStorage2D(s_fb_texture_base_color, GL_RGB8, surface_size, default_fb_texture_params);
-		system_resource_manager.AllocateTextureStorage2D(s_fb_texture_metallic_roughness, GL_RGB8, surface_size, default_fb_texture_params);
-		system_resource_manager.AllocateTextureStorage2D(s_fb_texture_normal, GL_RGB8, surface_size, default_fb_texture_params);
-		system_resource_manager.AllocateTextureStorage2D(s_fb_texture_light_color, GL_RGB16F, surface_size, default_fb_texture_params);
+		resource_manager.AllocateTextureStorage2D(s_fb_texture_depth, GL_DEPTH_COMPONENT32F, surface_size, default_fb_texture_params);
+		resource_manager.AllocateTextureStorage2D(s_fb_texture_base_color, GL_RGB8, surface_size, default_fb_texture_params);
+		resource_manager.AllocateTextureStorage2D(s_fb_texture_metallic_roughness, GL_RGB8, surface_size, default_fb_texture_params);
+		resource_manager.AllocateTextureStorage2D(s_fb_texture_normal, GL_RGB8, surface_size, default_fb_texture_params);
+		resource_manager.AllocateTextureStorage2D(s_fb_texture_light_color, GL_RGB16F, surface_size, default_fb_texture_params);
+		resource_manager.AllocateTextureStorage2D(s_fb_texture_shadow, GL_R16F, surface_size, default_fb_texture_params);
 		tex_params luminance_params = default_fb_texture_params;
 		luminance_params.m_min_filter = GL_LINEAR_MIPMAP_LINEAR;
-		system_resource_manager.AllocateTextureStorage2D(s_fb_texture_luminance, GL_RGB16F, surface_size, luminance_params,3);
+		resource_manager.AllocateTextureStorage2D(s_fb_texture_luminance, GL_RGB16F, surface_size, luminance_params,3);
 		s_bloom_texture_size = surface_size / glm::uvec2(4);
 		for (unsigned int i = 0; i < 2; ++i)
 		{
 			// TODO: Half size of bloom blur textures
-			system_resource_manager.AllocateTextureStorage2D(s_fb_texture_bloom_pingpong[i], GL_RGB16F, s_bloom_texture_size, default_fb_texture_params);
+			resource_manager.AllocateTextureStorage2D(s_fb_texture_bloom_pingpong[i], GL_RGB16F, s_bloom_texture_size, default_fb_texture_params);
 		}
 		glm::vec3 color_white{ 1.0f,1.0f,1.0f };
-		system_resource_manager.SpecifyAndUploadTexture2D(s_texture_white, GL_RGB8, glm::uvec2(1, 1), 0, GL_RGB, GL_FLOAT, (void*)&color_white);
+		resource_manager.SpecifyAndUploadTexture2D(s_texture_white, GL_RGB8, glm::uvec2(1, 1), 0, GL_RGB, GL_FLOAT, (void*)&color_white);
 
 		// Attach textures to framebuffer.
-		system_resource_manager.BindFramebuffer(s_framebuffer_gbuffer);
-		system_resource_manager.AttachTextureToFramebuffer(s_framebuffer_gbuffer, GL_DEPTH_ATTACHMENT, s_fb_texture_depth);
-		system_resource_manager.AttachTextureToFramebuffer(s_framebuffer_gbuffer, GL_COLOR_ATTACHMENT0, s_fb_texture_base_color);
-		system_resource_manager.AttachTextureToFramebuffer(s_framebuffer_gbuffer, GL_COLOR_ATTACHMENT1, s_fb_texture_metallic_roughness);
-		system_resource_manager.AttachTextureToFramebuffer(s_framebuffer_gbuffer, GL_COLOR_ATTACHMENT2, s_fb_texture_normal);
+		resource_manager.BindFramebuffer(s_framebuffer_gbuffer);
+		resource_manager.AttachTextureToFramebuffer(s_framebuffer_gbuffer, GL_DEPTH_ATTACHMENT, s_fb_texture_depth);
+		resource_manager.AttachTextureToFramebuffer(s_framebuffer_gbuffer, GL_COLOR_ATTACHMENT0, s_fb_texture_base_color);
+		resource_manager.AttachTextureToFramebuffer(s_framebuffer_gbuffer, GL_COLOR_ATTACHMENT1, s_fb_texture_metallic_roughness);
+		resource_manager.AttachTextureToFramebuffer(s_framebuffer_gbuffer, GL_COLOR_ATTACHMENT2, s_fb_texture_normal);
 		GLenum const gbuffer_attachment_points[] = { GL_NONE, GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
-		system_resource_manager.DrawFramebuffers(s_framebuffer_gbuffer, sizeof(gbuffer_attachment_points) / sizeof(GLenum), gbuffer_attachment_points);
+		resource_manager.DrawFramebuffers(s_framebuffer_gbuffer, sizeof(gbuffer_attachment_points) / sizeof(GLenum), gbuffer_attachment_points);
 
-		system_resource_manager.BindFramebuffer(s_framebuffer_lighting);
-		system_resource_manager.AttachTextureToFramebuffer(s_framebuffer_lighting, GL_DEPTH_ATTACHMENT, s_fb_texture_depth);
-		system_resource_manager.AttachTextureToFramebuffer(s_framebuffer_lighting, GL_COLOR_ATTACHMENT0, s_fb_texture_light_color);
-		system_resource_manager.AttachTextureToFramebuffer(s_framebuffer_lighting, GL_COLOR_ATTACHMENT1, s_fb_texture_luminance);
+		resource_manager.BindFramebuffer(s_framebuffer_lighting);
+		//resource_manager.AttachTextureToFramebuffer(s_framebuffer_lighting, GL_DEPTH_ATTACHMENT, s_fb_texture_depth);
+		resource_manager.AttachTextureToFramebuffer(s_framebuffer_lighting, GL_COLOR_ATTACHMENT0, s_fb_texture_light_color);
+		resource_manager.AttachTextureToFramebuffer(s_framebuffer_lighting, GL_COLOR_ATTACHMENT1, s_fb_texture_luminance);
 		GLenum const lighting_attachment_points[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
-		system_resource_manager.DrawFramebuffers(s_framebuffer_lighting, sizeof(lighting_attachment_points) / sizeof(GLenum), lighting_attachment_points);
+		resource_manager.DrawFramebuffers(s_framebuffer_lighting, sizeof(lighting_attachment_points) / sizeof(GLenum), lighting_attachment_points);
+
+		resource_manager.BindFramebuffer(s_framebuffer_shadow);
+		resource_manager.AttachTextureToFramebuffer(s_framebuffer_shadow, GL_COLOR_ATTACHMENT0, s_fb_texture_shadow);
+		GLenum const shadow_attachment_points[] = { GL_COLOR_ATTACHMENT0 };
+		resource_manager.DrawFramebuffers(s_framebuffer_shadow, sizeof(shadow_attachment_points) / sizeof(GLenum), shadow_attachment_points);
 
 		for (unsigned int i = 0; i < 2; ++i)
 		{
-			system_resource_manager.BindFramebuffer(s_framebuffer_bloom[i]);
-			system_resource_manager.AttachTextureToFramebuffer(s_framebuffer_bloom[i], GL_COLOR_ATTACHMENT0, s_fb_texture_bloom_pingpong[i]);
+			resource_manager.BindFramebuffer(s_framebuffer_bloom[i]);
+			resource_manager.AttachTextureToFramebuffer(s_framebuffer_bloom[i], GL_COLOR_ATTACHMENT0, s_fb_texture_bloom_pingpong[i]);
 			GLenum const blur_texture_attachment_point = GL_COLOR_ATTACHMENT0;
-			system_resource_manager.DrawFramebuffers(s_framebuffer_bloom[i], 1, &blur_texture_attachment_point);
+			resource_manager.DrawFramebuffers(s_framebuffer_bloom[i], 1, &blur_texture_attachment_point);
 		}
 
 		g_gbuffer_textures = {
@@ -225,7 +237,8 @@ namespace Sandbox
 			s_fb_texture_normal,
 			s_fb_texture_metallic_roughness,
 			s_fb_texture_light_color,
-			s_fb_texture_luminance
+			s_fb_texture_luminance,
+			s_fb_texture_shadow
 		};
 	}
 
@@ -450,6 +463,8 @@ namespace Sandbox
 			return "Light Color";
 		else if (s_fb_texture_luminance == _texture)
 			return "Luminance";
+		else if (s_fb_texture_shadow == _texture)
+			return "Shadow Map";
 		else return "Undefined";
 	}
 
@@ -653,9 +668,9 @@ namespace Sandbox
 
 		system_resource_manager.UseProgram(program_draw_gbuffer);
 
-		/*ResourceManager::mesh_handle mesh_to_render = system_resource_manager.FindMesh("Sponza/Mesh_0");
+		/*ResourceManager::mesh_handle mesh_to_render = resource_manager.FindMesh("Sponza/Mesh_0");
 		if (mesh_to_render == 0)
-			mesh_to_render = system_resource_manager.FindMesh("Sphere/Sphere");*/
+			mesh_to_render = resource_manager.FindMesh("Sphere/Sphere");*/
 
 		system_resource_manager.BindFramebuffer(s_framebuffer_gbuffer);
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -668,7 +683,7 @@ namespace Sandbox
 		//{
 		//	glViewport(0, 0, (GLsizei)window_size.x, (GLsizei)window_size.y);
 
-		//	system_resource_manager.UnbindFramebuffer();
+		//	resource_manager.UnbindFramebuffer();
 		//	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		//	glEnable(GL_CULL_FACE);
 		//	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -768,56 +783,70 @@ namespace Sandbox
 
 		}
 
+		cascading_shadow_map_data csm_data;
+		if (Singleton<Component::DirectionalLightManager>().GetDirectionalLight().IsValid())
+		{
+			csm_data = Sandbox::RenderDirectionalLightCSM(camera_component.GetCameraData(), cam_transform);
+			Sandbox::RenderShadowMapToFrameBuffer(camera_component.Owner(), window_size, csm_data, s_fb_texture_depth, s_framebuffer_shadow);
+		}
 
 		// Lighting Stage
+		system_resource_manager.BindFramebuffer(s_framebuffer_lighting);
+		GLenum const draw_fb_lighting_attachment_01[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+		system_resource_manager.DrawFramebuffers(s_framebuffer_lighting, 2, draw_fb_lighting_attachment_01);
+
+		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		glViewport(0, 0, window_size.x, window_size.y);
+		glDisable(GL_BLEND);
+
+		system_resource_manager.UseProgram(system_resource_manager.FindShaderProgram("draw_phong"));
+		system_resource_manager.SetBoundProgramUniform(20, s_gamma_correction_factor);
+		system_resource_manager.SetBoundProgramUniform(21, s_shininess_mult_factor);
+		system_resource_manager.SetBoundProgramUniform(22, s_bloom_treshhold_color);
+
+		activate_texture(s_fb_texture_depth, 0, 0);
+		activate_texture(s_fb_texture_base_color, 1, 1);
+		activate_texture(s_fb_texture_metallic_roughness, 2, 2);
+		activate_texture(s_fb_texture_normal, 3, 3);
 
 		ResourceManager::mesh_handle sphere_mesh = system_resource_manager.FindMesh("Sphere/Sphere");
 		if (sphere_mesh)
 		{
-			system_resource_manager.BindFramebuffer(s_framebuffer_lighting);
-			glViewport(0, 0, window_size.x, window_size.y);
-			glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-			glClear(GL_COLOR_BUFFER_BIT);
-
-			if (s_ambient_color != glm::vec3(0))
-			{
-				glEnable(GL_CULL_FACE);
-				glDisable(GL_DEPTH_TEST);
-				glDepthMask(GL_FALSE);
-
-				system_resource_manager.UseProgram(program_draw_ambient_light);
-				system_resource_manager.SetBoundProgramUniform(10, s_ambient_color);
-				activate_texture(s_fb_texture_base_color, 0, 0);
-
-				GfxCall(glBindVertexArray(s_gl_tri_vao));
-				GfxCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_gl_tri_ibo));
-				GfxCall(glDrawElements(
-					GL_TRIANGLES,
-					3,
-					GL_UNSIGNED_BYTE,
-					nullptr
-				));
-			}
-
-			system_resource_manager.UseProgram(system_resource_manager.FindShaderProgram("draw_phong"));
-			system_resource_manager.SetBoundProgramUniform(20, s_gamma_correction_factor);
-			system_resource_manager.SetBoundProgramUniform(21, s_shininess_mult_factor);
-			system_resource_manager.SetBoundProgramUniform(22, s_bloom_treshhold_color);
-
-			activate_texture(s_fb_texture_depth, 0, 0);
-			activate_texture(s_fb_texture_base_color, 1, 1);
-			activate_texture(s_fb_texture_metallic_roughness, 2, 2);
-			activate_texture(s_fb_texture_normal, 3, 3);
-
 			Sandbox::RenderPointLights(sphere_mesh, camera_component.GetCameraData(), cam_transform);
-			Sandbox::RenderDirectionalLight(camera_component.GetCameraData(), cam_transform);
+		}
 
+		glDisable(GL_BLEND);
+		glEnable(GL_CULL_FACE);
+		glDepthMask(GL_TRUE);
+		glCullFace(GL_BACK);
+		glEnable(GL_DEPTH_TEST);
+		glDepthFunc(GL_LEQUAL);
+
+		if (s_ambient_color != glm::vec3(0))
+		{
 			glEnable(GL_CULL_FACE);
-			glDepthMask(GL_TRUE);
-			glDisable(GL_BLEND);
-			glCullFace(GL_BACK);
-			glEnable(GL_DEPTH_TEST);
-			glDepthFunc(GL_LEQUAL);
+			glDisable(GL_DEPTH_TEST);
+			glDepthMask(GL_FALSE);
+			glEnable(GL_BLEND);
+
+			system_resource_manager.UseProgram(program_draw_ambient_light);
+			system_resource_manager.SetBoundProgramUniform(10, s_ambient_color);
+			activate_texture(s_fb_texture_base_color, 0, 0);
+
+			// Disable drawing to luminance buffer when computing ambient color.
+			GLenum const draw_fb_lighting_attachment_0[] = { GL_COLOR_ATTACHMENT0};
+			system_resource_manager.DrawFramebuffers(s_framebuffer_lighting, 1, draw_fb_lighting_attachment_0);
+
+			GfxCall(glBindVertexArray(s_gl_tri_vao));
+			GfxCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_gl_tri_ibo));
+			GfxCall(glDrawElements(
+				GL_TRIANGLES,
+				3,
+				GL_UNSIGNED_BYTE,
+				nullptr
+			));
 		}
 
 		if (s_bloom_enabled)
@@ -826,6 +855,7 @@ namespace Sandbox
 			glCullFace(GL_BACK);
 			glDepthMask(GL_FALSE);
 			glDisable(GL_BLEND);
+			glDisable(GL_DEPTH_TEST);
 			glDepthFunc(GL_ALWAYS);
 
 			shader_program_handle bloom_blur_program = system_resource_manager.FindShaderProgram("process_bloom_blur");

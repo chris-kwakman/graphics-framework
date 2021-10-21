@@ -20,8 +20,6 @@ in mat3 f_vTBN;
 in vec3 f_normal;
 in vec3 f_tangent;
 
-out vec4 out_color;
-
 void main()
 {
 	vec4 frag_color = u_base_color_factor * texture(u_sampler_base_color, f_uv_1);

@@ -105,9 +105,6 @@ namespace Component
 		csm_params.m_min_filter = GL_LINEAR;
 		csm_params.m_mag_filter = GL_LINEAR;
 
-		// Create / Delete textures depending on how many subdivisions we want to have in CSM.
-		m_frustum_partition_count = _partition_count;
-
 		// Make sure furthest CSM texture always has minimum size of 1x1.
 		m_pow2_csm_resolution = _pow_two_csm_texture_size;
 		if (m_pow2_csm_resolution < _partition_count - 1)
@@ -128,9 +125,9 @@ namespace Component
 		m_cascade_shadow_map_texture = res_mgr.CreateTexture("CSM Texture");
 		res_mgr.AllocateTextureStorage2D(
 			m_cascade_shadow_map_texture, GL_DEPTH_COMPONENT32F, glm::uvec2(1 << m_pow2_csm_resolution),
-			csm_params, m_frustum_partition_count
+			csm_params, CSM_PARTITION_COUNT
 		);
-		for (unsigned int i = 0; i < m_frustum_partition_count; ++i)
+		for (unsigned int i = 0; i < CSM_PARTITION_COUNT; ++i)
 		{
 			framebuffer_handle new_fb = res_mgr.CreateFramebuffer();
 
@@ -162,11 +159,10 @@ namespace Component
 		m_directional_light_entity = _e;
 		m_light_color = glm::vec3(1.0f);
 		m_pow2_csm_resolution = 12;
-		m_frustum_partition_count = 3;
 		m_partition_linearity = 1.0f;
 		m_occluder_distance = 0.0f;
 
-		setup_csm(m_pow2_csm_resolution, m_frustum_partition_count);
+		setup_csm(m_pow2_csm_resolution, CSM_PARTITION_COUNT);
 
 		return true;
 	}
@@ -187,18 +183,14 @@ namespace Component
 		if (ImGui::IsWindowAppearing())
 			s_view_csm_texture_index = 0;
 
-		if(m_frustum_partition_count > 0)
-			s_view_csm_texture_index = glm::min(s_view_csm_texture_index, (unsigned int)m_frustum_partition_count - 1);
-
 		ImGui::ColorEdit3("Color", &m_light_color.x);
 		int pow2_resolution = m_pow2_csm_resolution;
-		int partition_count = m_frustum_partition_count;
 		bool do_setup_csm = false;
 
 		ImGui::SliderFloat("CSM Partition Linearity", &m_partition_linearity, 0.0f, 1.0f);
 		ImGui::SliderFloat("CSM Occluder Distance", &m_occluder_distance, 0.0f, 1000.0f);
-		do_setup_csm |= ImGui::SliderInt("CSM Pow2 Resolution", &pow2_resolution, m_frustum_partition_count - 1, 16, "%d", ImGuiSliderFlags_AlwaysClamp);
-		do_setup_csm |= ImGui::SliderInt("CSM Partitions", &partition_count, 1, 8, "%d", ImGuiSliderFlags_AlwaysClamp);
+		do_setup_csm |= ImGui::SliderInt("CSM Pow2 Resolution", &pow2_resolution, CSM_PARTITION_COUNT - 1, 16, "%d", ImGuiSliderFlags_AlwaysClamp);
+		//do_setup_csm |= ImGui::SliderInt("CSM Partitions", &partition_count, 1, 8, "%d", ImGuiSliderFlags_AlwaysClamp);
 
 		auto const csm_tex_info = Singleton<Engine::Graphics::ResourceManager>().GetTextureInfo(m_cascade_shadow_map_texture);
 		float const ar = csm_tex_info.m_size.x / csm_tex_info.m_size.y;
@@ -212,7 +204,7 @@ namespace Component
 		);
 
 		if (do_setup_csm)
-			setup_csm(pow2_resolution, partition_count);
+			setup_csm(pow2_resolution, CSM_PARTITION_COUNT);
 
 
 	}
@@ -281,9 +273,9 @@ namespace Component
 		GetManager().m_light_color = _color;
 	}
 
-	uint8_t DirectionalLight::GetPartitionCount() const
+	constexpr uint8_t DirectionalLight::GetPartitionCount() const
 	{
-		return GetManager().m_frustum_partition_count;
+		return DirectionalLightManager::CSM_PARTITION_COUNT;
 	}
 
 	float DirectionalLight::GetPartitionMinDepth(uint8_t _partition, float _near, float _far) const

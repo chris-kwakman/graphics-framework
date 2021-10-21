@@ -40,6 +40,7 @@ void main()
 	vec2 framebuffer_uv = vec2(gl_FragCoord.xy) / vec2(u_viewport_size);
 
 	float fb_depth = texture(u_sampler_depth, framebuffer_uv).r;
+
 	vec3 fb_color = texture(u_sampler_base_color, framebuffer_uv).rgb;
 	vec3 fb_normal = 2.0f * texture(u_sampler_normal, framebuffer_uv).xyz - 1.0f;
 	float fb_shininess = max(texture(u_sampler_metallic_roughness, framebuffer_uv).g, 0.01);
@@ -66,10 +67,11 @@ void main()
 	);
 
 	float luminance = dot(color_linear, u_bloom_treshhold);
-	if(luminance > 1.0)
-		out_luminance = vec3(color_linear);
+
+	if(luminance > 0.4)
+		out_luminance += vec3(color_linear);
 	else
-		out_luminance = vec3(0);
+		out_luminance += vec3(0);
 
 	out_color += color_linear;
 }

@@ -5,6 +5,8 @@
 namespace Sandbox
 {
 
+	unsigned int s_gl_tri_ibo = 0, s_gl_tri_vao = 0, s_gl_tri_vbo = 0;
+
 	void activate_texture(texture_handle _texture, unsigned int _program_uniform_index, unsigned int _texture_index)
 	{
 		// If no texture handle exists, ignore

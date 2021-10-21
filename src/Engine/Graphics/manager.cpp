@@ -999,7 +999,7 @@ namespace Graphics {
 		if (m_bound_program != _program_handle)
 		{
 			shader_program_info const& program_info = m_shader_program_info_map.at(_program_handle);
-			glUseProgram(program_info.m_gl_program_object);
+			GfxCall(glUseProgram(program_info.m_gl_program_object));
 			m_bound_program = _program_handle;
 			m_bound_gl_program_object = program_info.m_gl_program_object;
 		}

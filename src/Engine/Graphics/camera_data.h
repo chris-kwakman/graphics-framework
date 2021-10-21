@@ -24,6 +24,8 @@ namespace Engine {
 
 			float get_vertical_fov() const { return m_camera_type_value; }
 			float get_orthogonal_width() const { return m_camera_type_value; }
+			float get_clipping_depth(float _world_depth) const;
+			float get_world_depth(float _ndc_depth) const;
 			void set_vertical_fov(float _value) { m_camera_type_value = _value; m_is_orthogonal_camera = false; }
 			void set_orthogonal_width(float _value) { m_camera_type_value = _value; m_is_orthogonal_camera = true; }
 			bool is_orthogonal_camera() const { return m_is_orthogonal_camera; }

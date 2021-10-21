@@ -39,7 +39,7 @@ namespace Component
 		glm::vec3 GetColor() const;
 		void SetColor(glm::vec3 _color);
 
-		uint8_t GetPartitionCount() const;
+		constexpr uint8_t GetPartitionCount() const;
 		float	GetPartitionMinDepth(uint8_t _partition, float _near, float _far) const;
 		texture_handle GetShadowMapTexture() const;
 		framebuffer_handle GetPartitionFrameBuffer(uint8_t _partition) const;
@@ -97,7 +97,6 @@ namespace Component
 		// Size of first shadow map in cascade shadow map.
 		// Each subsequent shadow map will have its size halved.
 		uint8_t m_pow2_csm_resolution = 12; 
-		uint8_t m_frustum_partition_count = 1;
 		float m_partition_linearity = 1.0f; // Mixes linear and logarithmic partitioning approach.
 		float m_occluder_distance = 0.0f;
 
@@ -112,6 +111,8 @@ namespace Component
 		virtual void impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context) override;
 
 	public:
+
+		static unsigned int constexpr CSM_PARTITION_COUNT = 3;
 
 		virtual const char* GetComponentTypeName() const override { return "DirectionalLight"; }
 		DirectionalLight GetDirectionalLight() const { return DirectionalLight(m_directional_light_entity); }
