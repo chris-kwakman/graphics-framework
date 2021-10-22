@@ -110,32 +110,34 @@ namespace Component
 		if (m_pow2_csm_resolution < _partition_count - 1)
 			m_pow2_csm_resolution = _partition_count - 1;
 
-		res_mgr.DeleteTexture(m_cascade_shadow_map_texture);
-		for(unsigned int i = 0; i < m_cascade_shadow_map_framebuffers.size(); ++i)
+		for (unsigned int i = 0; i < CSM_PARTITION_COUNT; ++i)
+		{
+			res_mgr.DeleteTexture(m_cascade_shadow_map_textures[i]);
 			res_mgr.DeleteFramebuffer(m_cascade_shadow_map_framebuffers[i]);
-
-		m_cascade_shadow_map_texture = 0;
-		m_cascade_shadow_map_framebuffers.clear();
+			m_cascade_shadow_map_textures[i] = 0;
+			m_cascade_shadow_map_framebuffers[i] = 0;
+		}
 
 		GLenum const fb_attachment_points[] = { GL_NONE};
 		// Rather than creating a shadow map texture for each cascade, create a single
 		// shadow map texture with multiple mip-map levels.
 		// This way, we only have to pass a single texture to the shader 
 		// + a uniform to indicate how many cascades we are using.
-		m_cascade_shadow_map_texture = res_mgr.CreateTexture("CSM Texture");
-		res_mgr.AllocateTextureStorage2D(
-			m_cascade_shadow_map_texture, GL_DEPTH_COMPONENT32F, glm::uvec2(1 << m_pow2_csm_resolution),
-			csm_params, CSM_PARTITION_COUNT
-		);
 		for (unsigned int i = 0; i < CSM_PARTITION_COUNT; ++i)
 		{
+			m_cascade_shadow_map_textures[i] = res_mgr.CreateTexture("CSM Texture");
+			res_mgr.AllocateTextureStorage2D(
+				m_cascade_shadow_map_textures[i], GL_DEPTH_COMPONENT32F, glm::uvec2(1 << m_pow2_csm_resolution - i),
+				csm_params, CSM_PARTITION_COUNT
+			);
+
 			framebuffer_handle new_fb = res_mgr.CreateFramebuffer();
 
 			res_mgr.BindFramebuffer(new_fb);
-			res_mgr.AttachTextureToFramebuffer(new_fb, GL_DEPTH_ATTACHMENT, m_cascade_shadow_map_texture, i);
+			res_mgr.AttachTextureToFramebuffer(new_fb, GL_DEPTH_ATTACHMENT, m_cascade_shadow_map_textures[i]);
 			res_mgr.DrawFramebuffers(new_fb, sizeof(fb_attachment_points)/sizeof(GLenum), fb_attachment_points);
 
-			m_cascade_shadow_map_framebuffers.push_back(new_fb);
+			m_cascade_shadow_map_framebuffers[i]= new_fb;
 		}
 	}
 
@@ -144,12 +146,14 @@ namespace Component
 		m_directional_light_entity = Entity::InvalidEntity;
 		m_light_color = glm::vec3(1.0f);
 		auto & res_mgr = Singleton<Engine::Graphics::ResourceManager>();
-		res_mgr.DeleteTexture(m_cascade_shadow_map_texture);
-		for (auto fb : m_cascade_shadow_map_framebuffers)
-			res_mgr.DeleteFramebuffer(fb);
+		for (unsigned int i = 0; i < CSM_PARTITION_COUNT; ++i)
+		{
+			res_mgr.DeleteTexture(m_cascade_shadow_map_textures[i]);
+			res_mgr.DeleteFramebuffer(m_cascade_shadow_map_framebuffers[i]);
 
-		m_cascade_shadow_map_texture = 0;
-		m_cascade_shadow_map_framebuffers.clear();
+			m_cascade_shadow_map_textures[i] = 0;
+			m_cascade_shadow_map_framebuffers[i] = 0;
+		}
 	}
 
 	bool DirectionalLightManager::impl_create(Entity _e)
@@ -179,7 +183,8 @@ namespace Component
 
 	void DirectionalLightManager::impl_edit_component(Entity _entity)
 	{
-		static unsigned int s_view_csm_texture_index;
+		static int s_view_csm_texture_index = 0;
+		static bool s_view_csm = true;
 		if (ImGui::IsWindowAppearing())
 			s_view_csm_texture_index = 0;
 
@@ -189,19 +194,24 @@ namespace Component
 
 		ImGui::SliderFloat("CSM Partition Linearity", &m_partition_linearity, 0.0f, 1.0f);
 		ImGui::SliderFloat("CSM Occluder Distance", &m_occluder_distance, 0.0f, 1000.0f);
-		do_setup_csm |= ImGui::SliderInt("CSM Pow2 Resolution", &pow2_resolution, CSM_PARTITION_COUNT - 1, 16, "%d", ImGuiSliderFlags_AlwaysClamp);
-		//do_setup_csm |= ImGui::SliderInt("CSM Partitions", &partition_count, 1, 8, "%d", ImGuiSliderFlags_AlwaysClamp);
+		do_setup_csm |= ImGui::SliderInt("CSM Pow2 Resolution", &pow2_resolution, CSM_PARTITION_COUNT - 1, 14, "%d", ImGuiSliderFlags_AlwaysClamp);
 
-		auto const csm_tex_info = Singleton<Engine::Graphics::ResourceManager>().GetTextureInfo(m_cascade_shadow_map_texture);
-		float const ar = csm_tex_info.m_size.x / csm_tex_info.m_size.y;
+		ImGui::Checkbox("View CSM Partition Textures", &s_view_csm);
+		if (s_view_csm)
+		{
+			ImGui::SliderInt("View CSM Partition", &s_view_csm_texture_index, 0, CSM_PARTITION_COUNT - 1, "%d", ImGuiSliderFlags_AlwaysClamp);
+			auto const csm_tex_info = Singleton<Engine::Graphics::ResourceManager>().GetTextureInfo(m_cascade_shadow_map_textures[s_view_csm_texture_index]);
+			float const ar = csm_tex_info.m_size.x / csm_tex_info.m_size.y;
 
-		ImVec2 const avail_size = ImGui::GetContentRegionAvail();
-		ImVec2 const display_size(avail_size.x, avail_size.x / ar);
+			ImVec2 const avail_size = ImGui::GetContentRegionAvail();
+			ImVec2 const display_size(avail_size.x, avail_size.x / ar);
 
-		ImGui::Text("Size: %d", csm_tex_info.m_size.x);
-		ImGui::Image(
-			(void*)csm_tex_info.m_gl_source_id, display_size, ImVec2(0, 1), ImVec2(1, 0)
-		);
+			ImGui::Text("Size: %d", csm_tex_info.m_size.x);
+			ImGui::Image(
+				(void*)csm_tex_info.m_gl_source_id, display_size, ImVec2(0, 1), ImVec2(1, 0)
+			);
+
+		}
 
 		if (do_setup_csm)
 			setup_csm(pow2_resolution, CSM_PARTITION_COUNT);
@@ -287,9 +297,9 @@ namespace Component
 			+ linearity * (_near + partition_frac * (_far - _near));
 	}
 
-	texture_handle DirectionalLight::GetShadowMapTexture() const
+	texture_handle DirectionalLight::GetPartitionShadowMapTexture(uint8_t _partition) const
 	{
-		return GetManager().m_cascade_shadow_map_texture;
+		return GetManager().m_cascade_shadow_map_textures[_partition];
 	}
 
 	framebuffer_handle DirectionalLight::GetPartitionFrameBuffer(uint8_t _partition) const

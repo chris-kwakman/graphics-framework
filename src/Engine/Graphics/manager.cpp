@@ -774,6 +774,8 @@ namespace Graphics {
 	void ResourceManager::DeleteFramebuffer(framebuffer_handle _framebuffer)
 	{
 		auto iter = m_framebuffer_info_map.find(_framebuffer);
+		if (iter == m_framebuffer_info_map.end())
+			return;
 		Engine::Utils::assert_print_error(iter != m_framebuffer_info_map.end(), "Invalid framebuffer handle.");
 		framebuffer_info const framebuffer_info = iter->second;
 		m_framebuffer_info_map.erase(iter);

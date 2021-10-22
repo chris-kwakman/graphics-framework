@@ -6,6 +6,7 @@ struct CascadingShadowMapData
 {
 	mat4 vp[NUM_CASCADES];
 	float clipspace_end[NUM_CASCADES];
+	sampler2D shadow_map[NUM_CASCADES];
 };
 
 struct CameraData
@@ -17,11 +18,9 @@ struct CameraData
 };
 
 layout(location = 0) uniform sampler2D u_sampler_depth;
-// We store all cascade shadow maps in a single mip-map texture.
-layout(location = 1) uniform sampler2D u_sampler_shadow;
 
-layout(location = 2) uniform CameraData u_camera_data;
-layout(location = 6) uniform CascadingShadowMapData u_csm_data;
+layout(location = 1) uniform CameraData u_camera_data;
+layout(location = 5) uniform CascadingShadowMapData u_csm_data;
 
 in vec2 f_uv;
 out float out_color;
@@ -61,7 +60,7 @@ float calculate_shadow_factor(unsigned int cascade_index, vec4 light_space_pos)
 	vec2 uv = light_ndc.xy * 0.5 + 0.5;
 	float depth = light_ndc.z * 0.5 + 0.5; // Linear depth [0,1]
 	// Only sample texture at cascade index layer in mip map (cascade index 0 = base level = highest resolution texture).
-	float shadow_depth = texture(u_sampler_shadow, uv, float(cascade_index)).r;
+	float shadow_depth = texture2D(u_csm_data.shadow_map[cascade_index], uv).r;
 	if(shadow_depth < depth + 0.00001)
 		return 0.5;
 	else
@@ -79,8 +78,11 @@ void main()
 		light_space_pos[cascade] = u_csm_data.vp[cascade] * texel_world_pos;
 	}
 
-	//if(ndc_z == 1.0)
-	//	discard;
+	if(ndc_z == 1.0)
+	{
+		out_color = 0.0;
+		return;
+	}
 
 	float shadow_factor = 1;
 
