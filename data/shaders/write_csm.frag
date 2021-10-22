@@ -54,18 +54,30 @@ vec4 get_texel_world_pos()
 	return world_pos;
 }
 
+// https://developer.nvidia.com/gpugems/gpugems/part-ii-lighting-and-shadows/chapter-11-shadow-map-antialiasing
+
+const int PCF_NeighbourCount = 2;
 
 float calculate_shadow_factor(unsigned int cascade_index, vec4 light_space_pos)
 {
 	vec3 light_ndc = light_space_pos.xyz / light_space_pos.w;
-	vec2 uv = light_ndc.xy * 0.5 + 0.5;
 	float depth = light_ndc.z * 0.5 + 0.5; // Linear depth [0,1]
-	// Only sample texture at cascade index layer in mip map (cascade index 0 = base level = highest resolution texture).
-	float shadow_depth = texture2D(u_csm_data.shadow_map[cascade_index], uv).r;
-	if(shadow_depth < depth + 0.0001)
-		return u_shadow_intensity;
-	else
-		return 1.0;
+	vec2 uv = light_ndc.xy * 0.5 + 0.5;
+	vec2 uv_step = 1.0 / textureSize(u_csm_data.shadow_map[cascade_index], 0).xy;
+	
+	float shadow = 0.0;
+	uint texel_count = (2*PCF_NeighbourCount+1)*(2*PCF_NeighbourCount+1);
+	for(int i = -PCF_NeighbourCount; i <= PCF_NeighbourCount; ++i)
+	{
+		for(int j = -PCF_NeighbourCount; j <= PCF_NeighbourCount; ++j)
+		{
+			float depth_value = texture(u_csm_data.shadow_map[cascade_index], uv + uv_step * vec2(i,j)).r;
+			shadow += (depth_value < depth - 0.00035) 
+				? (1-u_shadow_intensity) 
+				: 1;
+		}
+	}
+	return shadow / texel_count;
 }
 
 void main()

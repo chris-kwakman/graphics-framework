@@ -144,7 +144,6 @@ namespace Component
 	void DirectionalLightManager::impl_clear()
 	{
 		m_directional_light_entity = Entity::InvalidEntity;
-		m_light_color = glm::vec3(1.0f);
 		auto & res_mgr = Singleton<Engine::Graphics::ResourceManager>();
 		for (unsigned int i = 0; i < CSM_PARTITION_COUNT; ++i)
 		{
@@ -162,9 +161,10 @@ namespace Component
 			return false;
 		m_directional_light_entity = _e;
 		m_light_color = glm::vec3(1.0f);
+		m_partition_linearity = 0.6f;
+		m_occluder_distance = 256.0f;
+		m_shadow_factor = 0.5f;
 		m_pow2_csm_resolution = 12;
-		m_partition_linearity = 1.0f;
-		m_occluder_distance = 0.0f;
 
 		setup_csm(m_pow2_csm_resolution, CSM_PARTITION_COUNT);
 

@@ -215,7 +215,7 @@ namespace Sandbox {
 		glClearDepth(1.0f);
 		glDepthMask(GL_TRUE);
 		glEnable(GL_CULL_FACE);
-		glCullFace(GL_FRONT);
+		glCullFace(GL_BACK);
 		glEnable(GL_DEPTH_TEST);
 		glDepthFunc(GL_LESS);
 
