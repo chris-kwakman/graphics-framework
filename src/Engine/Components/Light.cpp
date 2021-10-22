@@ -127,7 +127,7 @@ namespace Component
 		{
 			m_cascade_shadow_map_textures[i] = res_mgr.CreateTexture("CSM Texture");
 			res_mgr.AllocateTextureStorage2D(
-				m_cascade_shadow_map_textures[i], GL_DEPTH_COMPONENT32F, glm::uvec2(1 << m_pow2_csm_resolution - i),
+				m_cascade_shadow_map_textures[i], GL_DEPTH_COMPONENT24, glm::uvec2(1 << m_pow2_csm_resolution - i),
 				csm_params, CSM_PARTITION_COUNT
 			);
 
@@ -188,6 +188,7 @@ namespace Component
 		if (ImGui::IsWindowAppearing())
 			s_view_csm_texture_index = 0;
 
+		ImGui::SliderFloat("Shadow Intensity", &m_shadow_factor, 0.0f, 1.0f);
 		ImGui::ColorEdit3("Color", &m_light_color.x);
 		int pow2_resolution = m_pow2_csm_resolution;
 		bool do_setup_csm = false;
@@ -281,6 +282,16 @@ namespace Component
 	void DirectionalLight::SetColor(glm::vec3 _color)
 	{
 		GetManager().m_light_color = _color;
+	}
+
+	float DirectionalLight::GetShadowIntensity() const
+	{
+		return GetManager().m_shadow_factor;
+	}
+
+	void DirectionalLight::SetShadowIntensity(float _intensity)
+	{
+		GetManager().m_shadow_factor = std::clamp(_intensity, 0.0f, 1.0f);
 	}
 
 	constexpr uint8_t DirectionalLight::GetPartitionCount() const

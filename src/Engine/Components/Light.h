@@ -39,6 +39,9 @@ namespace Component
 		glm::vec3 GetColor() const;
 		void SetColor(glm::vec3 _color);
 
+		float	GetShadowIntensity() const;
+		void	SetShadowIntensity(float _intensity);
+
 		constexpr uint8_t GetPartitionCount() const;
 		float	GetPartitionMinDepth(uint8_t _partition, float _near, float _far) const;
 		texture_handle GetPartitionShadowMapTexture(uint8_t _partition) const;
@@ -103,6 +106,7 @@ namespace Component
 		uint8_t m_pow2_csm_resolution = 12; 
 		float m_partition_linearity = 1.0f; // Mixes linear and logarithmic partitioning approach.
 		float m_occluder_distance = 0.0f;
+		float m_shadow_factor = 0.5f; // Shadow intensity
 
 		void setup_csm(uint8_t _pow_two_csm_texture_size, uint8_t _partition_count);
 

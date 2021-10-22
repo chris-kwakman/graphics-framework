@@ -566,7 +566,7 @@ namespace Component
 		}
 		ImGui::DragFloat3("Position", &transform.position.x, 1.0f, -FLT_MAX / INT_MIN, FLT_MAX / INT_MIN);
 		ImGui::DragFloat3("Scale", &transform.scale.x, 0.1f, 0.0f, FLT_MAX / INT_MIN);
-		ImGui::DragFloat4("Orientation", &transform.quaternion.x, 0.1f);
+		ImGui::DragFloat4("Orientation", &transform.quaternion.x, 0.025f);
 		transform.quaternion = glm::normalize(transform.quaternion);
 	}
 

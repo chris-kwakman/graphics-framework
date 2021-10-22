@@ -19,8 +19,9 @@ struct CameraData
 
 layout(location = 0) uniform sampler2D u_sampler_depth;
 
-layout(location = 1) uniform CameraData u_camera_data;
-layout(location = 5) uniform CascadingShadowMapData u_csm_data;
+layout(location = 1) uniform float u_shadow_intensity = 0.5f;
+layout(location = 2) uniform CameraData u_camera_data;
+layout(location = 6) uniform CascadingShadowMapData u_csm_data;
 
 in vec2 f_uv;
 out float out_color;
@@ -61,8 +62,8 @@ float calculate_shadow_factor(unsigned int cascade_index, vec4 light_space_pos)
 	float depth = light_ndc.z * 0.5 + 0.5; // Linear depth [0,1]
 	// Only sample texture at cascade index layer in mip map (cascade index 0 = base level = highest resolution texture).
 	float shadow_depth = texture2D(u_csm_data.shadow_map[cascade_index], uv).r;
-	if(shadow_depth < depth + 0.00001)
-		return 0.5;
+	if(shadow_depth < depth + 0.0001)
+		return u_shadow_intensity;
 	else
 		return 1.0;
 }

@@ -36,7 +36,7 @@
 
 Engine::Graphics::ResourceManager::texture_handle		s_display_gbuffer_texture = 0;
 // Lighting data
-static glm::vec3	s_ambient_color = glm::vec3(1);
+static glm::vec3	s_ambient_color = glm::vec3(0.3f);
 static float		s_exposure = 1.0f;
 static float		s_gamma_correction_factor = 1.1f;
 static float		s_shininess_mult_factor = 100.0f;
@@ -44,7 +44,7 @@ static float		s_shininess_mult_factor = 100.0f;
 static bool			s_bloom_enabled = false;
 static glm::vec3	s_bloom_treshhold_color(0.2126f, 0.7152f, 0.0722f);
 static unsigned int	s_bloom_blur_count = 5;
-static bool			s_render_infinite_grid = false;
+static bool			s_render_infinite_grid = true;
 
 static Engine::Math::transform3D s_camera_default_transform;
 
@@ -284,14 +284,26 @@ namespace Sandbox
 		Singleton<Component::SceneEntityComponentManager>().Clear();
 	}
 
-	static bool s_reset_editor_camera_data = false;
-	void ResetEditorCameraData()
+	static bool s_scene_reset = false;
+	static bool s_camera_reset = false;
+
+	void ResetEditorCamera()
 	{
-		s_reset_editor_camera_data = false;
+		s_camera_reset = false;
 
 		Entity& editor_camera_entity = Singleton<Engine::Editor::Editor>().EditorCameraEntity;
 		editor_camera_entity = Singleton<Component::CameraManager>().AllCameras().begin()->first;
 		s_camera_default_transform = editor_camera_entity.GetComponent<Component::Transform>().GetLocalTransform();
+	}
+
+	void ResetSceneData()
+	{
+		s_scene_reset = false;
+
+		// Load next JSON scene
+		LoadScene(LoadJSON(s_scene_loaded.c_str()), s_scene_loaded.c_str());
+
+		ResetEditorCamera();
 	}
 
 	bool Initialize(int argc, char* argv[])
@@ -310,7 +322,7 @@ namespace Sandbox
 			s_scene_loaded = argv[1];
 		else
 			s_scene_loaded = "data/scenes/sceneShadow.json";
-		LoadScene(LoadJSON(s_scene_loaded.c_str()), s_scene_loaded.c_str());
+		//LoadScene(LoadJSON(s_scene_loaded.c_str()), s_scene_loaded.c_str());
 
 		system_resource_manager.ImportModel_GLTF("data/gltf/Sphere.gltf");
 
@@ -336,7 +348,7 @@ namespace Sandbox
 		//camera_transform_comp.SetLocalPosition(glm::vec3(0.0f, 10.0f, 0.0f));
 		//Component::Camera::GetManager().Create(s_camera_entity);
 
-		s_reset_editor_camera_data = true;
+		s_scene_reset = true;
 
 		GfxCall(glDepthRange(-1.0f, 1.0f));
 
@@ -605,7 +617,8 @@ namespace Sandbox
 
 	void Update()
 	{
-		ResetEditorCameraData();
+		if(s_scene_reset)
+			ResetSceneData();
 
 		using sdl_manager = Engine::sdl_manager;
 
@@ -829,10 +842,14 @@ namespace Sandbox
 		glDepthFunc(GL_LEQUAL);
 		glDepthMask(GL_FALSE);
 
+		Component::DirectionalLight const dl = Singleton<Component::DirectionalLightManager>().GetDirectionalLight();
 		system_resource_manager.UseProgram(program_draw_ambient_light);
 		system_resource_manager.SetBoundProgramUniform(10, s_ambient_color);
+		system_resource_manager.SetBoundProgramUniform(11, 
+			dl.IsValid() ? dl.GetColor() : glm::vec3(1.0f)
+		);
 		activate_texture(s_fb_texture_base_color, 0, 0);
-		activate_texture(s_fb_texture_shadow, 1, 1);
+		activate_texture(dl.IsValid() ? s_fb_texture_shadow : s_texture_white, 1, 1);
 
 		// Disable drawing to luminance buffer when computing ambient color.
 		GLenum const draw_fb_lighting_attachment_0[] = { GL_COLOR_ATTACHMENT0};
@@ -953,9 +970,7 @@ namespace Sandbox
 		if ((input_manager.GetKeyboardButtonState(SDL_SCANCODE_LCTRL) == button_state::eDown && input_manager.GetKeyboardButtonState(SDL_SCANCODE_R) == button_state::ePress))
 		{
 			Singleton<Component::SceneEntityComponentManager>().DestroyAllSceneEntities();
-			LoadScene(LoadJSON(s_scene_loaded.c_str()), s_scene_loaded.c_str());
-
-			s_reset_editor_camera_data = true;
+			s_scene_reset = true;
 		}
 	}
 
