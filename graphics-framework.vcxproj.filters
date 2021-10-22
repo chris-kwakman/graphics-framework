@@ -273,7 +273,6 @@
     <None Include="data\shaders\default.vert" />
     <None Include="data\shaders\deferred.frag" />
     <None Include="data\shaders\display_framebuffer.vert" />
-    <None Include="data\shaders\display_framebuffer_ambient_light.frag" />
     <None Include="data\shaders\display_framebuffer_plain.frag" />
     <None Include="data\shaders\phong.frag" />
     <None Include="data\shaders\postprocessing.frag" />
@@ -282,6 +281,7 @@
     <None Include=".gitattributes" />
     <None Include="data\shaders\write_csm.vert" />
     <None Include="data\shaders\write_csm.frag" />
+    <None Include="data\shaders\display_framebuffer_global_light.frag" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="src\Engine\Components\EngineComponents.txt" />

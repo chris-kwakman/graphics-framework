@@ -112,7 +112,7 @@ namespace Sandbox
 			"data/shaders/deferred.frag",
 			"data/shaders/display_framebuffer.vert",
 			"data/shaders/display_framebuffer_plain.frag",
-			"data/shaders/display_framebuffer_ambient_light.frag",
+			"data/shaders/display_framebuffer_global_light.frag",
 			"data/shaders/phong.frag",
 			"data/shaders/bloom.frag",
 			"data/shaders/postprocessing.frag",
@@ -129,7 +129,7 @@ namespace Sandbox
 		program_shader_path_list const draw_infinite_grid_shaders = { "data/shaders/infinite_grid.vert", "data/shaders/infinite_grid.frag" };
 		program_shader_path_list const draw_gbuffer_shaders = { "data/shaders/default.vert", "data/shaders/deferred.frag" };
 		program_shader_path_list const draw_framebuffer_plain_shaders = { "data/shaders/display_framebuffer.vert", "data/shaders/display_framebuffer_plain.frag" };
-		program_shader_path_list const draw_framebuffer_ambient_light = { "data/shaders/display_framebuffer.vert", "data/shaders/display_framebuffer_ambient_light.frag" };
+		program_shader_path_list const draw_framebuffer_global_light = { "data/shaders/display_framebuffer.vert", "data/shaders/display_framebuffer_global_light.frag" };
 		program_shader_path_list const draw_phong_shaders = { "data/shaders/default.vert", "data/shaders/phong.frag" };
 		program_shader_path_list const process_bloom_blur_shaders = { "data/shaders/display_framebuffer.vert", "data/shaders/bloom.frag" };
 		program_shader_path_list const draw_postprocessing_shaders = { "data/shaders/display_framebuffer.vert", "data/shaders/postprocessing.frag" };
@@ -139,7 +139,7 @@ namespace Sandbox
 		system_resource_manager.LoadShaderProgram("draw_infinite_grid", draw_infinite_grid_shaders);
 		system_resource_manager.LoadShaderProgram("draw_gbuffer", draw_gbuffer_shaders);
 		system_resource_manager.LoadShaderProgram("draw_framebuffer_plain", draw_framebuffer_plain_shaders);
-		system_resource_manager.LoadShaderProgram("draw_framebuffer_ambient_light", draw_framebuffer_ambient_light);
+		system_resource_manager.LoadShaderProgram("draw_framebuffer_global_light", draw_framebuffer_global_light);
 		system_resource_manager.LoadShaderProgram("draw_phong", draw_phong_shaders);
 		system_resource_manager.LoadShaderProgram("process_bloom_blur", process_bloom_blur_shaders);
 		system_resource_manager.LoadShaderProgram("postprocessing", draw_postprocessing_shaders);
@@ -661,7 +661,7 @@ namespace Sandbox
 
 		shader_program_handle const program_draw_gbuffer = system_resource_manager.FindShaderProgram("draw_gbuffer");
 		shader_program_handle const program_draw_framebuffer_plain = system_resource_manager.FindShaderProgram("draw_framebuffer_plain");
-		shader_program_handle const program_draw_ambient_light = system_resource_manager.FindShaderProgram("draw_framebuffer_ambient_light");
+		shader_program_handle const program_draw_ambient_light = system_resource_manager.FindShaderProgram("draw_framebuffer_global_light");
 		assert(program_draw_gbuffer != 0);
 
 		auto camera_component = camera_entity.GetComponent<Component::Camera>();
@@ -817,37 +817,37 @@ namespace Sandbox
 			Sandbox::RenderPointLights(sphere_mesh, camera_component.GetCameraData(), cam_transform);
 		}
 
-		glDisable(GL_BLEND);
+		/////////// Global Lighting (Ambient, Directional Light) //////////////////
+
+		glEnable(GL_DEPTH_TEST);
 		glEnable(GL_CULL_FACE);
+		glEnable(GL_BLEND);
+		glDisable(GL_DEPTH_TEST);
+
 		glDepthMask(GL_TRUE);
 		glCullFace(GL_BACK);
-		glEnable(GL_DEPTH_TEST);
 		glDepthFunc(GL_LEQUAL);
+		glDepthMask(GL_FALSE);
 
-		if (s_ambient_color != glm::vec3(0))
-		{
-			glEnable(GL_CULL_FACE);
-			glDisable(GL_DEPTH_TEST);
-			glDepthMask(GL_FALSE);
-			glEnable(GL_BLEND);
+		system_resource_manager.UseProgram(program_draw_ambient_light);
+		system_resource_manager.SetBoundProgramUniform(10, s_ambient_color);
+		activate_texture(s_fb_texture_base_color, 0, 0);
+		activate_texture(s_fb_texture_shadow, 1, 1);
 
-			system_resource_manager.UseProgram(program_draw_ambient_light);
-			system_resource_manager.SetBoundProgramUniform(10, s_ambient_color);
-			activate_texture(s_fb_texture_base_color, 0, 0);
+		// Disable drawing to luminance buffer when computing ambient color.
+		GLenum const draw_fb_lighting_attachment_0[] = { GL_COLOR_ATTACHMENT0};
+		system_resource_manager.DrawFramebuffers(s_framebuffer_lighting, 1, draw_fb_lighting_attachment_0);
 
-			// Disable drawing to luminance buffer when computing ambient color.
-			GLenum const draw_fb_lighting_attachment_0[] = { GL_COLOR_ATTACHMENT0};
-			system_resource_manager.DrawFramebuffers(s_framebuffer_lighting, 1, draw_fb_lighting_attachment_0);
+		GfxCall(glBindVertexArray(s_gl_tri_vao));
+		GfxCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_gl_tri_ibo));
+		GfxCall(glDrawElements(
+			GL_TRIANGLES,
+			3,
+			GL_UNSIGNED_BYTE,
+			nullptr
+		));
 
-			GfxCall(glBindVertexArray(s_gl_tri_vao));
-			GfxCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_gl_tri_ibo));
-			GfxCall(glDrawElements(
-				GL_TRIANGLES,
-				3,
-				GL_UNSIGNED_BYTE,
-				nullptr
-			));
-		}
+		/////////// Bloom //////////////
 
 		if (s_bloom_enabled)
 		{
