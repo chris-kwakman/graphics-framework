@@ -8,9 +8,9 @@
 
 namespace Sandbox {
 
-	using texture_handle = Engine::Graphics::ResourceManager::texture_handle;
-	using mesh_handle = Engine::Graphics::ResourceManager::mesh_handle;
-	using framebuffer_handle = Engine::Graphics::ResourceManager::framebuffer_handle;
+	using texture_handle = Engine::Graphics::texture_handle;
+	using mesh_handle = Engine::Graphics::mesh_handle;
+	using framebuffer_handle = Engine::Graphics::framebuffer_handle;
 
 	struct cascading_shadow_map_data
 	{

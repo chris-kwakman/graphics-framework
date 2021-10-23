@@ -7,12 +7,10 @@
 namespace Sandbox
 {
 
-	using namespace Engine::Graphics;
-	using RM = ResourceManager;
-	using texture_handle = RM::texture_handle;
-	using mesh_handle = RM::mesh_handle;
-	using shader_program_handle = RM::shader_program_handle;
-	using framebuffer_handle = RM::framebuffer_handle;
+	using texture_handle = Engine::Graphics::texture_handle;
+	using mesh_handle = Engine::Graphics::mesh_handle;
+	using shader_program_handle = Engine::Graphics::shader_program_handle;
+	using framebuffer_handle = Engine::Graphics::framebuffer_handle;
 
 	extern unsigned int s_gl_tri_ibo;
 	extern unsigned int s_gl_tri_vao;

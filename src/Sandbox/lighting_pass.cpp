@@ -13,7 +13,7 @@
 
 namespace Sandbox {
 
-	using mesh_handle = Engine::Graphics::ResourceManager::mesh_handle;
+	using mesh_handle = Engine::Graphics::mesh_handle;
 
 	void RenderPointLights(
 		mesh_handle _light_mesh,
@@ -101,9 +101,9 @@ namespace Sandbox {
 	{
 		using namespace Component;
 		using camera_data = Engine::Graphics::camera_data;
-		using texture_handle = Engine::Graphics::ResourceManager::texture_handle;
-		using mesh_handle = Engine::Graphics::ResourceManager::mesh_handle;
-		using shader_program = Engine::Graphics::ResourceManager::shader_program_handle;
+		using texture_handle = Engine::Graphics::texture_handle;
+		using mesh_handle = Engine::Graphics::mesh_handle;
+		using shader_program = Engine::Graphics::shader_program_handle;
 
 		unsigned int constexpr CSM_PARTITION_COUNT = DirectionalLightManager::CSM_PARTITION_COUNT;
 		cascading_shadow_map_data csm_data;

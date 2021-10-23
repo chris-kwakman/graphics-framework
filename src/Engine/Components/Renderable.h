@@ -14,16 +14,16 @@ namespace Component
 	{
 		DECLARE_COMPONENT(Renderable);
 
-		std::string						GetMeshName() const;
-		ResourceManager::mesh_handle	GetMeshHandle() const;
-		void							SetMesh(ResourceManager::mesh_handle _mesh);
+		std::string		GetMeshName() const;
+		mesh_handle		GetMeshHandle() const;
+		void			SetMesh(mesh_handle _mesh);
 	};
 
 	class RenderableManager : public TCompManager<Renderable>
 	{
 		friend struct Renderable;
 
-		std::unordered_map<Entity, ResourceManager::mesh_handle, Entity::hash> m_mesh_map;
+		std::unordered_map<Entity, mesh_handle, Entity::hash> m_mesh_map;
 
 		void impl_clear() final;
 		bool impl_create(Entity _e) final;

@@ -7,8 +7,8 @@
 namespace Component
 {
 	using namespace Engine::ECS;
-	using texture_handle = Engine::Graphics::ResourceManager::texture_handle;
-	using framebuffer_handle = Engine::Graphics::ResourceManager::framebuffer_handle;
+	using texture_handle = Engine::Graphics::texture_handle;
+	using framebuffer_handle = Engine::Graphics::framebuffer_handle;
 
 	class PointLightManager;
 	class DirectionalLightManager;
