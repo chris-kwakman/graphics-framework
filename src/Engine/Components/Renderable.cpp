@@ -8,7 +8,7 @@ namespace Component
 	std::string Renderable::GetMeshName() const
 	{
 		auto& named_mesh_map = Singleton<ResourceManager>().m_named_mesh_map;
-		ResourceManager::mesh_handle my_mesh_handle = GetMeshHandle();
+		mesh_handle my_mesh_handle = GetMeshHandle();
 		if (my_mesh_handle == 0)
 			return "No Mesh";
 		for (auto pair : named_mesh_map)
@@ -19,12 +19,12 @@ namespace Component
 		return "Unnamed";
 	}
 
-	ResourceManager::mesh_handle Renderable::GetMeshHandle() const
+	mesh_handle Renderable::GetMeshHandle() const
 	{
 		return GetManager().m_mesh_map.at(m_owner);
 	}
 
-	void Renderable::SetMesh(ResourceManager::mesh_handle _mesh)
+	void Renderable::SetMesh(mesh_handle _mesh)
 	{
 		GetManager().m_mesh_map.find(m_owner)->second = _mesh;
 	}
@@ -66,9 +66,9 @@ namespace Component
 	{
 		auto component = Get(_entity);
 		std::string mesh_name = component.GetMeshName();
-		ResourceManager::mesh_handle my_mesh = component.GetMeshHandle();
+		mesh_handle my_mesh = component.GetMeshHandle();
 
-		ResourceManager::mesh_handle payload_mesh_handle;
+		mesh_handle payload_mesh_handle;
 
 		auto accept_mesh_handle_payload = [&payload_mesh_handle]()->bool
 		{
@@ -77,7 +77,7 @@ namespace Component
 			{
 				if (ImGuiPayload const* payload = ImGui::AcceptDragDropPayload("RESOURCE_MESH"))
 				{
-					payload_mesh_handle = *(ResourceManager::mesh_handle*)payload->Data;
+					payload_mesh_handle = *(mesh_handle*)payload->Data;
 					result = true;
 				}
 

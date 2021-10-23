@@ -13,22 +13,17 @@ namespace Graphics {
 	void GLClearError();
 	bool GLLogCall(const char* _fn, const char* _file, int _line);
 
+	typedef unsigned int	mesh_handle;
+	typedef unsigned int	material_handle;
+	typedef unsigned int	texture_handle;
+	typedef unsigned int	framebuffer_handle;
+	typedef unsigned int	shader_program_handle;
+	typedef unsigned int	buffer_handle;	// Equivalent to buffer_view handle in glTF.
+
+	typedef std::string	 filepath_string;
+
 	class ResourceManager
 	{
-
-		//////////////////////////////////////////////////////
-		//			Defined Handle Types
-		//////////////////////////////////////////////////////
-
-	public:
-
-		typedef unsigned int	buffer_handle;	// Equivalent to buffer_view handle in glTF.
-		typedef unsigned int	mesh_handle;
-		typedef unsigned int	material_handle;
-		typedef unsigned int	texture_handle;
-		typedef unsigned int	framebuffer_handle;
-
-		typedef std::string	 filepath_string;
 
 		//////////////////////////////////////////////////////
 		//			OpenGL Graphics Assets Data
@@ -179,7 +174,6 @@ namespace Graphics {
 
 		typedef char shader_data;
 		typedef unsigned int shader_handle;
-		typedef unsigned int shader_program_handle;
 
 		struct shader_info
 		{

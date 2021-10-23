@@ -569,7 +569,7 @@ namespace Graphics {
 								(Mesh "Mesh_0" in file "Sponza.gltf" will be called "Sponza/Mesh_0")
 	* @return	mesh_handle		Handle to mesh (0 if not found)
 	*/
-	ResourceManager::mesh_handle ResourceManager::FindMesh(const char* _mesh_name) const
+	mesh_handle ResourceManager::FindMesh(const char* _mesh_name) const
 	{
 		auto iter = m_named_mesh_map.find(_mesh_name);
 		return (iter == m_named_mesh_map.end()) ? 0 : iter->second;
@@ -617,7 +617,7 @@ namespace Graphics {
 	* Creates a new texture object in graphics manager.
 	* @return	texture_handle
 	*/
-	ResourceManager::texture_handle ResourceManager::CreateTexture(const char* _debug_name)
+	texture_handle ResourceManager::CreateTexture(const char* _debug_name)
 	{
 		GLuint gl_texture_object = 0;
 		glGenTextures(1, &gl_texture_object);
@@ -759,7 +759,7 @@ namespace Graphics {
 	//						Framebuffer Methods
 	//////////////////////////////////////////////////////////////////
 
-	ResourceManager::framebuffer_handle ResourceManager::CreateFramebuffer()
+	framebuffer_handle ResourceManager::CreateFramebuffer()
 	{
 		GLuint framebuffer_object = 0;
 		glGenFramebuffers(1, &framebuffer_object);
@@ -902,7 +902,7 @@ namespace Graphics {
 		return output_shader_handles;
 	}
 
-	ResourceManager::shader_program_handle ResourceManager::LoadShaderProgram(std::string _program_name, std::vector<std::filesystem::path> _shader_filepaths)
+	shader_program_handle ResourceManager::LoadShaderProgram(std::string _program_name, std::vector<std::filesystem::path> _shader_filepaths)
 	{
 		// Get shader handles corresponding to given shader filepaths from internal map
 		std::vector<shader_handle> shader_handles;
@@ -913,13 +913,13 @@ namespace Graphics {
 		return LoadShaderProgram(_program_name, shader_handles);
 	}
 
-	ResourceManager::shader_program_handle ResourceManager::FindShaderProgram(std::string _program_name) const
+	shader_program_handle ResourceManager::FindShaderProgram(std::string _program_name) const
 	{
 		auto iter = m_named_shader_program_map.find(_program_name);
 		return iter == m_named_shader_program_map.end() ? 0 : iter->second;
 	}
 
-	ResourceManager::shader_program_handle ResourceManager::LoadShaderProgram(std::string _program_name, std::vector<shader_handle> _shader_handles)
+	shader_program_handle ResourceManager::LoadShaderProgram(std::string _program_name, std::vector<shader_handle> _shader_handles)
 	{
 
 		// Convert shader handles to gl shader objects

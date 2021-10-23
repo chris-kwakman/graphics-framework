@@ -13,7 +13,7 @@ namespace Sandbox
 		if (_texture == 0)
 			return;
 
-		auto & res_mgr = Singleton<RM>();
+		auto & res_mgr = Singleton<Engine::Graphics::ResourceManager>();
 		auto const texture_info = res_mgr.GetTextureInfo(_texture);
 		GfxCall(glActiveTexture(GL_TEXTURE0 + _texture_index));
 		GfxCall(glBindTexture(texture_info.m_target, texture_info.m_gl_source_id));

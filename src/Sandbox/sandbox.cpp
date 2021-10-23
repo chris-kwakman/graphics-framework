@@ -34,7 +34,7 @@
 
 # define MATH_PI           3.14159265358979323846f
 
-Engine::Graphics::ResourceManager::texture_handle		s_display_gbuffer_texture = 0;
+Engine::Graphics::texture_handle		s_display_gbuffer_texture = 0;
 // Lighting data
 static glm::vec3	s_ambient_color = glm::vec3(0.3f);
 static float		s_exposure = 1.0f;
@@ -75,8 +75,8 @@ namespace Sandbox
 		stbi_write_png(_filename, width, height, 4, imageData.data(), 0);
 	}
 
-	using framebuffer_handle = Engine::Graphics::ResourceManager::framebuffer_handle;
-	using texture_handle = Engine::Graphics::ResourceManager::texture_handle;
+	using framebuffer_handle = Engine::Graphics::framebuffer_handle;
+	using texture_handle = Engine::Graphics::texture_handle;
 	static texture_handle s_texture_white = 0;
 
 	static framebuffer_handle s_framebuffer_gbuffer, s_framebuffer_lighting, s_framebuffer_bloom[2], s_framebuffer_shadow;
@@ -103,7 +103,7 @@ namespace Sandbox
 		Engine::Graphics::ResourceManager& system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
 
 		using shader_handle = Engine::Graphics::ResourceManager::shader_handle;
-		using shader_program_handle = Engine::Graphics::ResourceManager::shader_program_handle;
+		using shader_program_handle = Engine::Graphics::shader_program_handle;
 
 		std::vector<std::filesystem::path> shader_paths = {
 			"data/shaders/infinite_grid.vert",
@@ -658,7 +658,7 @@ namespace Sandbox
 		glDepthFunc(GL_LEQUAL);
 		GfxCall(glViewport(0, 0, Singleton<Engine::sdl_manager>().m_surface->w, Singleton<Engine::sdl_manager>().m_surface->h));
 
-		using index_buffer_handle = Engine::Graphics::ResourceManager::buffer_handle;
+		using index_buffer_handle = Engine::Graphics::buffer_handle;
 		using namespace Engine::Graphics;
 
 		Entity const & camera_entity = Singleton<Engine::Editor::Editor>().EditorCameraEntity;
@@ -670,7 +670,7 @@ namespace Sandbox
 
 		//s_camera_transform.quaternion = camera.get_lookat_quat();
 
-		using shader_program_handle = Engine::Graphics::ResourceManager::shader_program_handle;
+		using shader_program_handle = Engine::Graphics::shader_program_handle;
 
 		shader_program_handle const program_draw_gbuffer = system_resource_manager.FindShaderProgram("draw_gbuffer");
 		shader_program_handle const program_draw_framebuffer_plain = system_resource_manager.FindShaderProgram("draw_framebuffer_plain");
@@ -681,7 +681,7 @@ namespace Sandbox
 
 		system_resource_manager.UseProgram(program_draw_gbuffer);
 
-		/*ResourceManager::mesh_handle mesh_to_render = resource_manager.FindMesh("Sponza/Mesh_0");
+		/*mesh_handle mesh_to_render = resource_manager.FindMesh("Sponza/Mesh_0");
 		if (mesh_to_render == 0)
 			mesh_to_render = resource_manager.FindMesh("Sphere/Sphere");*/
 
@@ -717,7 +717,7 @@ namespace Sandbox
 		for (auto pair : all_renderables)
 		{
 			Engine::ECS::Entity const renderable_entity = pair.first;
-			ResourceManager::mesh_handle const renderable_mesh = pair.second;
+			mesh_handle const renderable_mesh = pair.second;
 			if (renderable_mesh == 0) 
 				continue;
 
@@ -824,7 +824,7 @@ namespace Sandbox
 		activate_texture(s_fb_texture_metallic_roughness, 2, 2);
 		activate_texture(s_fb_texture_normal, 3, 3);
 
-		ResourceManager::mesh_handle sphere_mesh = system_resource_manager.FindMesh("Sphere/Sphere");
+		mesh_handle sphere_mesh = system_resource_manager.FindMesh("Sphere/Sphere");
 		if (sphere_mesh)
 		{
 			Sandbox::RenderPointLights(sphere_mesh, camera_component.GetCameraData(), cam_transform);
