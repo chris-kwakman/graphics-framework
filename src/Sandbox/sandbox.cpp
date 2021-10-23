@@ -69,7 +69,7 @@ namespace Sandbox
 		std::vector<unsigned char> imageData(width * height * 4, 0);
 
 		glPixelStorei(GL_PACK_ALIGNMENT, 1);
-		glReadBuffer(GL_FRONT);
+		glReadBuffer(GL_BACK);
 		glReadPixels(x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, imageData.data());
 		stbi_flip_vertically_on_write(true);
 		stbi_write_png(_filename, width, height, 4, imageData.data(), 0);
