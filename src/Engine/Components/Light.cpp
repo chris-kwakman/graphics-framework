@@ -177,7 +177,14 @@ namespace Component
 
 	void DirectionalLightManager::impl_destroy(Entity const* _entities, unsigned int _count)
 	{
-		impl_clear();
+		for (unsigned int i = 0; i < _count; ++i)
+		{
+			if (impl_component_owned_by_entity(_entities[i]))
+			{
+				impl_clear();
+				return;
+			}
+		}
 	}
 
 	bool DirectionalLightManager::impl_component_owned_by_entity(Entity _entity) const
