@@ -90,7 +90,9 @@ namespace Component
 	//					Directional Light Manager
 	//////////////////////////////////////////////////////////////////
 
-
+	/*
+	* Updates CSM textures and framebuffers to respect new texture size and partition count.
+	*/
 	void DirectionalLightManager::setup_csm(uint8_t _pow_two_csm_texture_size, uint8_t _partition_count)
 	{
 		assert(_partition_count != 0);
@@ -127,7 +129,7 @@ namespace Component
 		{
 			m_cascade_shadow_map_textures[i] = res_mgr.CreateTexture("CSM Texture");
 			res_mgr.AllocateTextureStorage2D(
-				m_cascade_shadow_map_textures[i], GL_DEPTH_COMPONENT24, glm::uvec2(1 << m_pow2_csm_resolution - i),
+				m_cascade_shadow_map_textures[i], GL_DEPTH_COMPONENT32F, glm::uvec2(1 << m_pow2_csm_resolution - i),
 				csm_params, CSM_PARTITION_COUNT
 			);
 
@@ -165,6 +167,8 @@ namespace Component
 		m_occluder_distance = 256.0f;
 		m_shadow_factor = 0.5f;
 		m_pow2_csm_resolution = 12;
+		for (unsigned int i = 0; i < CSM_PARTITION_COUNT; ++i)
+			m_cascade_shadow_bias[i] = 0.001f;
 
 		setup_csm(m_pow2_csm_resolution, CSM_PARTITION_COUNT);
 
@@ -183,25 +187,29 @@ namespace Component
 
 	void DirectionalLightManager::impl_edit_component(Entity _entity)
 	{
-		static int s_view_csm_texture_index = 0;
+		static int s_edit_csm_partition = 0;
 		static bool s_view_csm = true;
 		if (ImGui::IsWindowAppearing())
-			s_view_csm_texture_index = 0;
+			s_edit_csm_partition = 0;
 
 		ImGui::SliderFloat("Shadow Intensity", &m_shadow_factor, 0.0f, 1.0f);
 		ImGui::ColorEdit3("Color", &m_light_color.x);
+		ImGui::SliderFloat("Blend Distance", &m_blend_distance, 0.0f, 100.0f, "%.1f", ImGuiSliderFlags_AlwaysClamp);
+		ImGui::SliderInt("PCF Neighbour Count", &m_pcf_neighbour_count, 0, 10, "%d", ImGuiSliderFlags_AlwaysClamp);
+		ImGui::Checkbox("Render Debug Cascades", &m_render_cascades);
+
 		int pow2_resolution = m_pow2_csm_resolution;
 		bool do_setup_csm = false;
-
 		ImGui::SliderFloat("CSM Partition Linearity", &m_partition_linearity, 0.0f, 1.0f);
 		ImGui::SliderFloat("CSM Occluder Distance", &m_occluder_distance, 0.0f, 1000.0f);
 		do_setup_csm |= ImGui::SliderInt("CSM Pow2 Resolution", &pow2_resolution, CSM_PARTITION_COUNT - 1, 14, "%d", ImGuiSliderFlags_AlwaysClamp);
 
-		ImGui::Checkbox("View CSM Partition Textures", &s_view_csm);
+		ImGui::SliderInt("Edit CSM Partition", &s_edit_csm_partition, 0, CSM_PARTITION_COUNT - 1, "%d", ImGuiSliderFlags_AlwaysClamp);
+		ImGui::DragFloat("Partition Shadow Bias", &m_cascade_shadow_bias[s_edit_csm_partition], 0.0000001f, 0.0f, 0.01f, "%.5f");
+		ImGui::Checkbox("View Partition Shadow Map", &s_view_csm);
 		if (s_view_csm)
 		{
-			ImGui::SliderInt("View CSM Partition", &s_view_csm_texture_index, 0, CSM_PARTITION_COUNT - 1, "%d", ImGuiSliderFlags_AlwaysClamp);
-			auto const csm_tex_info = Singleton<Engine::Graphics::ResourceManager>().GetTextureInfo(m_cascade_shadow_map_textures[s_view_csm_texture_index]);
+			auto const csm_tex_info = Singleton<Engine::Graphics::ResourceManager>().GetTextureInfo(m_cascade_shadow_map_textures[s_edit_csm_partition]);
 			float const ar = csm_tex_info.m_size.x / csm_tex_info.m_size.y;
 
 			ImVec2 const avail_size = ImGui::GetContentRegionAvail();
@@ -211,8 +219,9 @@ namespace Component
 			ImGui::Image(
 				(void*)csm_tex_info.m_gl_source_id, display_size, ImVec2(0, 1), ImVec2(1, 0)
 			);
-
 		}
+
+
 
 		if (do_setup_csm)
 			setup_csm(pow2_resolution, CSM_PARTITION_COUNT);
@@ -294,6 +303,16 @@ namespace Component
 		GetManager().m_shadow_factor = std::clamp(_intensity, 0.0f, 1.0f);
 	}
 
+	float DirectionalLight::GetBlendDistance() const
+	{
+		return GetManager().m_blend_distance;
+	}
+
+	void DirectionalLight::SetBlendDistance(float _value)
+	{
+		GetManager().m_blend_distance = std::clamp(_value, 0.0f, std::numeric_limits<float>::max());
+	}
+
 	constexpr uint8_t DirectionalLight::GetPartitionCount() const
 	{
 		return DirectionalLightManager::CSM_PARTITION_COUNT;
@@ -316,6 +335,33 @@ namespace Component
 	framebuffer_handle DirectionalLight::GetPartitionFrameBuffer(uint8_t _partition) const
 	{
 		return GetManager().m_cascade_shadow_map_framebuffers[_partition];
+	}
+
+	float DirectionalLight::GetPartitionBias(uint8_t _partition) const
+	{
+ 		return GetManager().m_cascade_shadow_bias[_partition];
+	}
+
+	void DirectionalLight::SetPartitionBias(uint8_t _partition, float _bias)
+	{
+		GetManager().m_cascade_shadow_bias[_partition] = _bias;
+	}
+
+	bool DirectionalLight::GetCascadeDebugRendering() const
+	{
+		return GetManager().m_render_cascades;
+	}
+
+	unsigned int DirectionalLight::GetPCFNeighbourCount() const
+	{
+		return GetManager().m_pcf_neighbour_count;
+	}
+
+	glm::vec3 DirectionalLight::GetLightDirection() const
+	{
+		auto transform_comp = Owner().GetComponent<Transform>();
+		glm::vec4 vector(0.0f, 0.0f, -1.0f, 0.0f);
+		return glm::normalize(glm::vec3(transform_comp.ComputeWorldMatrix() * vector));
 	}
 
 

@@ -2,11 +2,16 @@
 
 #extension GL_ARB_explicit_uniform_location : enable
 
-layout(location = 0) uniform sampler2D u_sampler_base_color;
-layout(location = 1) uniform sampler2D u_sampler_shadow;
+const unsigned int CSM_PARTITION_COUNT = 3;
+
+layout(location = 0) uniform sampler2D u_sampler_depth;
+layout(location = 1) uniform sampler2D u_sampler_base_color;
+layout(location = 2) uniform sampler2D u_sampler_shadow;
 
 layout(location = 10) uniform vec3 u_ambient_color;
 layout(location = 11) uniform vec3 u_sunlight_color = vec3(1);
+layout(location = 12) uniform bool u_csm_render_cascades = false;
+layout(location = 13) uniform float u_csm_cascade_ndc_end[3];
 
 in vec2 f_uv;
 
@@ -19,6 +24,21 @@ void main()
 	vec3 texture_color = texture(u_sampler_base_color, f_uv).rgb;
 
 	vec3 frag_color = vec3((u_ambient_color + sunlight_factor * u_sunlight_color) * texture_color);
+
+	if(u_csm_render_cascades)
+	{
+		float ndc_z = 2*texture2D(u_sampler_depth, f_uv).r - 1;
+		vec3 frag_mult = vec3(0);
+		for(int i = 0; i < CSM_PARTITION_COUNT; ++i)
+		{
+			if(ndc_z <= u_csm_cascade_ndc_end[i])
+			{
+				frag_mult[i] = 1;
+				break;
+			}
+		}
+		frag_color *= frag_mult;
+	}
 
 	//frag_color *= texture2D(u_sampler_shadow, vec2(0)).r;
 

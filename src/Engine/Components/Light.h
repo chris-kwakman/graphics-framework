@@ -42,10 +42,21 @@ namespace Component
 		float	GetShadowIntensity() const;
 		void	SetShadowIntensity(float _intensity);
 
+		float GetBlendDistance() const;
+		void SetBlendDistance(float _value);
+
 		constexpr uint8_t GetPartitionCount() const;
 		float	GetPartitionMinDepth(uint8_t _partition, float _near, float _far) const;
 		texture_handle GetPartitionShadowMapTexture(uint8_t _partition) const;
 		framebuffer_handle GetPartitionFrameBuffer(uint8_t _partition) const;
+
+		float	GetPartitionBias(uint8_t _partition) const;
+		void	SetPartitionBias(uint8_t _partition, float _bias);
+
+		bool	GetCascadeDebugRendering() const;
+
+		unsigned int GetPCFNeighbourCount() const;
+		glm::vec3 GetLightDirection() const;
 	};
 
 	class PointLightManager : public TCompManager<PointLight>
@@ -96,17 +107,22 @@ namespace Component
 		friend struct DirectionalLight;
 
 		Entity m_directional_light_entity = Entity::InvalidEntity;
-		glm::vec3 m_light_color = glm::vec3(1.0f);
 		// CSM textures sorted from nearest to furthest.
 		// Uses mipmap layers to define textures for different cascades
-		texture_handle m_cascade_shadow_map_textures[CSM_PARTITION_COUNT];
-		framebuffer_handle m_cascade_shadow_map_framebuffers[CSM_PARTITION_COUNT];
+		float				m_cascade_shadow_bias[CSM_PARTITION_COUNT];
+		texture_handle		m_cascade_shadow_map_textures[CSM_PARTITION_COUNT];
+		framebuffer_handle	m_cascade_shadow_map_framebuffers[CSM_PARTITION_COUNT];
+
 		// Size of first shadow map in cascade shadow map.
 		// Each subsequent shadow map will have its size halved.
-		uint8_t m_pow2_csm_resolution = 12; 
-		float m_partition_linearity = 0.6f; // Mixes linear and logarithmic partitioning approach.
-		float m_occluder_distance = 256.0f;
-		float m_shadow_factor = 0.5f; // Shadow intensity
+		uint8_t		m_pow2_csm_resolution = 12; 
+		glm::vec3	m_light_color = glm::vec3(1.0f);
+		float		m_partition_linearity = 0.6f; // Mixes linear and logarithmic partitioning approach.
+		float		m_occluder_distance = 256.0f;
+		float		m_shadow_factor = 0.5f; // Shadow intensity
+		float		m_blend_distance = 0.0f;
+		bool		m_render_cascades = false;
+		int			m_pcf_neighbour_count = 2;
 
 		void setup_csm(uint8_t _pow_two_csm_texture_size, uint8_t _partition_count);
 

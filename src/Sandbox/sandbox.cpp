@@ -800,7 +800,7 @@ namespace Sandbox
 		if (Singleton<Component::DirectionalLightManager>().GetDirectionalLight().IsValid())
 		{
 			csm_data = Sandbox::RenderDirectionalLightCSM(camera_component.GetCameraData(), cam_transform);
-			Sandbox::RenderShadowMapToFrameBuffer(camera_component.Owner(), window_size, csm_data, s_fb_texture_depth, s_framebuffer_shadow);
+			Sandbox::RenderShadowMapToFrameBuffer(camera_component.Owner(), window_size, csm_data, s_fb_texture_depth, s_fb_texture_normal, s_framebuffer_shadow);
 		}
 
 		// Lighting Stage
@@ -848,8 +848,22 @@ namespace Sandbox
 		system_resource_manager.SetBoundProgramUniform(11, 
 			dl.IsValid() ? dl.GetColor() : glm::vec3(1.0f)
 		);
-		activate_texture(s_fb_texture_base_color, 0, 0);
-		activate_texture(dl.IsValid() ? s_fb_texture_shadow : s_texture_white, 1, 1);
+		system_resource_manager.SetBoundProgramUniform(12, dl.IsValid() & dl.GetCascadeDebugRendering());
+		if (dl.IsValid())
+		{
+			for (unsigned int i = 0; i < dl.GetPartitionCount(); ++i)
+			{
+				system_resource_manager.SetBoundProgramUniform(
+					13 + i,
+					camera_data.get_clipping_depth(
+						dl.GetPartitionMinDepth(i + 1, camera_data.m_near, camera_data.m_far) - dl.GetBlendDistance()
+					)
+				);
+			}
+		}
+		activate_texture(s_fb_texture_depth, 0, 0);
+		activate_texture(s_fb_texture_base_color, 1, 1);
+		activate_texture(dl.IsValid() ? s_fb_texture_shadow : s_texture_white, 2, 2);
 
 		// Disable drawing to luminance buffer when computing ambient color.
 		GLenum const draw_fb_lighting_attachment_0[] = { GL_COLOR_ATTACHMENT0};

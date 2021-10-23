@@ -16,6 +16,7 @@ namespace Sandbox {
 	{
 		glm::mat4x4 m_light_transformations[Component::DirectionalLightManager::CSM_PARTITION_COUNT];
 		float		m_cascade_clipspace_end[Component::DirectionalLightManager::CSM_PARTITION_COUNT];
+		float		m_cascade_blend_clipspace_start[Component::DirectionalLightManager::CSM_PARTITION_COUNT - 1];
 	};
 
 	void RenderPointLights(
@@ -34,6 +35,7 @@ namespace Sandbox {
 		glm::uvec2 _viewport_size, 
 		cascading_shadow_map_data const & _csm_data,
 		texture_handle	  _depth_texture,
+		texture_handle	  _normal_texture,
 		framebuffer_handle _shadow_frame_buffer
 	);
 }

@@ -147,8 +147,19 @@ namespace Sandbox {
 		for (unsigned int partition = 0; partition < CSM_PARTITION_COUNT; ++partition)
 		{
 			glm::vec4 subfrustum_corners[8];
-			float const subfrustum_far = dl.GetPartitionMinDepth(partition + 1, _camera.m_near, _camera.m_far);
-			float const subfrustum_near = dl.GetPartitionMinDepth(partition, _camera.m_near, _camera.m_far);
+			float subfrustum_far = dl.GetPartitionMinDepth(partition + 1, _camera.m_near, _camera.m_far);
+			float subfrustum_near = dl.GetPartitionMinDepth(partition, _camera.m_near, _camera.m_far);
+			// Move near plane of subfrustum towards camera if we are using CSM blending.
+			if (partition > 0)
+			{
+				// Make sure blend start is clamped to be within subfrustum near and far.
+				subfrustum_near = std::clamp(
+					subfrustum_near - dl.GetBlendDistance(),
+					dl.GetPartitionMinDepth(partition - 1, _camera.m_near, _camera.m_far),
+					subfrustum_near
+				);
+			}
+
  			float const subfrustum_near_frac = subfrustum_near / _camera.m_far;
 			float const subfrustum_far_frac = subfrustum_far / _camera.m_far;
 
@@ -191,6 +202,8 @@ namespace Sandbox {
 			light_partition_matrices[partition] = mat_light_view_to_box_projection * mat_world_to_light_view;
 			csm_data.m_light_transformations[partition] = light_partition_matrices[partition];
 			csm_data.m_cascade_clipspace_end[partition] = _camera.get_clipping_depth(subfrustum_far);
+			if (partition > 0)
+				csm_data.m_cascade_blend_clipspace_start[partition - 1] = _camera.get_clipping_depth(subfrustum_near);
 		}
 
 		// ### Render objects onto shadow map textures.
@@ -266,7 +279,8 @@ namespace Sandbox {
 		Entity _camera_entity, 
 		glm::uvec2 _viewport_size, 
 		cascading_shadow_map_data const& _csm_data,
-		texture_handle	  _depth_texture,
+		texture_handle _depth_texture,
+		texture_handle _normal_texture,
 		framebuffer_handle _shadow_frame_buffer
 	)
 	{
@@ -290,7 +304,8 @@ namespace Sandbox {
 
 		glm::mat4x4 const mat_cam_perspective = cam_data.get_perspective_matrix();
 		shader_camera_data shader_cam_data;
-		shader_cam_data.m_inv_vp = glm::inverse(mat_cam_perspective * cam_transform.GetInvMatrix());
+		glm::mat4x4 const mat_world_to_perspective = mat_cam_perspective * cam_transform.GetInvMatrix();
+		shader_cam_data.m_inv_vp = glm::inverse(mat_world_to_perspective);
 		shader_cam_data.m_viewport_size = glm::vec2(_viewport_size);
 		shader_cam_data.m_near = cam_data.m_near;
 		shader_cam_data.m_far = cam_data.m_far;
@@ -305,12 +320,17 @@ namespace Sandbox {
 		GfxCall(glCullFace(GL_BACK));
 		GfxCall(glDisable(GL_BLEND));
 
-		unsigned int const CAMDATA_UNIFORM_OFFSET = 2;
-		unsigned int const CSM_DATA_UNIFORM_OFFSET = 6;
+		unsigned int const CAMDATA_UNIFORM_OFFSET = 5;
+		unsigned int const CSM_DATA_UNIFORM_OFFSET = 9;
+
+		glm::vec4 ndc_light_dir = glm::normalize(mat_world_to_perspective * glm::vec4(dl.GetLightDirection(), 0));
 
 		// Pass scene depth texture to shader
 		activate_texture(_depth_texture, 0, 0);
-		res_mgr.SetBoundProgramUniform(1, dl.GetShadowIntensity());
+		activate_texture(_normal_texture, 1, 1);
+		res_mgr.SetBoundProgramUniform(2, dl.GetShadowIntensity());
+		res_mgr.SetBoundProgramUniform(3, dl.GetPCFNeighbourCount());
+		res_mgr.SetBoundProgramUniform(4, glm::vec3(ndc_light_dir));
 		// Upload camera data
 		res_mgr.SetBoundProgramUniform(CAMDATA_UNIFORM_OFFSET + 0, shader_cam_data.m_inv_vp);
 		res_mgr.SetBoundProgramUniform(CAMDATA_UNIFORM_OFFSET + 1, shader_cam_data.m_viewport_size);
@@ -319,10 +339,27 @@ namespace Sandbox {
 		// Upload CSM data
 		for (unsigned int i = 0; i < CSM_PARTITION_COUNT; ++i)
 		{
-			res_mgr.SetBoundProgramUniform(CSM_DATA_UNIFORM_OFFSET +i, _csm_data.m_light_transformations[i]);
-			res_mgr.SetBoundProgramUniform(CSM_DATA_UNIFORM_OFFSET  + CSM_PARTITION_COUNT + i, _csm_data.m_cascade_clipspace_end[i]);
-			activate_texture(dl.GetPartitionShadowMapTexture(i), CSM_DATA_UNIFORM_OFFSET + 2 * CSM_PARTITION_COUNT + i, 1+i);
+			res_mgr.SetBoundProgramUniform(
+				CSM_DATA_UNIFORM_OFFSET + i, _csm_data.m_light_transformations[i]
+			);
+			res_mgr.SetBoundProgramUniform(
+				CSM_DATA_UNIFORM_OFFSET + CSM_PARTITION_COUNT + i, dl.GetPartitionBias(i)
+			);
+			activate_texture(
+				dl.GetPartitionShadowMapTexture(i), 
+				CSM_DATA_UNIFORM_OFFSET + 2*CSM_PARTITION_COUNT + i, 
+				2+i
+			);
+			res_mgr.SetBoundProgramUniform(
+				CSM_DATA_UNIFORM_OFFSET + 3*CSM_PARTITION_COUNT + i, 
+				_csm_data.m_cascade_clipspace_end[i]
+			);
 		}
+		for(unsigned int i = 0; i < CSM_PARTITION_COUNT-1; ++i)
+			res_mgr.SetBoundProgramUniform(
+				CSM_DATA_UNIFORM_OFFSET + 4 * CSM_PARTITION_COUNT + i, 
+				_csm_data.m_cascade_blend_clipspace_start[i]
+			);
 
 		GfxCall(glBindVertexArray(s_gl_tri_vao));
 		GfxCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_gl_tri_ibo));
