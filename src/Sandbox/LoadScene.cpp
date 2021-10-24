@@ -132,7 +132,6 @@ namespace Sandbox
 
 	std::vector<Engine::ECS::Entity> LoadGLTFScene(nlohmann::json const& _scene, const char * _model_path, const char * _scene_path)
 	{
-		assert(_scene_path);
 		assert(_model_path);
 
 		using namespace Component;
@@ -155,7 +154,8 @@ namespace Sandbox
 		for (Entity e : node_entities)
 		{
 			Component::Create<Transform>(e);
-			Component::Create<SceneEntityComponent>(e).SetToScene(_scene_path);
+			if(_scene_path)
+				Component::Create<SceneEntityComponent>(e).SetToScene(_scene_path);
 		}
 
 		// First pass to check parent of each entity (if any)

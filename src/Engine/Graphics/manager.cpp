@@ -1646,11 +1646,12 @@ namespace Graphics {
 	}
 
 
-	enum E_ResourceType {eMesh, eCOUNT};
-	static E_ResourceType s_editor_show_resource_list = eMesh;
+	enum E_ResourceType {eMesh, eModel, eCOUNT};
+	static E_ResourceType s_editor_show_resource_list = eModel;
 
 	static std::unordered_map<E_ResourceType, const char*> s_resource_type_name{
-		{E_ResourceType::eMesh, "Mesh"}
+		{E_ResourceType::eMesh, "Mesh"},
+		{E_ResourceType::eModel, "Model"}
 	};
 
 	const char* get_type_name(E_ResourceType _type) { return s_resource_type_name.at(_type); }
@@ -1673,8 +1674,11 @@ namespace Graphics {
 
 			ImGui::Separator();
 
-			if (s_editor_show_resource_list == E_ResourceType::eMesh)
-				editor_mesh_list();
+			switch (s_editor_show_resource_list)
+			{
+			case E_ResourceType::eMesh: editor_mesh_list(); break;
+			case E_ResourceType::eModel: editor_model_list(); break;
+			}
 		}
 		ImGui::End();
 	}
@@ -1715,6 +1719,19 @@ namespace Graphics {
 			}
 		}
 
+	}
+
+	void ResourceManager::editor_model_list()
+	{
+		for (auto const& filepath_model_pair : m_imported_gltf_models)
+		{
+			ImGui::Selectable(filepath_model_pair.second.m_model_name.c_str());
+			if (ImGui::BeginDragDropSource())
+			{
+				ImGui::SetDragDropPayload("RESOURCE_MODEL", (void const*)&filepath_model_pair.first, filepath_model_pair.first.size());
+				ImGui::EndDragDropSource();
+			}
+		}
 	}
 
 

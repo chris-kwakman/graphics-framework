@@ -11,6 +11,9 @@
 
 #include <glm/gtx/matrix_decompose.hpp>
 
+//TODO: Make transform.cpp not depend on Sandbox content.
+#include <Sandbox/LoadScene.h>
+
 namespace Component
 {
 
@@ -475,6 +478,16 @@ namespace Component
 				Entity source_entity = *reinterpret_cast<Entity*>(payload->Data);
 				transform_manager.Get(_e).AttachChild(source_entity);
 			}
+			// TODO: Perform this via some callback maybe?
+			else if (ImGuiPayload const* payload = ImGui::AcceptDragDropPayload("RESOURCE_MODEL", target_flags))
+			{
+				const char* model_filepath = *reinterpret_cast<const char**>(payload->Data);
+				nlohmann::json const scene = Sandbox::LoadJSON(model_filepath);
+				auto model_scene_nodes = Sandbox::LoadGLTFScene(scene, model_filepath, nullptr);
+				Transform e_transform = _e.GetComponent<Transform>();
+				for (Entity model_scene_node : model_scene_nodes)
+					e_transform.AttachChild(model_scene_node, false);
+			}
 			ImGui::EndDragDropTarget();
 		}
 
@@ -510,7 +523,7 @@ namespace Component
 
 		glm::mat4x4 transform_matrix;
 		if (s_imguizmo_current_mode == ImGuizmo::WORLD)
-			transform_matrix = transform_component.ComputeWorldMatrix();
+			transform_matrix = transform_component.ComputeWorldTransform().GetMatrix();
 		else
 			transform_matrix = transform_component.GetLocalTransform().GetMatrix();
 

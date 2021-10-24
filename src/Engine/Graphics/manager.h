@@ -413,7 +413,7 @@ namespace Graphics {
 	private:
 		
 		void editor_mesh_list();
-
+		void editor_model_list();
 
 	private:
 
