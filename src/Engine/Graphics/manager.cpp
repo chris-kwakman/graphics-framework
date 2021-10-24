@@ -7,6 +7,7 @@
 #include <set>
 #include <sstream>
 #include <algorithm>
+#include <unordered_set>
 
 #include <glm/gtc/type_ptr.hpp>
 #include <SDL2/SDL.h>
@@ -153,11 +154,26 @@ namespace Graphics {
 		* Load buffers (VBOs & IBOs)
 		*/
 
+		/* Collect all bufferview indices that have been referenced by primitive indices 
+		 * and attributes requiring GPU buffer objects. */
+		// ALL BUFFERVIEWS THAT SHOULD BE UPLOADED TO THE GPU SHOULD BE REGISTERED HERE.
+		std::unordered_set<unsigned int> gpu_buffer_bufferview_set;
+		for (auto mesh : tinygltf_model.meshes)
+		{
+			for (auto primitive : mesh.primitives)
+			{
+				for (auto& attribute : primitive.attributes)
+					gpu_buffer_bufferview_set.insert(tinygltf_model.accessors[attribute.second].bufferView);
+				if (primitive.indices >= 0)
+					gpu_buffer_bufferview_set.insert(tinygltf_model.accessors[primitive.indices].bufferView);
+			}
+		}
+
 		// Generate all GL buffers at once.
-		unsigned int const new_bufferview_count = (unsigned int)tinygltf_model.bufferViews.size();
 		std::vector<GLuint> new_gl_buffer_arr;
-		new_gl_buffer_arr.resize(new_bufferview_count);
-		glGenBuffers(new_bufferview_count, &new_gl_buffer_arr[0]);
+		unsigned int const new_gpu_buffer_bufferview_count = (unsigned int)gpu_buffer_bufferview_set.size();
+		new_gl_buffer_arr.resize(new_gpu_buffer_bufferview_count);
+		glGenBuffers(new_gpu_buffer_bufferview_count, &new_gl_buffer_arr[0]);
 		// Assert that all generated buffers are valid
 		for (unsigned int i = 0; i < new_gl_buffer_arr.size(); ++i)
 			assert(
@@ -165,20 +181,23 @@ namespace Graphics {
 				"OpenGL could not generate all requested buffers."
 			);
 
+		// Map bufferview tinyGLTF indices to application bufferview_info
+		std::unordered_map<unsigned int, buffer_handle> map_tinygltf_buffview_index;
 		unsigned int gpu_buffer_count = 0;
-		for (unsigned int i = 0; i < new_bufferview_count; ++i)
+		//for (unsigned int i = 0; i < new_gpu_buffer_bufferview_count; ++i)
+		for(unsigned int bufferview_idx : gpu_buffer_bufferview_set)
 		{
 			buffer_handle const curr_new_handle = m_buffer_handle_counter + gpu_buffer_count;	
-			tinygltf::BufferView const& read_bufferview = tinygltf_model.bufferViews[i];
+			tinygltf::BufferView const& read_bufferview = tinygltf_model.bufferViews[bufferview_idx];
 			tinygltf::Buffer const& read_buffer = tinygltf_model.buffers[read_bufferview.buffer];
 
 
 			buffer_info new_buffer_info;
-			new_buffer_info.m_gl_id = new_gl_buffer_arr[i];
+			new_buffer_info.m_gl_id = new_gl_buffer_arr[bufferview_idx];
 			new_buffer_info.m_target = read_bufferview.target;
 			if (read_bufferview.target == 0)
 			{
-				Engine::Utils::print_warning("glTF Buffer View (%u) Target is undefined. Setting target as ELEMENT_ARRAY_BUFFER.", i);
+				Engine::Utils::print_warning("glTF Buffer View (%u) Target is undefined. Setting target as ELEMENT_ARRAY_BUFFER.", bufferview_idx);
 				new_buffer_info.m_target = GL_ELEMENT_ARRAY_BUFFER;
 			}
 
@@ -191,6 +210,7 @@ namespace Graphics {
 				GL_STATIC_DRAW
 			));
 
+			map_tinygltf_buffview_index.emplace(bufferview_idx, curr_new_handle);
 			new_buffer_info_map.emplace(curr_new_handle, new_buffer_info);
 			gpu_buffer_count++;
 		}
@@ -229,8 +249,9 @@ namespace Graphics {
 
 				new_primitive.m_vao_gl_id = new_gl_vao_array[p];
 				new_primitive.m_material_handle = m_material_handle_counter + read_primitive.material;
-				new_primitive.m_index_buffer_handle = read_primitive.indices >= 0 
-					? m_buffer_handle_counter + tinygltf_model.accessors[read_primitive.indices].bufferView
+				new_primitive.m_index_buffer_handle = (read_primitive.indices >= 0)
+					//? m_buffer_handle_counter + tinygltf_model.accessors[read_primitive.indices].bufferView
+					? map_tinygltf_buffview_index.at(tinygltf_model.accessors[read_primitive.indices].bufferView)
 					: 0;
 				new_primitive.m_render_mode = read_primitive.mode;
 
@@ -264,7 +285,7 @@ namespace Graphics {
 					tinygltf::Accessor const& read_accessor = tinygltf_model.accessors[primitive_attrib.second];
 					tinygltf::BufferView const& read_bufferview = tinygltf_model.bufferViews[read_accessor.bufferView];
 					buffer_handle const attribute_buffer_handle =
-						m_buffer_handle_counter + read_accessor.bufferView;
+						map_tinygltf_buffview_index.at(read_accessor.bufferView);
 					buffer_info const attribute_referenced_buffer = new_buffer_info_map.at(attribute_buffer_handle);
 
 					// Determine location of attribute in shader.
@@ -314,10 +335,174 @@ namespace Graphics {
 		}
 
 		/*
-		*	Skins and joints
+		*	Skins
 		*/
 
+		// This data will be used to load animation data correctly.
+		// Used to map tinygltf model node indices to skeleton relative joint indices.
+		struct tinygltf_skin_data
+		{
+			std::unordered_map<unsigned int, unsigned int> m_skin_node_skeleton_joint_index;
+		};
+		std::unordered_map<unsigned int, unsigned int> jointnode_idx_to_tinygltf_skin_data_idx_map;
+		std::vector<tinygltf_skin_data> tinygltf_skin_data_arr;
 
+		decltype(m_skin_data_map) new_skin_data_map;
+		std::vector<skin_handle> created_skins;
+
+		unsigned int skin_counter = 0;
+		for (auto const& skin : tinygltf_model.skins)
+		{
+			tinygltf_skin_data current_tinygltf_skin_data;
+			skin_data new_skin_data;
+
+			tinygltf::Accessor const& accessor = tinygltf_model.accessors[skin.inverseBindMatrices];
+			tinygltf::BufferView const& buffer_view = tinygltf_model.bufferViews[accessor.bufferView];
+			tinygltf::Buffer const& buffer = tinygltf_model.buffers[buffer_view.buffer];
+
+			// Not testing whether inverseBindMatrices accessor actually exists since it is required by tinyGLTF implementation.
+
+			// Assert our assumptions of inverse bind matrices data.
+			assert(accessor.type == TINYGLTF_TYPE_MAT4);
+			assert(accessor.componentType == GL_FLOAT);
+			assert(accessor.ByteStride(buffer_view) == sizeof(glm::mat4));
+			assert(accessor.byteOffset == 0);
+
+			// Load in inverse bind matrices memory from contiguous block.
+			new_skin_data.m_inv_bind_matrices.resize(accessor.count);
+			memcpy(
+				&new_skin_data.m_inv_bind_matrices.front(), 
+				(void*)(&buffer.data.front() + buffer_view.byteOffset),
+				sizeof(glm::mat4)* accessor.count
+			);
+
+			skin_handle const new_skin_handle = m_skin_handle_counter + skin_counter;
+			new_skin_data_map.emplace(new_skin_handle, std::move(new_skin_data));
+			created_skins.push_back(new_skin_handle);
+
+			// Register nodes corresponding to current skin in tinygltf_skin_data struct and register in map
+			assert(skin.skeleton == skin.joints[0]);
+			for (unsigned int i = 0; i < skin.joints.size(); ++i)
+			{
+				jointnode_idx_to_tinygltf_skin_data_idx_map.emplace(skin.joints[i], skin_counter);
+				current_tinygltf_skin_data.m_skin_node_skeleton_joint_index.emplace(skin.joints[i], i);
+			}
+			tinygltf_skin_data_arr.push_back(std::move(current_tinygltf_skin_data));
+
+			++skin_counter;
+		}
+
+		/*
+		*	Animations
+		*/
+
+		decltype(m_anim_data_map)					new_anim_data_map;
+		decltype(m_anim_sampler_data_map)			new_anim_sampler_data_map;
+		decltype(m_anim_interpolation_data_map)		new_anim_interpolation_data_map;
+
+		//// Load input / output interpolation data separately.
+		// Map tinygltf sampler accessor index to our application handle.
+		std::unordered_set<unsigned int> tinygltf_interp_accessor_indices;
+		std::unordered_map<unsigned int, animation_interpolation_handle> tinygltf_interp_accessor_idx_to_handle;
+		// Animation local sampler indices correspond directly to handles at indices in array.
+		std::vector<std::vector<animation_sampler_handle>> tinygltf_anim_idx_to_sampler_handle_arr;
+		unsigned int anim_samplers = 0;
+		for (auto anim : tinygltf_model.animations)
+		{
+			std::vector<animation_sampler_handle> anim_sampler_handle_arr;
+			anim_sampler_handle_arr.reserve(anim.samplers.size());
+			for (auto sampler : anim.samplers)
+			{
+				tinygltf_interp_accessor_indices.insert(sampler.input);
+				tinygltf_interp_accessor_indices.insert(sampler.output);
+				anim_sampler_handle_arr.push_back(m_anim_sampler_handle_counter + anim_samplers);
+				++anim_samplers;
+			}
+			tinygltf_anim_idx_to_sampler_handle_arr.emplace_back(std::move(anim_sampler_handle_arr));
+		}
+		// Load data into memory for animation interpolation data
+		for (unsigned int interp_accessor_idx : tinygltf_interp_accessor_indices)
+		{
+			tinygltf::Accessor const& accessor = tinygltf_model.accessors[interp_accessor_idx];
+			tinygltf::BufferView const& bufferview = tinygltf_model.bufferViews[accessor.bufferView];
+			tinygltf::Buffer const& buffer = tinygltf_model.buffers[bufferview.buffer];
+
+			size_t const interp_component_type_size = sizeof(float);
+			size_t interp_type_size = 0;
+			switch (accessor.type)
+			{
+			case TINYGLTF_TYPE_SCALAR: interp_type_size = 1; break;
+			case TINYGLTF_TYPE_VEC3: interp_type_size = 3; break;
+			case TINYGLTF_TYPE_VEC4: interp_type_size = 4; break;
+			}
+			assert(interp_type_size != 0);
+			assert(accessor.componentType == GL_FLOAT);
+			assert(accessor.ByteStride(bufferview) == interp_type_size * interp_component_type_size);
+
+			animation_interpolation_data new_anim_interp_data;
+			new_anim_interp_data.m_data.resize(accessor.count* interp_type_size);
+			memcpy(
+				&new_anim_interp_data.m_data.front(),
+				(&buffer.data.front()) + bufferview.byteOffset + accessor.byteOffset,
+				new_anim_interp_data.m_data.size() * interp_component_type_size
+			);
+
+			animation_interpolation_handle const new_anim_interpolation_handle = m_anim_interpolation_handle_counter + new_anim_interpolation_data_map.size();
+			new_anim_interpolation_data_map.emplace(new_anim_interpolation_handle, std::move(new_anim_interp_data));
+			tinygltf_interp_accessor_idx_to_handle.emplace(interp_accessor_idx, new_anim_interpolation_handle);
+		}
+
+		for (unsigned int animation_idx = 0; animation_idx < tinygltf_model.animations.size(); ++animation_idx)
+		{
+			tinygltf::Animation const& anim = tinygltf_model.animations[animation_idx];
+			auto const& anim_sampler_handle_arr = tinygltf_anim_idx_to_sampler_handle_arr[animation_idx];
+			animation_data new_anim_data;
+			new_anim_data.m_animation_channels.reserve(anim.channels.size());
+			for (unsigned int sampler_idx = 0; sampler_idx < anim.samplers.size(); ++sampler_idx)
+			{
+				animation_sampler_data new_anim_sampler_data;
+				tinygltf::AnimationSampler const& sampler = anim.samplers[sampler_idx];
+
+				if (sampler.interpolation == "LINEAR")
+					new_anim_sampler_data.m_interpolation_type = animation_sampler_data::E_interpolation_type::LINEAR;
+				else if (sampler.interpolation == "STEP")
+					new_anim_sampler_data.m_interpolation_type = animation_sampler_data::E_interpolation_type::STEP;
+				else if (sampler.interpolation == "CUBICSPLINE")
+					new_anim_sampler_data.m_interpolation_type = animation_sampler_data::E_interpolation_type::CUBICSPLINE;
+				else
+					assert(false);
+				new_anim_sampler_data.m_anim_interp_input_handle = tinygltf_interp_accessor_idx_to_handle.at(sampler.input);
+				new_anim_sampler_data.m_anim_interp_output_handle = tinygltf_interp_accessor_idx_to_handle.at(sampler.output);
+				animation_sampler_handle const sampler_handle = anim_sampler_handle_arr[sampler_idx];
+				new_anim_sampler_data_map.emplace(sampler_handle, new_anim_sampler_data);
+			}
+			for (tinygltf::AnimationChannel const& channel : anim.channels)
+			{
+				animation_channel_data new_anim_channel_data;
+				// Convert TinyGLTF target node index to relative skeleton node index 
+				// (as defined in tinygltf_skin_data entry in map)
+				unsigned int const jointnode_skin_index = 
+					jointnode_idx_to_tinygltf_skin_data_idx_map.at(channel.target_node);
+				unsigned int const skeleton_relative_jointnode_index = 
+					tinygltf_skin_data_arr[jointnode_skin_index].m_skin_node_skeleton_joint_index.at(channel.target_node);
+
+				//// Prepare animation channel data entry
+				// Use index of node within skeleton joint node array referred to by animation channel.
+				new_anim_channel_data.m_skeleton_relative_jointnode_index = skeleton_relative_jointnode_index;
+				// Obtain correct path for animation channel.
+				if (channel.target_path == "translation")
+					new_anim_channel_data.m_target_path = animation_channel_data::E_target_path::TRANSLATION;
+				else if (channel.target_path == "rotation")
+					new_anim_channel_data.m_target_path = animation_channel_data::E_target_path::ROTATION;
+				else if (channel.target_path == "scale")
+					new_anim_channel_data.m_target_path = animation_channel_data::E_target_path::SCALE;
+				else
+					assert(false);
+
+				new_anim_channel_data.m_anim_sampler_handle = tinygltf_anim_idx_to_sampler_handle_arr[animation_idx][channel.sampler];
+				new_anim_data.m_animation_channels.push_back(std::move(new_anim_channel_data));
+			}
+		}
 
 		/*
 		* Textures / Images / Samplers
@@ -523,18 +708,27 @@ namespace Graphics {
 		m_buffer_handle_counter += (unsigned int)new_buffer_info_map.size();
 		m_material_handle_counter += (unsigned int)new_material_data_map.size();
 		m_texture_handle_counter += (unsigned int)new_texture_info_map.size();
+		m_skin_handle_counter += (unsigned int)new_skin_data_map.size();
+		m_anim_handle_counter += (unsigned int)new_anim_data_map.size();
+		m_anim_sampler_handle_counter += (unsigned int)new_anim_sampler_data_map.size();
+		m_anim_interpolation_handle_counter += (unsigned int)new_anim_interpolation_data_map.size();
 
 		m_buffer_info_map.merge(std::move(new_buffer_info_map));
 		m_index_buffer_info_map.merge(std::move(new_index_buffer_info_map));
 		m_named_mesh_map.merge(new_named_mesh_map);
+		m_skin_data_map.merge(new_skin_data_map);
 		m_mesh_name_map.merge(new_mesh_name_map);
 		m_mesh_primitives_map.merge(new_mesh_primitives_map);
 		m_material_data_map.merge(new_material_data_map);
 		m_texture_info_map.merge(new_texture_info_map);
+		m_anim_data_map.merge(new_anim_data_map);
+		m_anim_sampler_data_map.merge(new_anim_sampler_data_map);
+		m_anim_interpolation_data_map.merge(new_anim_interpolation_data_map);
 
 		gltf_model_data model_data;
 		model_data.m_model_name = model_name;
 		model_data.m_meshes = std::move(created_meshes);
+		model_data.m_skins = std::move(created_skins);
 
 		m_imported_gltf_models.emplace(_filepath, std::move(model_data));
 
@@ -1210,25 +1404,39 @@ namespace Graphics {
 
 		// Collect all mesh handles
 		std::vector<mesh_handle> mesh_handles;
+		std::vector<skin_handle> skin_handles;
 		std::vector<buffer_handle> buffer_handles;
 		std::vector<texture_handle> texture_handles;
 		std::vector<framebuffer_handle> framebuffer_handles;
 		std::vector<shader_handle> shader_handles;
 		std::vector<shader_program_handle> shader_program_handles;
+		std::vector<animation_handle> animation_handles;
+		std::vector<animation_sampler_handle> animation_sampler_handles;
+		std::vector<animation_interpolation_handle> animation_interpolation_handles;
 
 		collect_keys(m_mesh_primitives_map, mesh_handles);
+		collect_keys(m_skin_data_map, skin_handles);
 		collect_keys(m_buffer_info_map, buffer_handles);
 		collect_keys(m_texture_info_map, texture_handles);
 		collect_keys(m_framebuffer_info_map, framebuffer_handles);
 		collect_keys(m_shader_info_map, shader_handles);
 		collect_keys(m_shader_program_info_map, shader_program_handles);
+		collect_keys(m_anim_data_map, animation_handles);
+		collect_keys(m_anim_sampler_data_map, animation_sampler_handles);
+		collect_keys(m_anim_interpolation_data_map, animation_interpolation_handles);
 
 		delete_meshes(mesh_handles);
+		delete_skins(skin_handles);
 		delete_buffers(buffer_handles);
 		delete_textures(texture_handles);
 		delete_framebuffers(framebuffer_handles);
 		delete_shaders(shader_handles);
 		delete_programs(shader_program_handles);
+		delete_animations(animation_handles);
+		delete_animation_samplers(animation_sampler_handles);
+		delete_animation_interpolations(animation_interpolation_handles);
+
+		reset_counters();
 
 		m_imported_gltf_models.clear();
 		m_material_data_map.clear();
@@ -1237,12 +1445,16 @@ namespace Graphics {
 	void ResourceManager::reset_counters()
 	{
 		m_mesh_handle_counter = 1;
+		m_skin_handle_counter = 1;
 		m_buffer_handle_counter = 1;
 		m_material_handle_counter = 1;
 		m_texture_handle_counter = 1;
 		m_framebuffer_handle_counter = 1;
 		m_shader_handle_counter = 1;
 		m_shader_program_handle_counter = 1;
+		m_anim_handle_counter = 1;
+		m_anim_sampler_handle_counter = 1;
+		m_anim_interpolation_handle_counter = 1;
 	}
 
 	void ResourceManager::delete_meshes(std::vector<mesh_handle> const& _meshes)
@@ -1280,6 +1492,15 @@ namespace Graphics {
 		{
 			GfxCall(glDeleteVertexArrays((GLsizei)gl_vertex_array_objects.size(), &gl_vertex_array_objects[0]));
 		}
+	}
+
+	/*
+	* Delete instances of skin data
+	*/
+	void ResourceManager::delete_skins(std::vector<skin_handle> const& _skins)
+	{
+		for (skin_handle skin : _skins)
+			m_skin_data_map.erase(skin);
 	}
 
 	/*
@@ -1404,6 +1625,24 @@ namespace Graphics {
 			GfxCall(glDeleteProgram(iter->second.m_gl_program_object));
 			m_shader_program_info_map.erase(iter);
 		}
+	}
+
+	void ResourceManager::delete_animations(std::vector<animation_handle> _animations)
+	{
+		for (auto anim : _animations)
+			m_anim_data_map.erase(anim);
+	}
+
+	void ResourceManager::delete_animation_samplers(std::vector<animation_sampler_handle> _animation_samplers)
+	{
+		for (auto sampler : _animation_samplers)
+			m_anim_sampler_data_map.erase(sampler);
+	}
+
+	void ResourceManager::delete_animation_interpolations(std::vector<animation_interpolation_handle> _animation_interpolations)
+	{
+		for (auto interp : _animation_interpolations)
+			m_anim_interpolation_data_map.erase(interp);
 	}
 
 

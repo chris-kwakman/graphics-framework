@@ -13,12 +13,44 @@ namespace Graphics {
 	void GLClearError();
 	bool GLLogCall(const char* _fn, const char* _file, int _line);
 
-	typedef unsigned int	mesh_handle;
-	typedef unsigned int	material_handle;
-	typedef unsigned int	texture_handle;
-	typedef unsigned int	framebuffer_handle;
-	typedef unsigned int	shader_program_handle;
-	typedef unsigned int	buffer_handle;	// Equivalent to buffer_view handle in glTF.
+	typedef uint16_t	mesh_handle;
+	typedef uint16_t	material_handle;
+	typedef uint16_t	texture_handle;
+	typedef uint16_t	framebuffer_handle;
+	typedef uint16_t	shader_program_handle;
+	typedef uint16_t	buffer_handle;	// Equivalent to buffer_view handle in glTF.
+	typedef uint16_t	skin_handle;
+	typedef uint16_t	animation_handle;
+	typedef uint16_t	animation_sampler_handle;
+	typedef uint16_t	animation_interpolation_handle;
+
+	struct animation_sampler_data
+	{
+		enum E_interpolation_type : uint8_t {LINEAR, STEP, CUBICSPLINE};
+		animation_interpolation_handle	m_anim_interp_input_handle;
+		animation_interpolation_handle	m_anim_interp_output_handle;
+		E_interpolation_type			m_interpolation_type;
+	};
+
+	struct animation_channel_data
+	{
+		// ROTATION assumes quaternion is in X,Y,Z,W order
+		enum E_target_path : uint8_t {TRANSLATION, SCALE, ROTATION};
+		animation_sampler_handle		m_anim_sampler_handle;
+		E_target_path					m_target_path; // Name of animated property.
+		uint16_t						m_skeleton_relative_jointnode_index; // Relative ID of node within skeleton.
+	};
+
+	struct animation_data
+	{
+		std::vector<animation_channel_data> m_animation_channels;
+	};
+
+	// This struct is used to store either animation sampler input or output data.
+	struct animation_interpolation_data
+	{
+		std::vector<float>	m_data;
+	};
 
 	typedef std::string	 filepath_string;
 
@@ -46,6 +78,11 @@ namespace Graphics {
 			unsigned char	m_render_mode = GL_TRIANGLES; // Default according to specification
 		};
 
+		struct skin_data
+		{
+			std::vector<glm::mat4x4> m_inv_bind_matrices;
+		};
+
 		// Defines information for both vertex buffers and index buffers
 		struct buffer_info
 		{
@@ -64,10 +101,14 @@ namespace Graphics {
 		// Handle counters
 		mesh_handle			m_mesh_handle_counter = 1;
 		buffer_handle		m_buffer_handle_counter = 1;
+		skin_handle			m_skin_handle_counter = 1;
 
 		std::unordered_map<std::string, mesh_handle>			m_named_mesh_map;
 		std::unordered_map<mesh_handle, std::string>			m_mesh_name_map;
 		std::unordered_map<mesh_handle, mesh_primitive_list>	m_mesh_primitives_map;
+
+		std::unordered_map<skin_handle, skin_data>				m_skin_data_map;
+
 		std::unordered_map<buffer_handle, buffer_info>			m_buffer_info_map;
 		std::unordered_map<buffer_handle, index_buffer_info>	m_index_buffer_info_map;
 
@@ -136,6 +177,21 @@ namespace Graphics {
 		std::unordered_map<texture_handle, texture_info>	m_texture_info_map;
 
 		//////////////////////////////////////////////////////
+		//				Animation Data
+		//////////////////////////////////////////////////////
+
+	public:
+
+		animation_handle				m_anim_handle_counter = 1;
+		animation_sampler_handle		m_anim_sampler_handle_counter = 1;
+		animation_interpolation_handle	m_anim_interpolation_handle_counter = 1;
+
+		std::unordered_map<animation_handle, animation_data> m_anim_data_map;
+		std::unordered_map<animation_sampler_handle, animation_sampler_data> m_anim_sampler_data_map;
+		std::unordered_map<animation_interpolation_handle, animation_interpolation_data> m_anim_interpolation_data_map;
+
+
+		//////////////////////////////////////////////////////
 		//				Framebuffer Data
 		//////////////////////////////////////////////////////
 
@@ -161,6 +217,7 @@ namespace Graphics {
 		{
 			std::string m_model_name;
 			std::vector<mesh_handle> m_meshes;
+			std::vector<skin_handle> m_skins;
 		};
 
 		std::unordered_map<filepath_string, gltf_model_data> m_imported_gltf_models;
@@ -363,12 +420,16 @@ namespace Graphics {
 		void reset_counters();
 
 		void delete_meshes(std::vector<mesh_handle> const& _meshes);
+		void delete_skins(std::vector<skin_handle> const& _skins);
 		void delete_buffers(std::vector<buffer_handle> const& _buffers);
 		void delete_materials(std::vector<material_handle> const& _materials);
 		void delete_textures(std::vector<texture_handle> const& _textures);
 		void delete_framebuffers(std::vector<framebuffer_handle> const& _framebuffers);
 		void delete_shaders(std::vector<shader_handle> _shaders);
 		void delete_programs(std::vector<shader_program_handle> _programs);
+		void delete_animations(std::vector<animation_handle> _animations);
+		void delete_animation_samplers(std::vector<animation_sampler_handle> _animation_samplers);
+		void delete_animation_interpolations(std::vector<animation_interpolation_handle> _animation_interpolations);
 	};
 
 }
