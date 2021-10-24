@@ -556,7 +556,6 @@ namespace Component
 			}
 		}
 
-		Engine::Math::transform3D& transform = m_local_transforms[get_entity_indexer_data(_entity).transform];
 		const char* name_gizmo_operation = s_imguizmo_current_operation == ImGuizmo::TRANSLATE
 			? "Translate"
 			: s_imguizmo_current_operation == ImGuizmo::SCALE
@@ -577,10 +576,25 @@ namespace Component
 			if (ImGui::Selectable("Local")) s_imguizmo_current_mode = ImGuizmo::LOCAL;
 			ImGui::EndCombo();
 		}
+
+		auto entity_transform = _entity.GetComponent<Transform>();
+		Engine::Math::transform3D transform = m_local_transforms[get_entity_indexer_data(_entity).transform];
+		if (s_imguizmo_current_mode == ImGuizmo::WORLD)
+			transform = entity_transform.ComputeWorldTransform();
+
+		if (s_imguizmo_current_mode == ImGuizmo::WORLD)
+			ImGui::BeginDisabled();
+
 		ImGui::DragFloat3("Position", &transform.position.x, 1.0f, -FLT_MAX / INT_MIN, FLT_MAX / INT_MIN);
 		ImGui::DragFloat3("Scale", &transform.scale.x, 0.1f, 0.0f, FLT_MAX / INT_MIN);
 		ImGui::DragFloat4("Orientation", &transform.quaternion.x, 0.025f);
 		transform.quaternion = glm::normalize(transform.quaternion);
+		
+		if (s_imguizmo_current_mode == ImGuizmo::WORLD)
+			ImGui::EndDisabled();
+
+		if (s_imguizmo_current_mode == ImGuizmo::LOCAL)
+			entity_transform.SetLocalTransform(transform);
 	}
 
 	/*

@@ -282,6 +282,7 @@
     <None Include="data\shaders\write_csm.vert" />
     <None Include="data\shaders\write_csm.frag" />
     <None Include="data\shaders\display_framebuffer_global_light.frag" />
+    <None Include="data\shaders\skinned.vert" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="src\Engine\Components\EngineComponents.txt" />

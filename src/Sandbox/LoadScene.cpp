@@ -166,12 +166,13 @@ namespace Sandbox
 		{
 			json const& node = nodes.at(i);
 			auto child_iter = node.find("children");
+			node_entities[i].GetComponent<Transform>().SetLocalTransform(node);
 			if (child_iter != node.end())
 			{
 				for (unsigned int child_index : *child_iter)
 				{
 					node_parent_indices[child_index] = i;
-					node_entities[child_index].GetComponent<Transform>().SetParent(node_entities[i]);
+					node_entities[child_index].GetComponent<Transform>().SetParent(node_entities[i], false);
 				}
 			}
 		}
@@ -200,6 +201,23 @@ namespace Sandbox
 			{
 				auto renderable = Component::Create<Renderable>(node_entity);
 				renderable.SetMesh(model_data.m_meshes[*mesh_iter]);
+				// Set skin
+				auto skin_iter = node.find("skin");
+				if (skin_iter != node.end())
+				{
+					json const& json_skins = _scene.at("skins");
+					json const & json_skin_node = json_skins.at(skin_iter->get<unsigned int>());
+					json const& json_joints = json_skin_node.at("joints");
+					std::vector<Transform> skin_joints;
+					skin_joints.reserve(json_joints.size());
+					for (unsigned int skin_joint : json_joints)
+						skin_joints.emplace_back(node_entities[skin_joint]);
+
+					Component::Skin skin_component = Component::Create<Skin>(node_entity);
+					skin_component.SetSkin(model_data.m_skins[*skin_iter]);
+					skin_component.SetSkeletonInstanceNodes(skin_joints);
+					skin_component.SetSkeletonRootNode(node_entities[json_skin_node.at("skeleton").get<unsigned int>()]);
+				}
 			}
 			// Set weights
 			if (weights_iter != node.end())

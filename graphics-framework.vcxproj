@@ -262,6 +262,7 @@
     <None Include="data\shaders\infinite_grid.vert" />
     <None Include="data\shaders\phong.frag" />
     <None Include="data\shaders\postprocessing.frag" />
+    <None Include="data\shaders\skinned.vert" />
     <None Include="data\shaders\write_csm.frag" />
     <None Include="data\shaders\write_csm.vert" />
     <None Include="README.md" />

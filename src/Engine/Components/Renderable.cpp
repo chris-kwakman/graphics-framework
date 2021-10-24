@@ -5,18 +5,22 @@
 
 namespace Component
 {
-	std::string Renderable::GetMeshName() const
+	static std::string get_mesh_name(mesh_handle _mesh)
 	{
 		auto& named_mesh_map = Singleton<ResourceManager>().m_named_mesh_map;
-		mesh_handle my_mesh_handle = GetMeshHandle();
-		if (my_mesh_handle == 0)
+		if (_mesh == 0)
 			return "No Mesh";
 		for (auto pair : named_mesh_map)
 		{
-			if (pair.second == my_mesh_handle)
+			if (pair.second == _mesh)
 				return pair.first;
 		}
 		return "Unnamed";
+	}
+
+	std::string Renderable::GetMeshName() const
+	{
+		return get_mesh_name(GetMeshHandle());
 	}
 
 	mesh_handle Renderable::GetMeshHandle() const
@@ -29,6 +33,41 @@ namespace Component
 		GetManager().m_mesh_map.find(m_owner)->second = _mesh;
 	}
 
+	skin_handle Skin::GetSkinHandle() const
+	{
+		return GetManager().m_skin_instance_map.at(m_owner).m_skin_handle;
+	}
+
+	void Skin::SetSkin(skin_handle _skin)
+	{
+		GetManager().m_skin_instance_map.at(m_owner).m_skin_handle = _skin;
+	}
+
+	Transform Skin::GetSkeletonRootNode() const
+	{
+		return GetManager().m_skin_instance_map.at(m_owner).m_skeleton_root;
+	}
+
+	void Skin::SetSkeletonRootNode(Transform _node)
+	{
+		GetManager().m_skin_instance_map.at(m_owner).m_skeleton_root = _node;
+	}
+
+	std::vector<Transform> const& Skin::GetSkeletonInstanceNodes() const
+	{
+		return GetManager().m_skin_instance_map.at(m_owner).m_skeleton_instance_nodes;
+	}
+
+	void Skin::SetSkeletonInstanceNodes(std::vector<Transform> const& _nodes) const
+	{
+		GetManager().m_skin_instance_map.at(m_owner).m_skeleton_instance_nodes = _nodes;
+	}
+
+	std::vector<glm::mat4x4> const & Skin::GetSkinNodeInverseBindMatrices() const
+	{
+		auto& res_mgr = Singleton<Engine::Graphics::ResourceManager>();
+		return res_mgr.m_skin_data_map.at(GetSkinHandle()).m_inv_bind_matrices;
+	}
 
 
 
@@ -89,8 +128,8 @@ namespace Component
 		bool mesh_payload_accepted = false;
 		ImGui::InputText("Mesh Name", (char*)mesh_name.c_str(), mesh_name.size(), ImGuiInputTextFlags_ReadOnly);
 		mesh_payload_accepted |= accept_mesh_handle_payload();
-		ImGui::InputInt("Mesh ID", (int*)&my_mesh, 0, 0, ImGuiInputTextFlags_ReadOnly);
-		mesh_payload_accepted |= accept_mesh_handle_payload();
+		//ImGui::InputInt("Mesh ID", (int*)&my_mesh, 0, 0, ImGuiInputTextFlags_ReadOnly);
+		//mesh_payload_accepted |= accept_mesh_handle_payload();
 
 		if (mesh_payload_accepted)
 			component.SetMesh(payload_mesh_handle);
@@ -102,6 +141,56 @@ namespace Component
 		Renderable component = Get(_e);
 		auto mesh_handle = resource_manager.FindMesh(_json_comp["mesh_name"].get<std::string>().c_str());
 		component.SetMesh(mesh_handle);
+	}
+
+
+
+
+
+	const char* SkinManager::GetComponentTypeName() const
+	{
+		return "Skin";
+	}
+
+	void SkinManager::impl_clear()
+	{
+		m_skin_instance_map.clear();
+	}
+
+	bool SkinManager::impl_create(Entity _e)
+	{
+		skin_instance new_skin_instance;
+		new_skin_instance.m_skin_handle = 0;
+		new_skin_instance.m_skeleton_instance_nodes.clear();
+		m_skin_instance_map.emplace(_e, std::move(new_skin_instance));
+		return true;
+	}
+
+	void SkinManager::impl_destroy(Entity const* _entities, unsigned int _count)
+	{
+		for (unsigned int i = 0; i < _count; ++i)
+			m_skin_instance_map.erase(_entities[i]);
+	}
+
+	bool SkinManager::impl_component_owned_by_entity(Entity _entity) const
+	{
+		return m_skin_instance_map.find(_entity) != m_skin_instance_map.end();
+	}
+
+	void SkinManager::impl_edit_component(Entity _entity)
+	{
+		ImGui::BeginListBox("Joint Nodes");
+		skin_instance const& instance = m_skin_instance_map.at(_entity);
+		for (Transform joint : instance.m_skeleton_instance_nodes)
+		{
+			bool selected = false;
+			ImGui::Selectable(joint.Owner().GetName(), &selected);
+		}
+		ImGui::EndListBox();
+	}
+
+	void SkinManager::impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context)
+	{
 	}
 
 }

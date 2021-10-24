@@ -57,6 +57,21 @@ namespace Graphics {
 	class ResourceManager
 	{
 
+	public:
+
+		static unsigned int const VTX_ATTRIB_MAX_TEXCOORD_SETS = 2;
+		static unsigned int const VTX_ATTRIB_MAX_JOINTS_SETS = 1;
+		static unsigned int const VTX_ATTRIB_MAX_WEIGHTS_SETS = VTX_ATTRIB_MAX_JOINTS_SETS;
+
+		// Vertex Attribute Locations.
+		// These locations should be referred to in shaders in order to get the corresponding vertex attributes.
+		static unsigned int const VTX_ATTRIB_POSITION_OFFSET = 0;
+		static unsigned int const VTX_ATTRIB_NORMAL_OFFSET = 1;
+		static unsigned int const VTX_ATTRIB_TANGENT_OFFSET = 2;
+		static unsigned int const VTX_ATTRIB_TEXCOORD_OFFSET = 3;
+		static unsigned int const VTX_ATTRIB_JOINTS_OFFSET = VTX_ATTRIB_TEXCOORD_OFFSET + VTX_ATTRIB_MAX_TEXCOORD_SETS;
+		static unsigned int const VTX_ATTRIB_WEIGHTS_OFFSET = VTX_ATTRIB_JOINTS_OFFSET + VTX_ATTRIB_MAX_JOINTS_SETS;
+
 		//////////////////////////////////////////////////////
 		//			OpenGL Graphics Assets Data
 		//////////////////////////////////////////////////////

@@ -294,19 +294,50 @@ namespace Graphics {
 					//TODO: Support joints, weights (and colors?)
 					unsigned int gl_attribute_index = 0;
 					if (primitive_attrib.first == "POSITION") {
-						gl_attribute_index = 0;
+						gl_attribute_index = VTX_ATTRIB_POSITION_OFFSET;
 						// Only set primitive vertex count if we are not using an IBO.
 						if(new_primitive.m_index_buffer_handle == 0)
 							new_primitive.m_vertex_count = read_accessor.count;
 					}
-					else if (primitive_attrib.first == "NORMAL") gl_attribute_index = 1;
-					else if (primitive_attrib.first == "TANGENT") gl_attribute_index = 2;
+					else if (primitive_attrib.first == "NORMAL") gl_attribute_index = VTX_ATTRIB_NORMAL_OFFSET;
+					else if (primitive_attrib.first == "TANGENT") gl_attribute_index = VTX_ATTRIB_TANGENT_OFFSET;
 					//TODO: Check if TEXCOORD actually exists rather than assuming it.
 					else
 					{
+						const char* attrib_name = primitive_attrib.first.c_str();
 						unsigned int texcoord_index = 0;
-						sscanf(primitive_attrib.first.c_str(), "TEXCOORD_%u", &texcoord_index);
-						gl_attribute_index = 3 + texcoord_index;
+						unsigned int joints_index = 0;
+						unsigned int weights_index = 0;
+						int result = 0;
+
+						result = sscanf(attrib_name, "TEXCOORD_%u", &texcoord_index);
+						if (result > 0)
+						{
+							assert(texcoord_index < VTX_ATTRIB_MAX_TEXCOORD_SETS);
+							gl_attribute_index = VTX_ATTRIB_TEXCOORD_OFFSET + texcoord_index;
+							goto label_attribute_found;
+						}
+
+						result = sscanf(attrib_name, "JOINTS_%u", &joints_index);
+						if (result > 0)
+						{
+							assert(joints_index < VTX_ATTRIB_MAX_JOINTS_SETS);
+							gl_attribute_index = VTX_ATTRIB_JOINTS_OFFSET + joints_index;
+							goto label_attribute_found;
+						}
+
+						result = sscanf(attrib_name, "WEIGHTS_%u", &weights_index);
+						if (result > 0)
+						{
+							assert(weights_index < VTX_ATTRIB_MAX_WEIGHTS_SETS);
+							gl_attribute_index = VTX_ATTRIB_WEIGHTS_OFFSET + weights_index;
+							goto label_attribute_found;
+						}
+
+						assert(false);
+
+					label_attribute_found:;
+
 					}
 
 					glBindBuffer(attribute_referenced_buffer.m_target, attribute_referenced_buffer.m_gl_id);
@@ -381,11 +412,18 @@ namespace Graphics {
 			created_skins.push_back(new_skin_handle);
 
 			// Register nodes corresponding to current skin in tinygltf_skin_data struct and register in map
-			assert(skin.skeleton == skin.joints[0]);
+			jointnode_idx_to_tinygltf_skin_data_idx_map.emplace(skin.skeleton, skin_counter);
+			current_tinygltf_skin_data.m_skin_node_skeleton_joint_index.emplace(
+				skin.skeleton,
+				current_tinygltf_skin_data.m_skin_node_skeleton_joint_index.size()
+			);
 			for (unsigned int i = 0; i < skin.joints.size(); ++i)
 			{
 				jointnode_idx_to_tinygltf_skin_data_idx_map.emplace(skin.joints[i], skin_counter);
-				current_tinygltf_skin_data.m_skin_node_skeleton_joint_index.emplace(skin.joints[i], i);
+				current_tinygltf_skin_data.m_skin_node_skeleton_joint_index.emplace(
+					skin.joints[i], 
+					current_tinygltf_skin_data.m_skin_node_skeleton_joint_index.size()
+				);
 			}
 			tinygltf_skin_data_arr.push_back(std::move(current_tinygltf_skin_data));
 

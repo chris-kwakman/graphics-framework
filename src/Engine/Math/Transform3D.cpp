@@ -78,6 +78,8 @@ namespace Math
 
 		// Otherwise, go through each possible component one-by-one and check possible variations
 		auto translation_iter = j.find("translate");
+		if (translation_iter == j.end())
+			translation_iter = j.find("translation");
 		auto rotate_iter = j.find("rotate");
 		auto rotation_iter = j.find("rotation");
 		auto scale_iter = j.find("scale");
