@@ -745,7 +745,8 @@ namespace Sandbox
 				std::vector<Component::Transform> const& skin_skeleton_instance_nodes = skin_component.GetSkeletonInstanceNodes();
 				std::vector<glm::mat4x4> const& skin_inv_bind_matrices = skin_component.GetSkinNodeInverseBindMatrices();
 				std::vector<glm::mat4x4> joint_skinning_matrices;
-				Engine::Math::transform3D const skeleton_root_inv_transform = skin_component.GetSkeletonRootNode().ComputeWorldTransform().GetInverse();
+				Engine::Math::transform3D const skeleton_root_inv_transform = 
+					skin_component.GetSkeletonRootNode().GetParent().GetComponent<Component::Transform>().ComputeWorldTransform().GetInverse();
 				assert(skin_skeleton_instance_nodes.size() <= 128);
 				joint_skinning_matrices.reserve(skin_skeleton_instance_nodes.size());
 				// Compute joint->model matrices
