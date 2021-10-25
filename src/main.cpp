@@ -8,6 +8,8 @@
 #include <Engine/Components/EngineCompManager.h>
 #include <Engine/Graphics/manager.h>
 
+#include <Engine/Components/SkeletonAnimator.h>
+
 #include "Sandbox/sandbox.h"
 
 #include <thread>
@@ -36,6 +38,7 @@ void update_loop()
 
 	while (true)
 	{
+		// TODO: Replace with proper framerate controller
 		auto frame_end = std::chrono::high_resolution_clock::now();
 		frametime = std::chrono::duration_cast<ms>(frame_end - frame_start);
 
@@ -58,6 +61,9 @@ void update_loop()
 		Singleton<Engine::Editor::Editor>().NewFrame();
 
 		Sandbox::Update();
+
+		//TODO: Use frame rate controller DT
+		Singleton<Component::SkeletonAnimatorManager>().UpdateAnimatorInstances(1.0f / 60.0f);
 
 		Singleton<Engine::Editor::Editor>().Render();
 		Singleton<Engine::ECS::EntityManager>().FreeQueuedEntities();

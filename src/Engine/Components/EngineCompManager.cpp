@@ -2,8 +2,9 @@
 
 #include <Engine/Utils/singleton.h>
 
-#include "Renderable.h"
 #include "Transform.h"
+#include "Renderable.h"
+#include "SkeletonAnimator.h"
 #include "Camera.h"
 #include "Light.h"
 #include "Nameable.h"

@@ -43,7 +43,11 @@ namespace Graphics {
 
 	struct animation_data
 	{
-		std::vector<animation_channel_data> m_animation_channels;
+		// # of animation channels for a given joint node index relative to current skeleton.
+		std::unordered_map<uint8_t, uint8_t>	m_skeleton_jointnode_channel_count;
+		std::vector<animation_channel_data>		m_animation_channels;
+		float									m_duration; // Determined by input interpolation data in channels.
+		std::string								m_name;
 	};
 
 	// This struct is used to store either animation sampler input or output data.
@@ -429,6 +433,7 @@ namespace Graphics {
 		
 		void editor_mesh_list();
 		void editor_model_list();
+		void editor_animation_list();
 
 	private:
 

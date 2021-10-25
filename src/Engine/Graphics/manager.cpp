@@ -138,6 +138,12 @@ namespace Graphics {
 			return gltf_model_data{};
 		}
 
+		if (!tinygltf_model.animations.empty() && tinygltf_model.skins.empty())
+		{
+			Engine::Utils::print_base("GLTF Importer", "ERROR: Cannot import GLTF model \"%s\" with animations but no skin.", _filepath);
+			assert(false);
+		}
+
 		//decltype(m_node_data_map) new_node_data_map;
 		//decltype(m_node_mesh_map) new_node_mesh_map;
 		decltype(m_buffer_info_map) new_buffer_info_map;
@@ -373,7 +379,9 @@ namespace Graphics {
 		// Used to map tinygltf model node indices to skeleton relative joint indices.
 		struct tinygltf_skin_data
 		{
+			unsigned int m_joint_count;
 			std::unordered_map<unsigned int, unsigned int> m_skin_node_skeleton_joint_index;
+			std::vector<unsigned int> m_joint_index_channel_count;
 		};
 		std::unordered_map<unsigned int, unsigned int> jointnode_idx_to_tinygltf_skin_data_idx_map;
 		std::vector<tinygltf_skin_data> tinygltf_skin_data_arr;
@@ -425,6 +433,8 @@ namespace Graphics {
 					current_tinygltf_skin_data.m_skin_node_skeleton_joint_index.size()
 				);
 			}
+			current_tinygltf_skin_data.m_joint_count = skin.joints.size();
+			current_tinygltf_skin_data.m_joint_index_channel_count.resize(skin.joints.size(), 0);
 			tinygltf_skin_data_arr.push_back(std::move(current_tinygltf_skin_data));
 
 			++skin_counter;
@@ -514,6 +524,7 @@ namespace Graphics {
 				animation_sampler_handle const sampler_handle = anim_sampler_handle_arr[sampler_idx];
 				new_anim_sampler_data_map.emplace(sampler_handle, new_anim_sampler_data);
 			}
+			std::unordered_set<unsigned int> unique_channel_nodes;
 			for (tinygltf::AnimationChannel const& channel : anim.channels)
 			{
 				animation_channel_data new_anim_channel_data;
@@ -521,8 +532,10 @@ namespace Graphics {
 				// (as defined in tinygltf_skin_data entry in map)
 				unsigned int const jointnode_skin_index = 
 					jointnode_idx_to_tinygltf_skin_data_idx_map.at(channel.target_node);
+				tinygltf_skin_data& jointnode_skin_data = tinygltf_skin_data_arr[jointnode_skin_index];
 				unsigned int const skeleton_relative_jointnode_index = 
-					tinygltf_skin_data_arr[jointnode_skin_index].m_skin_node_skeleton_joint_index.at(channel.target_node);
+					jointnode_skin_data.m_skin_node_skeleton_joint_index.at(channel.target_node);
+				jointnode_skin_data.m_joint_index_channel_count[skeleton_relative_jointnode_index]++;
 
 				//// Prepare animation channel data entry
 				// Use index of node within skeleton joint node array referred to by animation channel.
@@ -539,7 +552,34 @@ namespace Graphics {
 
 				new_anim_channel_data.m_anim_sampler_handle = tinygltf_anim_idx_to_sampler_handle_arr[animation_idx][channel.sampler];
 				new_anim_data.m_animation_channels.push_back(std::move(new_anim_channel_data));
+
+				unique_channel_nodes.insert(channel.target_node);
 			}
+
+			// Sort channel data in animation data by skeleton joint index
+			std::sort(
+				new_anim_data.m_animation_channels.begin(), new_anim_data.m_animation_channels.end(),
+				[](animation_channel_data const & left, animation_channel_data const& right)->bool
+				{
+					return left.m_skeleton_relative_jointnode_index < right.m_skeleton_relative_jointnode_index;
+				}
+			);
+
+			for (auto const& anim_channel : new_anim_data.m_animation_channels)
+				new_anim_data.m_skeleton_jointnode_channel_count[anim_channel.m_skeleton_relative_jointnode_index]++;
+
+			auto get_channel_for_duration = new_anim_data.m_animation_channels.front();
+			auto get_sampler_for_duration = new_anim_sampler_data_map.at(get_channel_for_duration.m_anim_sampler_handle);
+			auto input_interp_for_duration = new_anim_interpolation_data_map.at(get_sampler_for_duration.m_anim_interp_input_handle);
+			new_anim_data.m_duration = input_interp_for_duration.m_data.back();
+
+			char buffer[3];
+			std::string animation_name = anim.name.empty() 
+				? _itoa(animation_idx, buffer, 10)
+				: anim.name;
+			new_anim_data.m_name = model_name + std::string("/") + animation_name;
+
+			new_anim_data_map.emplace(m_anim_handle_counter + animation_idx, std::move(new_anim_data));
 		}
 
 		/*
@@ -1684,12 +1724,13 @@ namespace Graphics {
 	}
 
 
-	enum E_ResourceType {eMesh, eModel, eCOUNT};
+	enum E_ResourceType {eMesh, eModel, eAnimation, eCOUNT};
 	static E_ResourceType s_editor_show_resource_list = eModel;
 
 	static std::unordered_map<E_ResourceType, const char*> s_resource_type_name{
 		{E_ResourceType::eMesh, "Mesh"},
-		{E_ResourceType::eModel, "Model"}
+		{E_ResourceType::eModel, "Model"},
+		{E_ResourceType::eAnimation, "Animation"}
 	};
 
 	const char* get_type_name(E_ResourceType _type) { return s_resource_type_name.at(_type); }
@@ -1716,6 +1757,7 @@ namespace Graphics {
 			{
 			case E_ResourceType::eMesh: editor_mesh_list(); break;
 			case E_ResourceType::eModel: editor_model_list(); break;
+			case E_ResourceType::eAnimation: editor_animation_list(); break;
 			}
 		}
 		ImGui::End();
@@ -1767,6 +1809,19 @@ namespace Graphics {
 			if (ImGui::BeginDragDropSource())
 			{
 				ImGui::SetDragDropPayload("RESOURCE_MODEL", (void const*)&filepath_model_pair.first, filepath_model_pair.first.size());
+				ImGui::EndDragDropSource();
+			}
+		}
+	}
+
+	void ResourceManager::editor_animation_list()
+	{
+		for (auto const animation : m_anim_data_map)
+		{
+			ImGui::Selectable(animation.second.m_name.c_str());
+			if (ImGui::BeginDragDropSource())
+			{
+				ImGui::SetDragDropPayload("RESOURCE_ANIMATION", (void const*)&animation.first, sizeof(animation_handle));
 				ImGui::EndDragDropSource();
 			}
 		}
