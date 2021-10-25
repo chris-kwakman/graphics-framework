@@ -542,17 +542,19 @@ namespace Component
 
 			ImGuizmo::DecomposeMatrixToComponents(&transform_matrix[0][0], &translation[0], &rotation[0], &scale[0]);
 
-			if (s_imguizmo_current_operation == ImGuizmo::TRANSLATE)
-			{
-				transform_component.SetLocalPosition(translation);
-			}
-			else if (s_imguizmo_current_operation == ImGuizmo::SCALE)
-			{
-				transform_component.SetLocalScale(scale);
-			}
+			Engine::Math::transform3D transform;
+			transform.position = translation;
+			transform.scale = scale;
+			transform.quaternion = rotation;
+
+			if (s_imguizmo_current_mode == ImGuizmo::LOCAL)
+				transform_component.SetLocalTransform(transform);
 			else
 			{
-				transform_component.SetLocalRotation(rotation);
+				transform_component.SetLocalTransform(
+					(transform_component.ComputeWorldTransform() * transform_component.GetLocalTransform().GetInverse()).GetInverse()
+					* transform
+				);
 			}
 		}
 
@@ -577,24 +579,26 @@ namespace Component
 			ImGui::EndCombo();
 		}
 
-		auto entity_transform = _entity.GetComponent<Transform>();
-		Engine::Math::transform3D transform = m_local_transforms[get_entity_indexer_data(_entity).transform];
+		Engine::Math::transform3D transform;
 		if (s_imguizmo_current_mode == ImGuizmo::WORLD)
-			transform = entity_transform.ComputeWorldTransform();
-
-		if (s_imguizmo_current_mode == ImGuizmo::WORLD)
-			ImGui::BeginDisabled();
+			transform = transform_component.ComputeWorldTransform();
+		else
+			transform = m_local_transforms[get_entity_indexer_data(_entity).transform];
 
 		ImGui::DragFloat3("Position", &transform.position.x, 1.0f, -FLT_MAX / INT_MIN, FLT_MAX / INT_MIN);
 		ImGui::DragFloat3("Scale", &transform.scale.x, 0.1f, 0.0f, FLT_MAX / INT_MIN);
 		ImGui::DragFloat4("Orientation", &transform.quaternion.x, 0.025f);
 		transform.quaternion = glm::normalize(transform.quaternion);
-		
-		if (s_imguizmo_current_mode == ImGuizmo::WORLD)
-			ImGui::EndDisabled();
 
-		if (s_imguizmo_current_mode == ImGuizmo::LOCAL)
-			entity_transform.SetLocalTransform(transform);
+		if(s_imguizmo_current_mode == ImGuizmo::LOCAL)
+			transform_component.SetLocalTransform(transform);
+		else
+		{
+			transform_component.SetLocalTransform(
+				(transform_component.ComputeWorldTransform() * transform_component.GetLocalTransform().GetInverse()).GetInverse()
+				* transform
+			);
+		}
 	}
 
 	/*
