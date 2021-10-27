@@ -31,6 +31,9 @@ namespace Component
 		Transform		GetSkeletonRootNode() const;
 		void			SetSkeletonRootNode(Transform _node);
 
+		bool			ShouldRenderJoints() const;
+		void			SetShouldRenderJoints(bool _state);
+
 		std::vector<Transform> const &	GetSkeletonInstanceNodes() const;
 		void SetSkeletonInstanceNodes(std::vector<Transform> const & _nodes) const;
 
@@ -69,6 +72,7 @@ namespace Component
 			skin_handle				m_skin_handle;
 			Transform				m_skeleton_root;
 			std::vector<Transform>	m_skeleton_instance_nodes;
+			bool					m_render_joints;
 		};
 
 		std::unordered_map<Entity, skin_instance, Entity::hash> m_skin_instance_map;
@@ -84,6 +88,8 @@ namespace Component
 	public:
 
 		virtual const char* GetComponentTypeName() const override;
+
+		decltype(m_skin_instance_map) const& GetAllSkinEntities() const { return m_skin_instance_map; }
 
 	};
 }

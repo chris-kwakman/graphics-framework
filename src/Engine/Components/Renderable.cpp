@@ -53,6 +53,16 @@ namespace Component
 		GetManager().m_skin_instance_map.at(m_owner).m_skeleton_root = _node;
 	}
 
+	bool Skin::ShouldRenderJoints() const
+	{
+		return GetManager().m_skin_instance_map.at(m_owner).m_render_joints;
+	}
+
+	void Skin::SetShouldRenderJoints(bool _state)
+	{
+		GetManager().m_skin_instance_map.at(m_owner).m_render_joints = _state;
+	}
+
 	std::vector<Transform> const& Skin::GetSkeletonInstanceNodes() const
 	{
 		return GetManager().m_skin_instance_map.at(m_owner).m_skeleton_instance_nodes;
@@ -162,6 +172,7 @@ namespace Component
 		skin_instance new_skin_instance;
 		new_skin_instance.m_skin_handle = 0;
 		new_skin_instance.m_skeleton_instance_nodes.clear();
+		new_skin_instance.m_render_joints = false;
 		m_skin_instance_map.emplace(_e, std::move(new_skin_instance));
 		return true;
 	}
@@ -179,9 +190,10 @@ namespace Component
 
 	void SkinManager::impl_edit_component(Entity _entity)
 	{
+		skin_instance & instance = m_skin_instance_map.at(_entity);
+		ImGui::Checkbox("Render Joints", &instance.m_render_joints);
 		ImGui::BeginListBox("Joint Nodes");
-		skin_instance const& instance = m_skin_instance_map.at(_entity);
-		for (Transform joint : instance.m_skeleton_instance_nodes)
+		for (Transform const joint : instance.m_skeleton_instance_nodes)
 		{
 			bool selected = false;
 			ImGui::Selectable(joint.Owner().GetName(), &selected);

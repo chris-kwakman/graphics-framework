@@ -319,13 +319,13 @@ namespace Sandbox
 		setup_shaders();
 		setup_framebuffer();
 		create_framebuffer_triangle();
+		create_skeleton_bone_model();
 
 		// Load glTF model Sponza by default, other if specified in commandline argument.
 		if (argc >= 2)
 			s_scene_loaded = argv[1];
 		else
-			s_scene_loaded = "data/scenes/sceneShadow.json";
-		//LoadScene(LoadJSON(s_scene_loaded.c_str()), s_scene_loaded.c_str());
+			s_scene_loaded = "data/scenes/sceneAnimation.json";
 
 		system_resource_manager.ImportModel_GLTF("data/gltf/Sphere.gltf");
 
@@ -336,20 +336,6 @@ namespace Sandbox
 			// Request quit right away.
 			Singleton<Engine::sdl_manager>().m_want_quit = true;
 		}
-
-		//// Create default light in scene
-		//Entity light_entity;
-		//Singleton<Engine::ECS::EntityManager>().EntityCreationRequest(&light_entity, 1);
-		//Component::Transform light_transform_comp = Singleton<Component::TransformManager>().Create(light_entity);
-		//light_transform_comp.SetLocalPosition(glm::vec3(0.0f, 50.0f, 0.0f));
-		//Component::PointLight light_comp = Singleton<Component::PointLightManager>().Create(light_entity);
-		//light_comp.SetRadius(500.0f);
-
-		//// Create editor camera
-		//Singleton<Engine::ECS::EntityManager>().EntityCreationRequest(&s_camera_entity, 1);
-		//auto camera_transform_comp = Component::Transform::GetManager().Create(s_camera_entity);
-		//camera_transform_comp.SetLocalPosition(glm::vec3(0.0f, 10.0f, 0.0f));
-		//Component::Camera::GetManager().Create(s_camera_entity);
 
 		s_scene_reset = true;
 
@@ -829,6 +815,87 @@ namespace Sandbox
 			}
 
 		}
+
+		// Render debug all skeleton nodes
+		auto skin_entity_map = Singleton<Component::SkinManager>().GetAllSkinEntities();
+		if (!skin_entity_map.empty())
+		{
+			system_resource_manager.UseProgram(program_draw_gbuffer);
+			
+			activate_texture(s_texture_white, 0, 0);
+			activate_texture(s_texture_white, 1, 1);
+			activate_texture(s_texture_white, 2, 2);
+			// Set base color factor
+			system_resource_manager.SetBoundProgramUniform(3, glm::vec4(0.5f));
+			// Set alpha-cutoff value to zero
+			system_resource_manager.SetBoundProgramUniform(10, 0.0f);
+
+			glDepthFunc(GL_ALWAYS);
+
+			for (auto skin_entity_pair : skin_entity_map)
+			{
+				if (!skin_entity_pair.second.m_render_joints)
+					continue;
+
+				Component::Transform skeleton_root = skin_entity_pair.second.m_skeleton_root;
+				Engine::Math::transform3D const root_transform = skeleton_root.ComputeWorldTransform();
+				float joint_scale = 0.05f * glm::min(root_transform.scale.x, glm::min(root_transform.scale.y, root_transform.scale.z));
+
+				std::vector<Component::Transform> const & skeleton_nodes = skin_entity_pair.second.m_skeleton_instance_nodes;
+
+				std::vector<Component::Transform> traverse_nodes;
+				traverse_nodes.push_back(skeleton_root);
+				for (unsigned int i = 0; i < traverse_nodes.size(); ++i)
+				{
+					Component::Transform const current_parent = traverse_nodes[i];
+					Engine::Math::transform3D parent_world_transform = current_parent.ComputeWorldTransform();
+
+					std::vector<Entity> node_children = current_parent.GetChildren();
+					for (auto child : node_children)
+					{
+						// Skip if child node is not part of skeleton node list.
+						auto iter = std::find(skeleton_nodes.begin(), skeleton_nodes.end(), child.GetComponent<Component::Transform>());
+						if(iter == skeleton_nodes.end())
+							continue;
+						traverse_nodes.push_back(child.GetComponent<Component::Transform>());
+
+						Engine::Math::transform3D child_world_transform = child.GetComponent<Component::Transform>().ComputeWorldTransform();
+
+						glm::vec3 dir_vec = parent_world_transform.position - child_world_transform.position;
+						Engine::Math::transform3D bone_transform;
+						bone_transform.quaternion = glm::quatLookAt(glm::normalize(dir_vec), glm::vec3(0.0f, 1.0f, 0.0f));
+						float dir_vec_length = glm::length(dir_vec);
+						bone_transform.scale = glm::vec3(0.25f, 0.25f, 1.0f) * dir_vec_length;
+
+						child_world_transform.scale = glm::vec3(1.0f);
+						child_world_transform.quaternion = glm::quat(0.0f, 0.0f, 0.0f, 0.0f);
+						child_world_transform.quaternion.w = 1.0f;
+						
+
+
+						//// TODO: Use cached world matrix in transform manager (once implemented)
+						auto model_transform = child_world_transform * bone_transform;
+						glm::mat4 const mesh_model_matrix = model_transform.GetMatrix();
+						glm::mat4 const matrix_mv = camera_view_matrix * mesh_model_matrix;
+						glm::mat4 const matrix_t_inv_mv = glm::transpose(glm::inverse(matrix_mv));
+
+						system_resource_manager.SetBoundProgramUniform(5, matrix_vp* mesh_model_matrix);
+						system_resource_manager.SetBoundProgramUniform(6, matrix_t_inv_mv);
+						system_resource_manager.SetBoundProgramUniform(9, matrix_vp* mesh_model_matrix);
+
+						glBindVertexArray(s_gl_bone_vao);
+						GfxCall(glDrawElements(
+							GL_TRIANGLES,
+							joint_index_count,
+							GL_UNSIGNED_INT,
+							0
+						));
+					}
+				}
+			}
+		}
+
+
 
 		cascading_shadow_map_data csm_data;
 		if (Singleton<Component::DirectionalLightManager>().GetDirectionalLight().IsValid())

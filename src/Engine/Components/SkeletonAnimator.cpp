@@ -366,3 +366,28 @@ void Component::SkeletonAnimatorManager::interpolate_quaternion(glm::quat* _dest
     }
 }
 
+Engine::Graphics::animation_handle Component::SkeletonAnimator::GetAnimationHandle() const
+{
+    return GetManager().m_entity_anim_inst_map.at(m_owner).m_animation_handle;
+}
+
+void Component::SkeletonAnimator::SetAnimationHandle(animation_handle _animation)
+{
+    GetManager().set_instance_animation(m_owner, _animation);
+}
+
+void Component::SkeletonAnimator::SetAnimation(std::string _animationName)
+{
+    Engine::Graphics::animation_handle _handle = Singleton<ResourceManager>().FindNamedAnimation(_animationName);
+    GetManager().set_instance_animation(m_owner, _handle);
+}
+
+bool Component::SkeletonAnimator::IsPaused() const
+{
+    return GetManager().m_entity_anim_inst_map.at(m_owner).m_paused;
+}
+
+void Component::SkeletonAnimator::SetPaused(bool _paused)
+{
+    GetManager().m_entity_anim_inst_map.at(m_owner).m_paused = _paused;
+}

@@ -5,6 +5,7 @@
 #include <Engine/Components/Camera.h>
 #include <Engine/Components/Renderable.h>
 #include <Engine/Components/Light.h>
+#include <Engine/Components/SkeletonAnimator.h>
 
 #include <glm/gtx/quaternion.hpp>
 #include <algorithm>
@@ -217,6 +218,28 @@ namespace Sandbox
 					skin_component.SetSkin(model_data.m_skins[*skin_iter]);
 					skin_component.SetSkeletonInstanceNodes(skin_joints);
 					skin_component.SetSkeletonRootNode(node_entities[json_skin_node.at("skeleton").get<unsigned int>()]);
+					//TODO: Set to true for the sake of the animation assignment
+					skin_component.SetShouldRenderJoints(true);
+
+					auto animations_iter = _scene.find("animations");
+					if (animations_iter != _scene.end())
+					{
+						char int_buffer[3];
+						std::string animation_name;
+						json const& anim_0 = animations_iter->at(0);
+						auto anim_name_iter = anim_0.find("name");
+						animation_name = std::filesystem::path(_model_path).stem().string() + "/"
+							+ (anim_name_iter == anim_0.end() 
+								? _itoa(0, int_buffer, 10)
+								: anim_name_iter->get<std::string>());
+
+						Component::SkeletonAnimator skeleton_animator_component = Component::Create<SkeletonAnimator>(node_entity);
+						skeleton_animator_component.SetAnimation(animation_name);
+						//TODO: Setting it to be unpaused for the sake of the animation assignment. Otherwise this should be false.
+						skeleton_animator_component.SetPaused(false);
+					}
+
+
 				}
 			}
 			// Set weights

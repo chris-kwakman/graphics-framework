@@ -9,7 +9,7 @@
 namespace Engine {
 namespace ECS {
 
-#define DECLARE_COMPONENT(TComp) using IComp::IComp;
+#define DECLARE_COMPONENT(TComp) using IComp::IComp; bool operator==(TComp const & _o) const {return Owner() == _o.Owner();} bool operator==(Engine::ECS::Entity _e) const {return Owner() == _e;}
 
 	template<class TCompManager>
 	struct IComp

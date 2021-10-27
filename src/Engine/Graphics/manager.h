@@ -364,6 +364,14 @@ namespace Graphics {
 		texture_info & set_texture_target_and_bind(texture_handle _texture_handle, GLenum _target);
 
 		/*
+		* Animation Methods
+		*/
+
+	public:
+
+		animation_handle	FindNamedAnimation(std::string const& _name) const;
+
+		/*
 		* Framebuffer Methods
 		*/
 

@@ -179,7 +179,7 @@ namespace Graphics {
 		std::vector<GLuint> new_gl_buffer_arr;
 		unsigned int const new_gpu_buffer_bufferview_count = (unsigned int)gpu_buffer_bufferview_set.size();
 		new_gl_buffer_arr.resize(new_gpu_buffer_bufferview_count);
-		glGenBuffers(new_gpu_buffer_bufferview_count, &new_gl_buffer_arr[0]);
+		glCreateBuffers(new_gpu_buffer_bufferview_count, &new_gl_buffer_arr[0]);
 		// Assert that all generated buffers are valid
 		for (unsigned int i = 0; i < new_gl_buffer_arr.size(); ++i)
 			assert(
@@ -239,7 +239,7 @@ namespace Graphics {
 			// Create a VAO for each primitive in the current mesh
 			std::vector<GLuint> new_gl_vao_array;
 			new_gl_vao_array.resize(read_mesh.primitives.size());
-			GfxCall(glGenVertexArrays((unsigned int)read_mesh.primitives.size(), &new_gl_vao_array[0]));
+			GfxCall(glCreateVertexArrays((unsigned int)read_mesh.primitives.size(), &new_gl_vao_array[0]));
 			// Assert that all generated VAOs are valid
 			for (unsigned int i = 0; i < new_gl_vao_array.size(); ++i)
 				assert(
@@ -307,7 +307,6 @@ namespace Graphics {
 					}
 					else if (primitive_attrib.first == "NORMAL") gl_attribute_index = VTX_ATTRIB_NORMAL_OFFSET;
 					else if (primitive_attrib.first == "TANGENT") gl_attribute_index = VTX_ATTRIB_TANGENT_OFFSET;
-					//TODO: Check if TEXCOORD actually exists rather than assuming it.
 					else
 					{
 						const char* attrib_name = primitive_attrib.first.c_str();
@@ -1031,6 +1030,21 @@ namespace Graphics {
 		input_texture_info.m_target = _target;
 		GfxCall(glBindTexture(input_texture_info.m_target, input_texture_info.m_gl_source_id));
 		return iter->second;
+	}
+
+	/*
+	* Find animation by given name
+	* @param	std::string			Name of animation to try to find
+	* @returns	animation_ahndle	Found animation (0 if not found)
+	*/
+	animation_handle ResourceManager::FindNamedAnimation(std::string const& _name) const
+	{
+		for (auto const& anim_pair : m_anim_data_map)
+		{
+			if (anim_pair.second.m_name == _name)
+				return anim_pair.first;
+		}
+		return 0;
 	}
 
 	//////////////////////////////////////////////////////////////////

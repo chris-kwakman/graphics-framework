@@ -7,13 +7,22 @@ namespace Component
 	using namespace Engine::Graphics;
 
 	class SkeletonAnimatorManager;
-	struct SkeletonAnimator : public IComp<SkeletonAnimator>
+	struct SkeletonAnimator : public IComp<SkeletonAnimatorManager>
 	{
 		DECLARE_COMPONENT(SkeletonAnimator);
+
+		animation_handle	GetAnimationHandle() const;
+		void				SetAnimationHandle(animation_handle _animation);
+		void				SetAnimation(std::string _animationName);
+
+		bool				IsPaused() const;
+		void				SetPaused(bool _paused);
 	};
 
 	class SkeletonAnimatorManager : public TCompManager<SkeletonAnimator>
 	{
+		friend struct SkeletonAnimator;
+
 		struct animation_instance
 		{
 			union
