@@ -5,6 +5,8 @@
 #include <Engine/Components/Camera.h>
 #include <Engine/Components/Renderable.h>
 #include <Engine/Components/Light.h>
+#include <Engine/Components/SkeletonAnimator.h>
+#include <Engine/Components/CurveInterpolator.h>
 
 #include <glm/gtx/quaternion.hpp>
 #include <algorithm>
@@ -72,7 +74,9 @@ namespace Sandbox
 			auto current_transform = current_entity.GetComponent<Transform>();
 			json const& object_json = object_iter->at(i);
 
+			auto name_iter = object_json.find("name");
 			auto mesh_iter = object_json.find("mesh");
+			auto curve_interp_iter = object_json.find("curve_interpolator");
 			if (mesh_iter != object_json.end())
 			{
 				current_transform.SetLocalTransform(object_json);
@@ -83,8 +87,29 @@ namespace Sandbox
 				auto model_scene_entities = LoadGLTFScene(gltf_json, model_path.c_str(), _scene_path);
 				for (Entity model_scene_entity : model_scene_entities)
 					model_scene_entity.GetComponent<Transform>().SetParent(current_entity, false);
+				current_entity.SetName(object_iter->at(i).at("mesh").get<std::string>().c_str());
 			}
-			current_entity.SetName(object_iter->at(i).at("mesh").get<std::string>().c_str());
+			if (curve_interp_iter != object_json.end())
+			{
+				auto curve = Component::Create<CurveInterpolator>(current_entity);
+				piecewise_curve	new_pw_curve;
+				new_pw_curve.m_nodes = curve_interp_iter->at("nodes").get<std::vector<glm::vec3>>();
+
+				std::string curve_type = curve_interp_iter->at("type");
+				if (curve_type == "catmull")
+					new_pw_curve.m_type = piecewise_curve::EType::Catmull;
+				else if (curve_type == "hermite")
+					new_pw_curve.m_type = piecewise_curve::EType::Hermite;
+				else if (curve_type == "bezier")
+					new_pw_curve.m_type = piecewise_curve::EType::Bezier;
+				else
+					new_pw_curve.m_type = piecewise_curve::EType::Linear;
+
+				curve.SetPiecewiseCurve(new_pw_curve, curve_interp_iter->at("resolution"));
+			}
+			if (name_iter != object_json.end())
+				current_entity.SetName(name_iter->get<std::string>().c_str());
+
 		}
 
 		for (unsigned int i = lights_offset; i < dirlight_offset; ++i)
@@ -132,7 +157,6 @@ namespace Sandbox
 
 	std::vector<Engine::ECS::Entity> LoadGLTFScene(nlohmann::json const& _scene, const char * _model_path, const char * _scene_path)
 	{
-		assert(_scene_path);
 		assert(_model_path);
 
 		using namespace Component;
@@ -155,7 +179,8 @@ namespace Sandbox
 		for (Entity e : node_entities)
 		{
 			Component::Create<Transform>(e);
-			Component::Create<SceneEntityComponent>(e).SetToScene(_scene_path);
+			if(_scene_path)
+				Component::Create<SceneEntityComponent>(e).SetToScene(_scene_path);
 		}
 
 		// First pass to check parent of each entity (if any)
@@ -166,12 +191,13 @@ namespace Sandbox
 		{
 			json const& node = nodes.at(i);
 			auto child_iter = node.find("children");
+			node_entities[i].GetComponent<Transform>().SetLocalTransform(node);
 			if (child_iter != node.end())
 			{
 				for (unsigned int child_index : *child_iter)
 				{
 					node_parent_indices[child_index] = i;
-					node_entities[child_index].GetComponent<Transform>().SetParent(node_entities[i]);
+					node_entities[child_index].GetComponent<Transform>().SetParent(node_entities[i], false);
 				}
 			}
 		}
@@ -200,6 +226,45 @@ namespace Sandbox
 			{
 				auto renderable = Component::Create<Renderable>(node_entity);
 				renderable.SetMesh(model_data.m_meshes[*mesh_iter]);
+				// Set skin
+				auto skin_iter = node.find("skin");
+				if (skin_iter != node.end())
+				{
+					json const& json_skins = _scene.at("skins");
+					json const & json_skin_node = json_skins.at(skin_iter->get<unsigned int>());
+					json const& json_joints = json_skin_node.at("joints");
+					std::vector<Transform> skin_joints;
+					skin_joints.reserve(json_joints.size());
+					for (unsigned int skin_joint : json_joints)
+						skin_joints.emplace_back(node_entities[skin_joint]);
+
+					Component::Skin skin_component = Component::Create<Skin>(node_entity);
+					skin_component.SetSkin(model_data.m_skins[*skin_iter]);
+					skin_component.SetSkeletonInstanceNodes(skin_joints);
+					skin_component.SetSkeletonRootNode(node_entities[json_skin_node.at("skeleton").get<unsigned int>()]);
+					//TODO: Set to true for the sake of the animation assignment
+					skin_component.SetShouldRenderJoints(true);
+
+					auto animations_iter = _scene.find("animations");
+					if (animations_iter != _scene.end())
+					{
+						char int_buffer[3];
+						std::string animation_name;
+						json const& anim_0 = animations_iter->at(0);
+						auto anim_name_iter = anim_0.find("name");
+						animation_name = std::filesystem::path(_model_path).stem().string() + "/"
+							+ (anim_name_iter == anim_0.end() 
+								? _itoa(0, int_buffer, 10)
+								: anim_name_iter->get<std::string>());
+
+						Component::SkeletonAnimator skeleton_animator_component = Component::Create<SkeletonAnimator>(node_entity);
+						skeleton_animator_component.SetAnimation(animation_name);
+						//TODO: Setting it to be unpaused for the sake of the animation assignment. Otherwise this should be false.
+						skeleton_animator_component.SetPaused(false);
+					}
+
+
+				}
 			}
 			// Set weights
 			if (weights_iter != node.end())

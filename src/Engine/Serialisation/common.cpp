@@ -73,7 +73,6 @@ namespace glm
 
 	void from_json(json const& j, glm::quat& q)
 	{
-		// WXYZ format
 		if (j.is_array())
 		{
 			q.x = j.at(0);
@@ -81,6 +80,7 @@ namespace glm
 			q.z = j.at(2);
 			q.w = j.at(3);
 		}
+		// WXYZ format
 		else
 		{
 			q.w = j.at("w");

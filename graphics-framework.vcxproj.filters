@@ -129,6 +129,12 @@
     <ClCompile Include="src\Sandbox\render_common.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\Engine\Components\SkeletonAnimator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Engine\Components\CurveInterpolator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Sandbox\sandbox.h">
@@ -254,6 +260,12 @@
     <ClInclude Include="src\Sandbox\render_common.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\Engine\Components\SkeletonAnimator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Engine\Components\CurveInterpolator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="working_dir\data\shaders\deferred.frag" />
@@ -282,6 +294,7 @@
     <None Include="data\shaders\write_csm.vert" />
     <None Include="data\shaders\write_csm.frag" />
     <None Include="data\shaders\display_framebuffer_global_light.frag" />
+    <None Include="data\shaders\skinned.vert" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="src\Engine\Components\EngineComponents.txt" />

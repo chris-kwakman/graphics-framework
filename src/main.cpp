@@ -8,6 +8,8 @@
 #include <Engine/Components/EngineCompManager.h>
 #include <Engine/Graphics/manager.h>
 
+#include <Engine/Components/SkeletonAnimator.h>
+
 #include "Sandbox/sandbox.h"
 
 #include <thread>
@@ -36,6 +38,7 @@ void update_loop()
 
 	while (true)
 	{
+		// TODO: Replace with proper framerate controller
 		auto frame_end = std::chrono::high_resolution_clock::now();
 		frametime = std::chrono::duration_cast<ms>(frame_end - frame_start);
 
@@ -59,6 +62,9 @@ void update_loop()
 
 		Sandbox::Update();
 
+		//TODO: Use frame rate controller DT
+		Singleton<Component::SkeletonAnimatorManager>().UpdateAnimatorInstances(1.0f / 60.0f);
+
 		Singleton<Engine::Editor::Editor>().Render();
 		Singleton<Engine::ECS::EntityManager>().FreeQueuedEntities();
 
@@ -69,10 +75,17 @@ void update_loop()
 	}
 }
 
+void import_default_resources()
+{
+	Singleton<Engine::Graphics::ResourceManager>().ImportModel_GLTF("data/gltf/Sphere.gltf");
+	Singleton<Engine::Graphics::ResourceManager>().ImportModel_GLTF("data/gltf/Box.gltf");
+}
+
 int main(int argc, char* argv[])
 {
 	std::string const cwd = std::filesystem::current_path().string();
 	printf("Working directory: %s\n", cwd.c_str());
+
 
 	
 	Engine::sdl_manager& sdl_manager = Singleton<Engine::sdl_manager>();
@@ -87,6 +100,9 @@ int main(int argc, char* argv[])
 			Singleton<Engine::Editor::Editor>().Initialise();
 			Singleton<Engine::ECS::EntityManager>().Reset();
 			Singleton<Engine::Graphics::ResourceManager>().Reset();
+
+			import_default_resources();
+
 
 			if (Sandbox::Initialize(argc, argv))
 				update_loop();
