@@ -8,6 +8,7 @@
 #include "Camera.h"
 #include "Light.h"
 #include "Nameable.h"
+#include "CurveInterpolator.h"
 
 void Component::InitializeEngineComponentManagers()
 {

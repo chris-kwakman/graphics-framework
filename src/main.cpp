@@ -75,10 +75,17 @@ void update_loop()
 	}
 }
 
+void import_default_resources()
+{
+	Singleton<Engine::Graphics::ResourceManager>().ImportModel_GLTF("data/gltf/Sphere.gltf");
+	Singleton<Engine::Graphics::ResourceManager>().ImportModel_GLTF("data/gltf/Box.gltf");
+}
+
 int main(int argc, char* argv[])
 {
 	std::string const cwd = std::filesystem::current_path().string();
 	printf("Working directory: %s\n", cwd.c_str());
+
 
 	
 	Engine::sdl_manager& sdl_manager = Singleton<Engine::sdl_manager>();
@@ -93,6 +100,9 @@ int main(int argc, char* argv[])
 			Singleton<Engine::Editor::Editor>().Initialise();
 			Singleton<Engine::ECS::EntityManager>().Reset();
 			Singleton<Engine::Graphics::ResourceManager>().Reset();
+
+			import_default_resources();
+
 
 			if (Sandbox::Initialize(argc, argv))
 				update_loop();

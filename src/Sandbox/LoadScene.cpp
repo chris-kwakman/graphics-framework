@@ -6,6 +6,7 @@
 #include <Engine/Components/Renderable.h>
 #include <Engine/Components/Light.h>
 #include <Engine/Components/SkeletonAnimator.h>
+#include <Engine/Components/CurveInterpolator.h>
 
 #include <glm/gtx/quaternion.hpp>
 #include <algorithm>
@@ -73,7 +74,9 @@ namespace Sandbox
 			auto current_transform = current_entity.GetComponent<Transform>();
 			json const& object_json = object_iter->at(i);
 
+			auto name_iter = object_json.find("name");
 			auto mesh_iter = object_json.find("mesh");
+			auto curve_interp_iter = object_json.find("curve_interpolator");
 			if (mesh_iter != object_json.end())
 			{
 				current_transform.SetLocalTransform(object_json);
@@ -84,8 +87,29 @@ namespace Sandbox
 				auto model_scene_entities = LoadGLTFScene(gltf_json, model_path.c_str(), _scene_path);
 				for (Entity model_scene_entity : model_scene_entities)
 					model_scene_entity.GetComponent<Transform>().SetParent(current_entity, false);
+				current_entity.SetName(object_iter->at(i).at("mesh").get<std::string>().c_str());
 			}
-			current_entity.SetName(object_iter->at(i).at("mesh").get<std::string>().c_str());
+			if (curve_interp_iter != object_json.end())
+			{
+				auto curve = Component::Create<CurveInterpolator>(current_entity);
+				piecewise_curve	new_pw_curve;
+				new_pw_curve.m_nodes = curve_interp_iter->at("nodes").get<std::vector<glm::vec3>>();
+
+				std::string curve_type = curve_interp_iter->at("type");
+				if (curve_type == "catmull")
+					new_pw_curve.m_type = piecewise_curve::EType::Catmull;
+				else if (curve_type == "hermite")
+					new_pw_curve.m_type = piecewise_curve::EType::Hermite;
+				else if (curve_type == "bezier")
+					new_pw_curve.m_type = piecewise_curve::EType::Bezier;
+				else
+					new_pw_curve.m_type = piecewise_curve::EType::Linear;
+
+				curve.SetPiecewiseCurve(new_pw_curve, curve_interp_iter->at("resolution"));
+			}
+			if (name_iter != object_json.end())
+				current_entity.SetName(name_iter->get<std::string>().c_str());
+
 		}
 
 		for (unsigned int i = lights_offset; i < dirlight_offset; ++i)

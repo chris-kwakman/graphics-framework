@@ -9,6 +9,9 @@ namespace Sandbox
 	unsigned int s_gl_bone_vao, s_gl_bone_vbo, s_gl_bone_ibo, s_gl_joint_vao, s_gl_joint_vbo, s_gl_joint_ibo;
 	unsigned int joint_index_count, bone_index_count;
 
+	unsigned int s_gl_line_vao, s_gl_line_vbo, s_gl_line_ibo;
+
+
 	void activate_texture(texture_handle _texture, unsigned int _program_uniform_index, unsigned int _texture_index)
 	{
 		// If no texture handle exists, ignore
@@ -156,6 +159,43 @@ namespace Sandbox
 			GfxCall(glBindVertexArray(0));
 		}
 
+
+	}
+
+	void create_line_mesh()
+	{
+		glCreateVertexArrays(1, &s_gl_line_vao);
+		glCreateBuffers(1, &s_gl_line_vbo);
+		glCreateBuffers(1, &s_gl_line_ibo);
+
+		glBindVertexArray(s_gl_line_vao);
+
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_gl_line_ibo);
+		unsigned int line_indices[MAX_LINE_POINTS];
+		for (unsigned int i = 0; i < MAX_LINE_POINTS; ++i)
+			line_indices[i] = i;
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, MAX_LINE_POINTS * sizeof(unsigned int), line_indices, GL_STATIC_DRAW);
+
+		glBindBuffer(GL_ARRAY_BUFFER, s_gl_line_vbo);
+		glBufferData(GL_ARRAY_BUFFER, MAX_LINE_POINTS * sizeof(glm::vec3), nullptr, GL_DYNAMIC_DRAW);
+		glEnableVertexArrayAttrib(s_gl_line_vao, 0);
+		glVertexAttribPointer(
+			0, 3, GL_FLOAT, false, 0, (void const*)0
+		);
+
+		glBindVertexArray(0);
+
+		glObjectLabel(GL_VERTEX_ARRAY, s_gl_line_vao, -1, "Line VAO");
+		glObjectLabel(GL_BUFFER, s_gl_line_vbo, -1, "Line VBO");
+		glObjectLabel(GL_BUFFER, s_gl_line_ibo, -1, "Line IBO");
+	}
+
+	void set_line_mesh(glm::vec3 const* _points, unsigned int _point_count)
+	{
+		glBindBuffer(GL_ARRAY_BUFFER, s_gl_line_vbo);
+		glBufferSubData(
+			GL_ARRAY_BUFFER, 0, sizeof(glm::vec3) * _point_count, _points
+		);
 	}
 
 }

@@ -17,6 +17,7 @@
 #include <Engine/Components/Renderable.h>
 #include <Engine/Components/Camera.h>
 #include <Engine/Components/Light.h>
+#include <Engine/Components/CurveInterpolator.h>
 
 #include <STB/stb_image_write.h>
 
@@ -120,7 +121,8 @@ namespace Sandbox
 			"data/shaders/dirlight_shadowmap.vert",
 			"data/shaders/dirlight_shadowmap.frag",
 			"data/shaders/write_csm.vert",
-			"data/shaders/write_csm.frag"
+			"data/shaders/write_csm.frag",
+			"data/shaders/primitive.frag"
 		};
 		std::vector<Engine::Graphics::ResourceManager::shader_handle> output_shader_handles;
 		output_shader_handles = system_resource_manager.LoadShaders(shader_paths);
@@ -130,6 +132,7 @@ namespace Sandbox
 		program_shader_path_list const draw_infinite_grid_shaders = { "data/shaders/infinite_grid.vert", "data/shaders/infinite_grid.frag" };
 		program_shader_path_list const draw_gbuffer_skinned_shaders = { "data/shaders/skinned.vert", "data/shaders/deferred.frag" };
 		program_shader_path_list const draw_gbuffer_shaders = { "data/shaders/default.vert", "data/shaders/deferred.frag" };
+		program_shader_path_list const draw_gbuffer_primitive = { "data/shaders/default.vert", "data/shaders/primitive.frag" };
 		program_shader_path_list const draw_framebuffer_plain_shaders = { "data/shaders/display_framebuffer.vert", "data/shaders/display_framebuffer_plain.frag" };
 		program_shader_path_list const draw_framebuffer_global_light = { "data/shaders/display_framebuffer.vert", "data/shaders/display_framebuffer_global_light.frag" };
 		program_shader_path_list const draw_phong_shaders = { "data/shaders/default.vert", "data/shaders/phong.frag" };
@@ -141,6 +144,7 @@ namespace Sandbox
 		system_resource_manager.LoadShaderProgram("draw_infinite_grid", draw_infinite_grid_shaders);
 		system_resource_manager.LoadShaderProgram("draw_gbuffer", draw_gbuffer_shaders);
 		system_resource_manager.LoadShaderProgram("draw_gbuffer_skinned", draw_gbuffer_skinned_shaders);
+		system_resource_manager.LoadShaderProgram("draw_gbuffer_primitive", draw_gbuffer_primitive);
 		system_resource_manager.LoadShaderProgram("draw_framebuffer_plain", draw_framebuffer_plain_shaders);
 		system_resource_manager.LoadShaderProgram("draw_framebuffer_global_light", draw_framebuffer_global_light);
 		system_resource_manager.LoadShaderProgram("draw_phong", draw_phong_shaders);
@@ -313,21 +317,20 @@ namespace Sandbox
 	{
 		InitializeSandboxComponentManagers();
 
-		Engine::Graphics::ResourceManager & system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
-		system_resource_manager.Reset();
-
 		setup_shaders();
 		setup_framebuffer();
 		create_framebuffer_triangle();
 		create_skeleton_bone_model();
+		create_line_mesh();
 
 		// Load glTF model Sponza by default, other if specified in commandline argument.
-		if (argc >= 2)
-			s_scene_loaded = argv[1];
-		else
-			s_scene_loaded = "data/scenes/sceneAnimation.json";
-
-		system_resource_manager.ImportModel_GLTF("data/gltf/Sphere.gltf");
+		if (!s_scene_reset)
+		{
+			if (argc >= 2)
+				s_scene_loaded = argv[1];
+			else
+				s_scene_loaded = "data/scenes/sceneDecals.json";
+		}
 
 		if (argc >= 3)
 		{
@@ -639,6 +642,24 @@ namespace Sandbox
 		if (input_manager.GetKeyboardButtonState(SDL_SCANCODE_LCTRL) == button_state::eDown && input_manager.GetKeyboardButtonState(SDL_SCANCODE_Q) == button_state::ePress)
 			Singleton<Engine::sdl_manager>().m_want_quit = true;
 
+
+		////////////////////////////////////////
+		//   Switch scene
+		////////////////////////////////////////
+		if (input_manager.GetKeyboardButtonState(SDL_SCANCODE_LCTRL) == button_state::eDown && input_manager.GetKeyboardButtonState(SDL_SCANCODE_1) == button_state::ePress)
+		{
+			s_scene_loaded = "data/scenes/sceneAnimation.json";
+			s_scene_reset = true;
+			Singleton<Engine::sdl_manager>().m_want_restart = true;
+		}
+		else if (input_manager.GetKeyboardButtonState(SDL_SCANCODE_LCTRL) == button_state::eDown && input_manager.GetKeyboardButtonState(SDL_SCANCODE_2) == button_state::ePress)
+		{
+			s_scene_loaded = "data/scenes/sceneCurves.json";
+			s_scene_reset = true;
+			Singleton<Engine::sdl_manager>().m_want_restart = true;
+		}
+
+
 		control_camera();
 		frame_counter++;
 
@@ -825,12 +846,9 @@ namespace Sandbox
 			activate_texture(s_texture_white, 0, 0);
 			activate_texture(s_texture_white, 1, 1);
 			activate_texture(s_texture_white, 2, 2);
-			// Set base color factor
-			system_resource_manager.SetBoundProgramUniform(3, glm::vec4(0.5f));
-			// Set alpha-cutoff value to zero
-			system_resource_manager.SetBoundProgramUniform(10, 0.0f);
 
-			glDepthFunc(GL_ALWAYS);
+			glDepthFunc(GL_LEQUAL);
+			glDisable(GL_BLEND);
 
 			for (auto skin_entity_pair : skin_entity_map)
 			{
@@ -883,6 +901,11 @@ namespace Sandbox
 						system_resource_manager.SetBoundProgramUniform(6, matrix_t_inv_mv);
 						system_resource_manager.SetBoundProgramUniform(9, matrix_vp* mesh_model_matrix);
 
+						// Set base color factor
+						system_resource_manager.SetBoundProgramUniform(3, glm::vec4(0.5f, 0.5f, 0.5f, 1.0f));
+						// Set alpha-cutoff value to zero
+						system_resource_manager.SetBoundProgramUniform(10, 0.0f);
+
 						glBindVertexArray(s_gl_bone_vao);
 						GfxCall(glDrawElements(
 							GL_TRIANGLES,
@@ -895,6 +918,91 @@ namespace Sandbox
 			}
 		}
 
+		// Debug render for curves and curve nodes
+
+		auto& curve_interpolator = Singleton<Component::CurveInterpolatorManager>();
+		auto curve_entities = curve_interpolator.GetRenderableCurves();
+		if (!curve_entities.empty())
+		{
+			system_resource_manager.UseProgram(system_resource_manager.FindShaderProgram("draw_gbuffer_primitive"));
+
+			system_resource_manager.SetBoundProgramUniform(0, glm::vec4(1.0f, 1.0f, 0.0f, 1.0f));
+
+			glDepthMask(GL_TRUE);
+			glDepthFunc(GL_ALWAYS);
+			glDisable(GL_BLEND);
+			glLineWidth(10.0f);
+
+			glBindVertexArray(s_gl_line_vao);
+			for (Component::CurveInterpolator curve_comp : curve_entities)
+			{
+				Component::Transform renderable_transform = curve_comp.Owner().GetComponent<Component::Transform>();
+				// TODO: Use cached world matrix in transform manager (once implemented)
+				auto model_transform = renderable_transform.ComputeWorldTransform();
+				glm::mat4 const mesh_model_matrix = model_transform.GetMatrix();
+				glm::mat4 const matrix_mv = camera_view_matrix * mesh_model_matrix;
+				glm::mat4 const matrix_t_inv_mv = glm::transpose(glm::inverse(matrix_mv));
+
+				system_resource_manager.SetBoundProgramUniform(5, matrix_vp* mesh_model_matrix);
+				system_resource_manager.SetBoundProgramUniform(6, matrix_t_inv_mv);
+				system_resource_manager.SetBoundProgramUniform(9, matrix_vp* mesh_model_matrix);
+
+				auto curve = curve_comp.GetPiecewiseCurve();
+				set_line_mesh(&curve.m_lut.m_points.front(), curve.m_lut.m_points.size());
+				GfxCall(glDrawElements(
+					GL_LINE_STRIP,
+					curve.m_lut.m_points.size(),
+					GL_UNSIGNED_INT,
+					(void*)0
+				));
+			}
+		}
+		auto curve_node_entities = curve_interpolator.GetRenderableCurveNodes();
+		if (!curve_node_entities.empty())
+		{
+			system_resource_manager.UseProgram(system_resource_manager.FindShaderProgram("draw_gbuffer_primitive"));
+
+			system_resource_manager.SetBoundProgramUniform(0, glm::vec4(0.0f, 0.0f, 1.0f, 1.0f));
+
+			glDepthMask(GL_TRUE);
+			glDepthFunc(GL_ALWAYS);
+			glDisable(GL_BLEND);
+
+			mesh_handle box_mesh = system_resource_manager.FindMesh("Box/Mesh");
+			auto const & box_primitives = system_resource_manager.GetMeshPrimitives(box_mesh);
+			auto const& render_primitive = box_primitives.front();
+
+			glBindVertexArray(render_primitive.m_vao_gl_id);
+			for (Component::CurveInterpolator curve_comp : curve_entities)
+			{
+				Engine::Math::transform3D node_transform;
+				node_transform.scale = glm::vec3(0.5f);
+				for (glm::vec3 node : curve_comp.GetPiecewiseCurve().m_nodes)
+				{
+					node_transform.position = node;
+
+					Component::Transform renderable_transform = curve_comp.Owner().GetComponent<Component::Transform>();
+					// TODO: Use cached world matrix in transform manager (once implemented)
+					auto model_transform = renderable_transform.ComputeWorldTransform();
+					glm::mat4 const mesh_model_matrix = model_transform.GetMatrix() * node_transform.GetMatrix();
+					glm::mat4 const matrix_mv = camera_view_matrix * mesh_model_matrix;
+					glm::mat4 const matrix_t_inv_mv = glm::transpose(glm::inverse(matrix_mv));
+
+					system_resource_manager.SetBoundProgramUniform(5, matrix_vp * mesh_model_matrix);
+					system_resource_manager.SetBoundProgramUniform(6, matrix_t_inv_mv);
+					system_resource_manager.SetBoundProgramUniform(9, matrix_vp * mesh_model_matrix);
+					
+					auto ibo_comp_type = system_resource_manager.GetIndexBufferInfo(render_primitive.m_index_buffer_handle).m_type;
+					GfxCall(glDrawElements(
+						GL_TRIANGLES,
+						(GLsizei)render_primitive.m_index_count,
+						ibo_comp_type,
+						(void const*)render_primitive.m_index_byte_offset
+					));
+
+				}
+			}
+		}
 
 
 		cascading_shadow_map_data csm_data;

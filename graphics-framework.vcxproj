@@ -177,6 +177,7 @@
     <ClCompile Include="include\ImGui\imgui_widgets.cpp" />
     <ClCompile Include="include\ImGui\misc\cpp\imgui_stdlib.cpp" />
     <ClCompile Include="src\Engine\Components\Camera.cpp" />
+    <ClCompile Include="src\Engine\Components\CurveInterpolator.cpp" />
     <ClCompile Include="src\Engine\Components\EngineCompManager.cpp" />
     <ClCompile Include="src\Engine\Components\Light.cpp">
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)</ObjectFileName>
@@ -224,6 +225,7 @@
     <ClInclude Include="include\ImGui\misc\cpp\imgui_stdlib.h" />
     <ClInclude Include="include\ImGui\misc\single_file\imgui_single_file.h" />
     <ClInclude Include="src\Engine\Components\Camera.h" />
+    <ClInclude Include="src\Engine\Components\CurveInterpolator.h" />
     <ClInclude Include="src\Engine\Components\EngineCompManager.h" />
     <ClInclude Include="src\Engine\Components\Light.h" />
     <ClInclude Include="src\Engine\Components\Nameable.h" />
