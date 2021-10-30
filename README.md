@@ -6,10 +6,6 @@ Login: c.kwakman
 
 ### Additional Notes
 
-## Extra Credit implemented:
-- Advanced rendering (from CS562)
-- Parent / Unparent nodes
-
 ## How to use program:
 
 # Camera controls
@@ -29,27 +25,29 @@ F5 - Reload shaders.
 CTRL+SHIFT+R - Reload resources (also resets scene graph)
 CTRL+Q - Quit Program
 
-## Important parts of code:
+CTRL+1 - Load animation scene
+CTRL+2 - Load curves scene
 
-Engine/Graphics/manager - Stores graphics resources (i.e. textures, buffers, etc...)
-Engine/Components/		- Engine components are defined here (Transform, Light, Camera)
-Sandbox/Sandbox			- User-defined application code
+Drag / Drop GLTF files to load them as models.
+Drag / Drop models within editor graphics resources tab into an entity to create that model's hierarchy.
+Drag / Drop animation resource into SkeletonAnimator to set animation.
 
 ## Known issues:
 
 - ImGuizmo refuses to take mouse input for some indiscernible reason.
-- ImGuizmo crashes in release for some reason.
-- Scene graph only shows nodes with entity IDs and not names.
-- CTRL+R (resource refresh) not implemented.
 - Picking via raycasting is not implemented. However, entities can be selected via the scene graph.
-- Infinite grid has issues with depth rendering (overlays ontop of other objects even while trying to respect depth)
-- Models are loaded on their side. Probably a scene deserialization issue.
+- Cannot import GLTF models with animations but no skins (animations rely on skin with current implementation).
+- Cannot import GLTF models that exceed a certain amount of texture coordinate sets per vertex
+- Did not implement curve interpolation system or Bezier curves.
+- No headers on files as of yet.
+- Only using a single scene is currently implemented (though switching between multiple should be trivial to implement with my implementation).
+- Issue with `mixamo_walking` since the model uses two skins with the same joints. Not sure if I should handle this.
+- Some models like BrainStem are crashing when importing due to memory being overwritten.
 
 ## Time of implementation
-Too much time (>20 hours ontop of CS562?)
+Like 20 hours
 
 ## Time of testing
-1 to 2 hours
+2 hours
 
 ## Comments
-ImGuizmo is causing issues, the reasons of which I do not know.
