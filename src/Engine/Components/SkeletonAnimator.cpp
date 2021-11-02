@@ -1,6 +1,6 @@
 #include "SkeletonAnimator.h"
 #include "Renderable.h"
-#include <ImGui/misc/cpp/imgui_stdlib.h>
+#include <ImGui/imgui_stdlib.h>
 
 #include <array>
 #include <Engine/Math/Transform3D.h>

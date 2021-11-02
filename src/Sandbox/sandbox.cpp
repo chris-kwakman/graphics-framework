@@ -26,7 +26,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <GLM/gtx/quaternion.hpp>
 
-#include <ImGui/misc/cpp/imgui_stdlib.h>
+#include <ImGui/imgui_stdlib.h>
 
 #include <string>
 #include <math.h>

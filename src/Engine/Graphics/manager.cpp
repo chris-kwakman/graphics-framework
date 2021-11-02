@@ -17,7 +17,7 @@
 #include <tiny_glft/tiny_gltf.h>
 
 #include <ImGui/imgui.h>
-#include <ImGui/misc/cpp/imgui_stdlib.h>
+#include <ImGui/imgui_stdlib.h>
 
 namespace Engine {
 namespace Graphics {
