@@ -5,7 +5,7 @@ const int NUM_CASCADES = 3;
 struct CascadingShadowMapData
 {
 	mat4 vp[NUM_CASCADES];
-	float shadow_bias[NUM_CASCADES];
+	float shadow_bias[NUM_CASCADES]; 
 	sampler2D shadow_map[NUM_CASCADES];
 	float clipspace_end[NUM_CASCADES];
 	float clipspace_blend_start[NUM_CASCADES-1];

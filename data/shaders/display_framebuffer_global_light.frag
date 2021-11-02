@@ -1,17 +1,15 @@
 #version 420 core
 
-#extension GL_ARB_explicit_uniform_location : enable
-
 const unsigned int CSM_PARTITION_COUNT = 3;
 
-layout(location = 0) uniform sampler2D u_sampler_depth;
-layout(location = 1) uniform sampler2D u_sampler_base_color;
-layout(location = 2) uniform sampler2D u_sampler_shadow;
+uniform sampler2D u_sampler_depth;
+uniform sampler2D u_sampler_base_color;
+uniform sampler2D u_sampler_shadow;
 
-layout(location = 10) uniform vec3 u_ambient_color;
-layout(location = 11) uniform vec3 u_sunlight_color = vec3(1);
-layout(location = 12) uniform bool u_csm_render_cascades = false;
-layout(location = 13) uniform float u_csm_cascade_ndc_end[3];
+uniform vec3 u_ambient_color;
+uniform vec3 u_sunlight_color = vec3(1);
+uniform bool u_csm_render_cascades = false;
+uniform float u_csm_cascade_ndc_end[3];
 
 in vec2 f_uv;
 

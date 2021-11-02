@@ -267,6 +267,14 @@ namespace Graphics {
 			std::vector<shader_handle>	m_linked_shader_handles;
 		};
 
+		struct shader_program_data
+		{
+			std::unordered_map<std::string, unsigned int> m_uniform_cache;
+			int m_uniform_count;
+
+			void refresh_cache(GLuint _gl_program_object);
+		};
+		
 	public:
 
 		// Handle counters
@@ -277,6 +285,7 @@ namespace Graphics {
 		std::unordered_map<shader_handle, shader_info>					m_shader_info_map;
 		std::unordered_map<filepath_string, shader_program_handle>		m_named_shader_program_map;
 		std::unordered_map<shader_program_handle, shader_program_info>	m_shader_program_info_map;
+		std::unordered_map<shader_program_handle, shader_program_data>	m_shader_program_data_map;
 
 		shader_program_handle	m_bound_program = 0;
 		GLuint					m_bound_gl_program_object = 0;
@@ -399,6 +408,8 @@ namespace Graphics {
 		void						RefreshShaders();
 
 		void UseProgram(shader_program_handle _program_handle);
+		int GetBoundProgramUniformLocation(const char* _uniform_name) const;
+		int FindBoundProgramUniformLocation(const char* _uniform_name) const;
 		void SetBoundProgramUniform(unsigned int _uniform_location, unsigned int _uniform_value);
 		void SetBoundProgramUniform(unsigned int _uniform_location, int _uniform_value);
 		void SetBoundProgramUniform(unsigned int _uniform_location, float _uniform_value);

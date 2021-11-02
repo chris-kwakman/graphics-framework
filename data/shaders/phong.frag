@@ -1,27 +1,24 @@
 #version 420
 
-#extension GL_ARB_explicit_uniform_location : enable
-
 in vec3 f_pos;
 in vec3 f_normal;
 
-layout(location = 0) uniform sampler2D	u_sampler_depth;
-layout(location = 1) uniform sampler2D	u_sampler_base_color;
-layout(location = 2) uniform sampler2D	u_sampler_metallic_roughness;
-layout(location = 3) uniform sampler2D	u_sampler_normal;
+uniform sampler2D	u_sampler_depth;
+uniform sampler2D	u_sampler_base_color;
+uniform sampler2D	u_sampler_metallic_roughness;
+uniform sampler2D	u_sampler_normal;
 
-layout(location = 7) uniform mat4 u_p_inv;
+uniform mat4 u_p_inv;
 
-layout(location = 10) uniform uvec2 u_viewport_size;
-layout(location = 11) uniform float u_camera_near;
-layout(location = 12) uniform float u_camera_far;
-layout(location = 13) uniform vec3 u_light_view_pos;
-layout(location = 14) uniform float u_light_radius;
-layout(location = 15) uniform vec3 u_light_color;
+uniform uvec2 u_viewport_size;
+uniform float u_camera_near;
+uniform float u_camera_far;
+uniform vec3 u_light_view_pos;
+uniform float u_light_radius;
+uniform vec3 u_light_color;
 
-layout(location = 20) uniform float u_gamma_correction_factor;
-layout(location = 21) uniform float u_shininess_mult_factor;
-layout(location = 22) uniform vec3	u_bloom_treshhold;
+uniform float u_shininess_mult_factor;
+uniform vec3 u_bloom_treshhold;
 
 layout(location = 0) out vec3 out_color;
 layout(location = 1) out vec3 out_luminance; // Used for bloom

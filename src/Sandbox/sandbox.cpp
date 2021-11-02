@@ -614,13 +614,13 @@ namespace Sandbox
 
 		using sdl_manager = Engine::sdl_manager;
 
-		auto& system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
+		auto& res_mgr = Singleton<Engine::Graphics::ResourceManager>();
 		auto& input_manager = Singleton<Engine::Managers::InputManager>();
 
 		if (Singleton<sdl_manager>().is_file_dropped())
 		{
 			std::string const dropped_file_dir = Singleton<sdl_manager>().get_dropped_file();
-			system_resource_manager.ImportModel_GLTF(dropped_file_dir.c_str());
+			res_mgr.ImportModel_GLTF(dropped_file_dir.c_str());
 		}
 		
 
@@ -682,10 +682,10 @@ namespace Sandbox
 
 		using shader_program_handle = Engine::Graphics::shader_program_handle;
 
-		shader_program_handle const program_draw_gbuffer = system_resource_manager.FindShaderProgram("draw_gbuffer");
-		shader_program_handle const program_draw_gbuffer_skinned = system_resource_manager.FindShaderProgram("draw_gbuffer_skinned");
-		shader_program_handle const program_draw_framebuffer_plain = system_resource_manager.FindShaderProgram("draw_framebuffer_plain");
-		shader_program_handle const program_draw_ambient_light = system_resource_manager.FindShaderProgram("draw_framebuffer_global_light");
+		shader_program_handle const program_draw_gbuffer = res_mgr.FindShaderProgram("draw_gbuffer");
+		shader_program_handle const program_draw_gbuffer_skinned = res_mgr.FindShaderProgram("draw_gbuffer_skinned");
+		shader_program_handle const program_draw_framebuffer_plain = res_mgr.FindShaderProgram("draw_framebuffer_plain");
+		shader_program_handle const program_draw_global_light = res_mgr.FindShaderProgram("draw_framebuffer_global_light");
 		assert(program_draw_gbuffer != 0);
 
 		auto camera_component = camera_entity.GetComponent<Component::Camera>();
@@ -716,13 +716,47 @@ namespace Sandbox
 		);
 
 		
-		system_resource_manager.BindFramebuffer(s_framebuffer_gbuffer);
+		res_mgr.BindFramebuffer(s_framebuffer_gbuffer);
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		auto window_size = Singleton<Engine::sdl_manager>().get_window_size();
 		glViewport(0, 0, window_size.x, window_size.y);
 
-		system_resource_manager.UseProgram(program_draw_gbuffer);
+		int LOC_SAMPLER_DEPTH = -1;
+		int LOC_SAMPLER_BASE_COLOR = -1;
+		int LOC_SAMPLER_METALLIC_ROUGHNESS = -1;
+		int LOC_SAMPLER_NORMAL = -1;
+		int LOC_BASE_COLOR_FACTOR = -1;
+		int LOC_ALPHA_CUTOFF = -1;
+		int LOC_MAT_MVP = -1;
+		int LOC_MAT_MV = -1;
+		int LOC_MAT_V = -1;
+		int LOC_MAT_VP = -1;
+		int LOC_MAT_P_INV = -1;
+		int LOC_MAT_MV_T_INV = -1;
+		int LOC_MAT_JOINT_0 = -1;
+
+		auto set_bound_program_uniform_locations = [&]()
+		{
+			LOC_SAMPLER_DEPTH = res_mgr.FindBoundProgramUniformLocation("u_sampler_depth");
+			LOC_SAMPLER_BASE_COLOR = res_mgr.FindBoundProgramUniformLocation("u_sampler_base_color");
+			LOC_SAMPLER_METALLIC_ROUGHNESS = res_mgr.FindBoundProgramUniformLocation("u_sampler_metallic_roughness");
+			LOC_SAMPLER_NORMAL = res_mgr.FindBoundProgramUniformLocation("u_sampler_normal");
+			LOC_BASE_COLOR_FACTOR = res_mgr.FindBoundProgramUniformLocation("u_base_color_factor");
+			LOC_ALPHA_CUTOFF = res_mgr.FindBoundProgramUniformLocation("u_alpha_cutoff");
+
+			LOC_MAT_MVP = res_mgr.FindBoundProgramUniformLocation("u_mvp");
+			LOC_MAT_MV = res_mgr.FindBoundProgramUniformLocation("u_mv");
+			LOC_MAT_V = res_mgr.FindBoundProgramUniformLocation("u_v");
+			LOC_MAT_VP = res_mgr.FindBoundProgramUniformLocation("u_vp");
+			LOC_MAT_P_INV = res_mgr.FindBoundProgramUniformLocation("u_p_inv");
+			LOC_MAT_MV_T_INV = res_mgr.FindBoundProgramUniformLocation("u_mv_t_inv");
+			LOC_MAT_JOINT_0 = res_mgr.FindBoundProgramUniformLocation("u_joint_matrices[0]");
+		};
+
+		res_mgr.UseProgram(program_draw_gbuffer);
+
+		set_bound_program_uniform_locations();
 
 		for(unsigned int renderable_idx = 0; renderable_idx < sorted_renderables.size(); ++renderable_idx)
 		{
@@ -733,7 +767,10 @@ namespace Sandbox
 
 			// Use skinned renderable program once we reach skinned portion of renderable array.
 			if (renderable_idx == first_skinned_renderable_index)
-				system_resource_manager.UseProgram(program_draw_gbuffer_skinned);
+			{
+				res_mgr.UseProgram(program_draw_gbuffer_skinned);
+				set_bound_program_uniform_locations();
+			}
 
 			Component::Transform renderable_transform = renderable_entity.GetComponent<Component::Transform>();
 			// TODO: Use cached world matrix in transform manager (once implemented)
@@ -742,9 +779,9 @@ namespace Sandbox
 			glm::mat4 const matrix_mv = camera_view_matrix * mesh_model_matrix;
 			glm::mat4 const matrix_t_inv_mv = glm::transpose(glm::inverse(matrix_mv));
 
-			system_resource_manager.SetBoundProgramUniform(5, matrix_vp * mesh_model_matrix);
-			system_resource_manager.SetBoundProgramUniform(6, matrix_t_inv_mv);
-			system_resource_manager.SetBoundProgramUniform(9, matrix_vp * mesh_model_matrix);
+			res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, matrix_vp * mesh_model_matrix);
+			res_mgr.SetBoundProgramUniform(LOC_MAT_MV, matrix_mv);
+			res_mgr.SetBoundProgramUniform(LOC_MAT_MV_T_INV, matrix_t_inv_mv);
 
 			if (renderable_idx >= first_skinned_renderable_index)
 			{
@@ -769,10 +806,10 @@ namespace Sandbox
 					joint_skinning_matrices[j] = joint_skinning_matrices[j] * skin_inv_bind_matrices[j];
 
 				for (unsigned int j = 0; j < joint_skinning_matrices.size(); ++j)
-					system_resource_manager.SetBoundProgramUniform(16 + j, joint_skinning_matrices[j]);
+					res_mgr.SetBoundProgramUniform(LOC_MAT_JOINT_0 + j, joint_skinning_matrices[j]);
 			}
 
-			auto& mesh_primitives = system_resource_manager.GetMeshPrimitives(renderable_mesh);
+			auto& mesh_primitives = res_mgr.GetMeshPrimitives(renderable_mesh);
 			for (unsigned int primitive_idx = 0; primitive_idx < mesh_primitives.size(); ++primitive_idx)
 			{
 				ResourceManager::mesh_primitive_data primitive = mesh_primitives[primitive_idx];
@@ -780,7 +817,7 @@ namespace Sandbox
 				// Set texture slots
 				if (primitive.m_material_handle != 0)
 				{
-					ResourceManager::material_data material = system_resource_manager.GetMaterial(primitive.m_material_handle);
+					ResourceManager::material_data material = res_mgr.GetMaterial(primitive.m_material_handle);
 
 					texture_handle const use_base_color = material.m_pbr_metallic_roughness.m_texture_base_color
 						? material.m_pbr_metallic_roughness.m_texture_base_color
@@ -790,17 +827,17 @@ namespace Sandbox
 						: s_texture_white;
 
 					// TODO: Implement metallic roughness color factors
-					activate_texture(use_base_color, 0, 0);
-					activate_texture(use_metallic_roughness, 1, 1);
-					activate_texture(material.m_texture_normal, 2, 2);
-					system_resource_manager.SetBoundProgramUniform(3, material.m_pbr_metallic_roughness.m_base_color_factor);
+					activate_texture(use_base_color, LOC_SAMPLER_BASE_COLOR, 0);
+					activate_texture(use_metallic_roughness, LOC_SAMPLER_METALLIC_ROUGHNESS, 1);
+					activate_texture(material.m_texture_normal, LOC_SAMPLER_NORMAL, 2);
+					res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, material.m_pbr_metallic_roughness.m_base_color_factor);
 					/*activate_texture(material.m_texture_occlusion, 3, 3);
 					activate_texture(material.m_texture_emissive, 4, 4);*/
 
 
 					using alpha_mode = ResourceManager::material_data::alpha_mode;
-					system_resource_manager.SetBoundProgramUniform(
-						10,
+					res_mgr.SetBoundProgramUniform(
+						LOC_ALPHA_CUTOFF,
 						(float)(material.m_alpha_mode == alpha_mode::eMASK ? material.m_alpha_cutoff : 0.0)
 					);
 					if (material.m_alpha_mode == alpha_mode::eBLEND)
@@ -817,8 +854,8 @@ namespace Sandbox
 				GfxCall(glBindVertexArray(primitive.m_vao_gl_id));
 				if (primitive.m_index_buffer_handle != 0)
 				{
-					auto index_buffer_info = system_resource_manager.GetBufferInfo(primitive.m_index_buffer_handle);
-					auto ibo_info = system_resource_manager.GetIndexBufferInfo(primitive.m_index_buffer_handle);
+					auto index_buffer_info = res_mgr.GetBufferInfo(primitive.m_index_buffer_handle);
+					auto ibo_info = res_mgr.GetIndexBufferInfo(primitive.m_index_buffer_handle);
 					GfxCall(glDrawElements(
 						primitive.m_render_mode,
 						(GLsizei)primitive.m_index_count,
@@ -841,11 +878,13 @@ namespace Sandbox
 		auto skin_entity_map = Singleton<Component::SkinManager>().GetAllSkinEntities();
 		if (!skin_entity_map.empty())
 		{
-			system_resource_manager.UseProgram(program_draw_gbuffer);
+			res_mgr.UseProgram(program_draw_gbuffer);
 			
-			activate_texture(s_texture_white, 0, 0);
-			activate_texture(s_texture_white, 1, 1);
-			activate_texture(s_texture_white, 2, 2);
+			set_bound_program_uniform_locations();
+
+			activate_texture(s_texture_white, LOC_SAMPLER_BASE_COLOR, 0);
+			activate_texture(s_texture_white, LOC_SAMPLER_METALLIC_ROUGHNESS, 1);
+			activate_texture(s_texture_white, LOC_SAMPLER_NORMAL, 2);
 
 			glDepthFunc(GL_LEQUAL);
 			glDisable(GL_BLEND);
@@ -897,14 +936,14 @@ namespace Sandbox
 						glm::mat4 const matrix_mv = camera_view_matrix * mesh_model_matrix;
 						glm::mat4 const matrix_t_inv_mv = glm::transpose(glm::inverse(matrix_mv));
 
-						system_resource_manager.SetBoundProgramUniform(5, matrix_vp* mesh_model_matrix);
-						system_resource_manager.SetBoundProgramUniform(6, matrix_t_inv_mv);
-						system_resource_manager.SetBoundProgramUniform(9, matrix_vp* mesh_model_matrix);
+						res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, matrix_vp* mesh_model_matrix);
+						res_mgr.SetBoundProgramUniform(LOC_MAT_MV, matrix_mv);
+						res_mgr.SetBoundProgramUniform(LOC_MAT_MV_T_INV, matrix_t_inv_mv);
 
 						// Set base color factor
-						system_resource_manager.SetBoundProgramUniform(3, glm::vec4(0.5f, 0.5f, 0.5f, 1.0f));
+						res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, glm::vec4(0.5f, 0.5f, 0.5f, 1.0f));
 						// Set alpha-cutoff value to zero
-						system_resource_manager.SetBoundProgramUniform(10, 0.0f);
+						res_mgr.SetBoundProgramUniform(LOC_ALPHA_CUTOFF, 0.0f);
 
 						glBindVertexArray(s_gl_bone_vao);
 						GfxCall(glDrawElements(
@@ -924,9 +963,11 @@ namespace Sandbox
 		auto curve_entities = curve_interpolator.GetRenderableCurves();
 		if (!curve_entities.empty())
 		{
-			system_resource_manager.UseProgram(system_resource_manager.FindShaderProgram("draw_gbuffer_primitive"));
+			res_mgr.UseProgram(res_mgr.FindShaderProgram("draw_gbuffer_primitive"));
 
-			system_resource_manager.SetBoundProgramUniform(0, glm::vec4(1.0f, 1.0f, 0.0f, 1.0f));
+			set_bound_program_uniform_locations();
+
+			res_mgr.SetBoundProgramUniform(0, glm::vec4(1.0f, 1.0f, 0.0f, 1.0f));
 
 			glDepthMask(GL_TRUE);
 			glDepthFunc(GL_ALWAYS);
@@ -943,9 +984,9 @@ namespace Sandbox
 				glm::mat4 const matrix_mv = camera_view_matrix * mesh_model_matrix;
 				glm::mat4 const matrix_t_inv_mv = glm::transpose(glm::inverse(matrix_mv));
 
-				system_resource_manager.SetBoundProgramUniform(5, matrix_vp* mesh_model_matrix);
-				system_resource_manager.SetBoundProgramUniform(6, matrix_t_inv_mv);
-				system_resource_manager.SetBoundProgramUniform(9, matrix_vp* mesh_model_matrix);
+				res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, matrix_vp* mesh_model_matrix);
+				res_mgr.SetBoundProgramUniform(LOC_MAT_MV, matrix_mv);
+				res_mgr.SetBoundProgramUniform(LOC_MAT_MV_T_INV, matrix_t_inv_mv);
 
 				auto curve = curve_comp.GetPiecewiseCurve();
 				set_line_mesh(&curve.m_lut.m_points.front(), curve.m_lut.m_points.size());
@@ -960,16 +1001,18 @@ namespace Sandbox
 		auto curve_node_entities = curve_interpolator.GetRenderableCurveNodes();
 		if (!curve_node_entities.empty())
 		{
-			system_resource_manager.UseProgram(system_resource_manager.FindShaderProgram("draw_gbuffer_primitive"));
+			res_mgr.UseProgram(res_mgr.FindShaderProgram("draw_gbuffer_primitive"));
 
-			system_resource_manager.SetBoundProgramUniform(0, glm::vec4(0.0f, 0.0f, 1.0f, 1.0f));
+			set_bound_program_uniform_locations();
+
+			res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, glm::vec4(0.0f, 0.0f, 1.0f, 1.0f));
 
 			glDepthMask(GL_TRUE);
 			glDepthFunc(GL_ALWAYS);
 			glDisable(GL_BLEND);
 
-			mesh_handle box_mesh = system_resource_manager.FindMesh("Box/Mesh");
-			auto const & box_primitives = system_resource_manager.GetMeshPrimitives(box_mesh);
+			mesh_handle box_mesh = res_mgr.FindMesh("Box/Mesh");
+			auto const & box_primitives = res_mgr.GetMeshPrimitives(box_mesh);
 			auto const& render_primitive = box_primitives.front();
 
 			glBindVertexArray(render_primitive.m_vao_gl_id);
@@ -988,11 +1031,11 @@ namespace Sandbox
 					glm::mat4 const matrix_mv = camera_view_matrix * mesh_model_matrix;
 					glm::mat4 const matrix_t_inv_mv = glm::transpose(glm::inverse(matrix_mv));
 
-					system_resource_manager.SetBoundProgramUniform(5, matrix_vp * mesh_model_matrix);
-					system_resource_manager.SetBoundProgramUniform(6, matrix_t_inv_mv);
-					system_resource_manager.SetBoundProgramUniform(9, matrix_vp * mesh_model_matrix);
+					res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, matrix_vp * mesh_model_matrix);
+					res_mgr.SetBoundProgramUniform(LOC_MAT_MV, matrix_mv);
+					res_mgr.SetBoundProgramUniform(LOC_MAT_MV_T_INV, matrix_t_inv_mv);
 					
-					auto ibo_comp_type = system_resource_manager.GetIndexBufferInfo(render_primitive.m_index_buffer_handle).m_type;
+					auto ibo_comp_type = res_mgr.GetIndexBufferInfo(render_primitive.m_index_buffer_handle).m_type;
 					GfxCall(glDrawElements(
 						GL_TRIANGLES,
 						(GLsizei)render_primitive.m_index_count,
@@ -1013,9 +1056,9 @@ namespace Sandbox
 		}
 
 		// Lighting Stage
-		system_resource_manager.BindFramebuffer(s_framebuffer_lighting);
+		res_mgr.BindFramebuffer(s_framebuffer_lighting);
 		GLenum const draw_fb_lighting_attachment_01[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
-		system_resource_manager.DrawFramebuffers(s_framebuffer_lighting, 2, draw_fb_lighting_attachment_01);
+		res_mgr.DrawFramebuffers(s_framebuffer_lighting, 2, draw_fb_lighting_attachment_01);
 
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
@@ -1023,17 +1066,21 @@ namespace Sandbox
 		glViewport(0, 0, window_size.x, window_size.y);
 		glDisable(GL_BLEND);
 
-		system_resource_manager.UseProgram(system_resource_manager.FindShaderProgram("draw_phong"));
-		system_resource_manager.SetBoundProgramUniform(20, s_gamma_correction_factor);
-		system_resource_manager.SetBoundProgramUniform(21, s_shininess_mult_factor);
-		system_resource_manager.SetBoundProgramUniform(22, s_bloom_treshhold_color);
+		res_mgr.UseProgram(res_mgr.FindShaderProgram("draw_phong"));
 
-		activate_texture(s_fb_texture_depth, 0, 0);
-		activate_texture(s_fb_texture_base_color, 1, 1);
-		activate_texture(s_fb_texture_metallic_roughness, 2, 2);
-		activate_texture(s_fb_texture_normal, 3, 3);
+		set_bound_program_uniform_locations();
+		int LOC_SHININESS_MULT_FACTOR = res_mgr.FindBoundProgramUniformLocation("u_shininess_mult_factor");
+		int LOC_BLOOM_TRESHHOLD = res_mgr.FindBoundProgramUniformLocation("u_bloom_treshhold");
 
-		mesh_handle sphere_mesh = system_resource_manager.FindMesh("Sphere/Sphere");
+		res_mgr.SetBoundProgramUniform(LOC_SHININESS_MULT_FACTOR, s_shininess_mult_factor);
+		res_mgr.SetBoundProgramUniform(LOC_BLOOM_TRESHHOLD, s_bloom_treshhold_color);
+
+		activate_texture(s_fb_texture_depth, LOC_SAMPLER_DEPTH, 0);
+		activate_texture(s_fb_texture_base_color, LOC_SAMPLER_BASE_COLOR, 1);
+		activate_texture(s_fb_texture_metallic_roughness, LOC_SAMPLER_METALLIC_ROUGHNESS, 2);
+		activate_texture(s_fb_texture_normal, LOC_SAMPLER_NORMAL, 3);
+
+		mesh_handle sphere_mesh = res_mgr.FindMesh("Sphere/Sphere");
 		if (sphere_mesh)
 		{
 			Sandbox::RenderPointLights(sphere_mesh, camera_component.GetCameraData(), cam_transform);
@@ -1052,31 +1099,37 @@ namespace Sandbox
 		glDepthMask(GL_FALSE);
 
 		Component::DirectionalLight const dl = Singleton<Component::DirectionalLightManager>().GetDirectionalLight();
-		system_resource_manager.UseProgram(program_draw_ambient_light);
-		system_resource_manager.SetBoundProgramUniform(10, s_ambient_color);
-		system_resource_manager.SetBoundProgramUniform(11, 
-			dl.IsValid() ? dl.GetColor() : glm::vec3(1.0f)
+		res_mgr.UseProgram(program_draw_global_light);
+		set_bound_program_uniform_locations();
+		int LOC_SAMPLER_SHADOWMAP = res_mgr.GetBoundProgramUniformLocation("u_sampler_shadow");
+		int LOC_AMBIENT_COLOR = res_mgr.GetBoundProgramUniformLocation("u_ambient_color");
+		int LOC_SUNLIGHT_COLOR = res_mgr.GetBoundProgramUniformLocation("u_sunlight_color");
+		int LOC_CSM_RENDER_CASCADES = res_mgr.GetBoundProgramUniformLocation("u_csm_render_cascades");
+		int LOC_CSM_CASCADE_NDC_END_0 = res_mgr.GetBoundProgramUniformLocation("u_csm_cascade_ndc_end[0]");
+		res_mgr.SetBoundProgramUniform(LOC_AMBIENT_COLOR, s_ambient_color);
+		res_mgr.SetBoundProgramUniform(LOC_SUNLIGHT_COLOR, 
+			dl.IsValid() ? dl.GetColor() : glm::vec3(0.0f)
 		);
-		system_resource_manager.SetBoundProgramUniform(12, dl.IsValid() & dl.GetCascadeDebugRendering());
+		res_mgr.SetBoundProgramUniform(LOC_CSM_RENDER_CASCADES, dl.IsValid() & dl.GetCascadeDebugRendering());
 		if (dl.IsValid())
 		{
 			for (unsigned int i = 0; i < dl.GetPartitionCount(); ++i)
 			{
-				system_resource_manager.SetBoundProgramUniform(
-					13 + i,
+				res_mgr.SetBoundProgramUniform(
+					LOC_CSM_CASCADE_NDC_END_0 + i,
 					camera_data.get_clipping_depth(
 						dl.GetPartitionMinDepth(i + 1, camera_data.m_near, camera_data.m_far) - dl.GetBlendDistance()
 					)
 				);
 			}
 		}
-		activate_texture(s_fb_texture_depth, 0, 0);
-		activate_texture(s_fb_texture_base_color, 1, 1);
-		activate_texture(dl.IsValid() ? s_fb_texture_shadow : s_texture_white, 2, 2);
+		activate_texture(s_fb_texture_depth, LOC_SAMPLER_DEPTH, 0);
+		activate_texture(s_fb_texture_base_color, LOC_SAMPLER_BASE_COLOR, 1);
+		activate_texture(dl.IsValid() ? s_fb_texture_shadow : s_texture_white, LOC_SAMPLER_SHADOWMAP, 2);
 
 		// Disable drawing to luminance buffer when computing ambient color.
 		GLenum const draw_fb_lighting_attachment_0[] = { GL_COLOR_ATTACHMENT0};
-		system_resource_manager.DrawFramebuffers(s_framebuffer_lighting, 1, draw_fb_lighting_attachment_0);
+		res_mgr.DrawFramebuffers(s_framebuffer_lighting, 1, draw_fb_lighting_attachment_0);
 
 		GfxCall(glBindVertexArray(s_gl_tri_vao));
 		GfxCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_gl_tri_ibo));
@@ -1098,10 +1151,14 @@ namespace Sandbox
 			glDisable(GL_DEPTH_TEST);
 			glDepthFunc(GL_ALWAYS);
 
-			shader_program_handle bloom_blur_program = system_resource_manager.FindShaderProgram("process_bloom_blur");
-			system_resource_manager.UseProgram(bloom_blur_program);
+			shader_program_handle bloom_blur_program = res_mgr.FindShaderProgram("process_bloom_blur");
+			res_mgr.UseProgram(bloom_blur_program);
+			set_bound_program_uniform_locations();
 
-			Engine::Graphics::ResourceManager::texture_info luminance_tex_info = system_resource_manager.GetTextureInfo(s_fb_texture_luminance);
+			int LOC_SAMPLER_BLOOM_INPUT = res_mgr.GetBoundProgramUniformLocation("u_sampler_bloom_input");
+			int LOC_BOOL_BLUR_HORIZONTAL = res_mgr.GetBoundProgramUniformLocation("u_bool_blur_horizontal");
+
+			Engine::Graphics::ResourceManager::texture_info luminance_tex_info = res_mgr.GetTextureInfo(s_fb_texture_luminance);
 			
 			glBindTexture(luminance_tex_info.m_target, luminance_tex_info.m_gl_source_id);
 			glGenerateMipmap(luminance_tex_info.m_target);
@@ -1113,13 +1170,13 @@ namespace Sandbox
 			for (unsigned int i = 0; i < s_bloom_blur_count; ++i)
 			{
 				auto use_bloom_input_texture = first_iteration ? s_fb_texture_luminance : s_fb_texture_bloom_pingpong[(i + 1) % 2];
-				system_resource_manager.BindFramebuffer(s_framebuffer_bloom[i%2]);
-				activate_texture(use_bloom_input_texture, 0, 0);
+				res_mgr.BindFramebuffer(s_framebuffer_bloom[i%2]);
+				activate_texture(use_bloom_input_texture, LOC_SAMPLER_BLOOM_INPUT, 0);
 
-				int texture_gl_id = system_resource_manager.GetTextureInfo(use_bloom_input_texture).m_gl_source_id;
+				int texture_gl_id = res_mgr.GetTextureInfo(use_bloom_input_texture).m_gl_source_id;
 				glViewport(0, 0, s_bloom_texture_size.x, s_bloom_texture_size.y);
 
-				system_resource_manager.SetBoundProgramUniform(1, (int)((i % 2) == 0));
+				res_mgr.SetBoundProgramUniform(LOC_BOOL_BLUR_HORIZONTAL, (int)((i % 2) == 0));
 
 				GfxCall(glDrawElements(
 					GL_TRIANGLES,
@@ -1137,7 +1194,7 @@ namespace Sandbox
 		// Render onto final framebuffer
 		glViewport(0, 0, (GLsizei)window_size.x, (GLsizei)window_size.y);
 
-		system_resource_manager.UnbindFramebuffer();
+		res_mgr.UnbindFramebuffer();
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 		glEnable(GL_CULL_FACE);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1146,16 +1203,23 @@ namespace Sandbox
 		glDepthFunc(GL_ALWAYS);
 		glDisable(GL_BLEND);
 
-		shader_program_handle const postprocessing_program = system_resource_manager.FindShaderProgram("postprocessing");
+		shader_program_handle const postprocessing_program = res_mgr.FindShaderProgram("postprocessing");
 
-		system_resource_manager.UseProgram(postprocessing_program);
+		res_mgr.UseProgram(postprocessing_program);
 
-		activate_texture(s_fb_texture_light_color, 0, 0);
-		activate_texture(s_fb_texture_bloom_pingpong[1], 1, 1);
-		activate_texture(s_fb_texture_depth, 2, 2);
+		set_bound_program_uniform_locations();
 
-		system_resource_manager.SetBoundProgramUniform(10, s_exposure);
-		system_resource_manager.SetBoundProgramUniform(11, s_gamma_correction_factor);
+		int LOC_SAMPLER_SCENE = res_mgr.GetBoundProgramUniformLocation("u_sampler_scene");
+		int LOC_SAMPLER_BLOOM = res_mgr.GetBoundProgramUniformLocation("u_sampler_bloom");
+		int LOC_EXPOSURE = res_mgr.GetBoundProgramUniformLocation("u_exposure");
+		int LOC_GAMMA = res_mgr.GetBoundProgramUniformLocation("u_gamma");
+
+		activate_texture(s_fb_texture_light_color, LOC_SAMPLER_SCENE, 0);
+		activate_texture(s_fb_texture_bloom_pingpong[1], LOC_SAMPLER_BLOOM, 1);
+		activate_texture(s_fb_texture_depth, LOC_SAMPLER_DEPTH, 2);
+
+		res_mgr.SetBoundProgramUniform(LOC_EXPOSURE, s_exposure);
+		res_mgr.SetBoundProgramUniform(LOC_GAMMA, s_gamma_correction_factor);
 
 		GfxCall(glBindVertexArray(s_gl_tri_vao));
 		GfxCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_gl_tri_ibo));
@@ -1171,12 +1235,12 @@ namespace Sandbox
 		if (s_render_infinite_grid)
 		{
 			// Render endless grid
-			auto program = system_resource_manager.FindShaderProgram("draw_infinite_grid");
-			system_resource_manager.UseProgram(program);
-			system_resource_manager.SetBoundProgramUniform(0, cam_transform.GetInvMatrix());
-			system_resource_manager.SetBoundProgramUniform(1, camera_component.GetCameraData().get_perspective_matrix());
-			system_resource_manager.SetBoundProgramUniform(10, camera_component.GetNearDistance());
-			system_resource_manager.SetBoundProgramUniform(11, camera_component.GetFarDistance());
+			auto program = res_mgr.FindShaderProgram("draw_infinite_grid");
+			res_mgr.UseProgram(program);
+			res_mgr.SetBoundProgramUniform(0, cam_transform.GetInvMatrix());
+			res_mgr.SetBoundProgramUniform(1, camera_component.GetCameraData().get_perspective_matrix());
+			res_mgr.SetBoundProgramUniform(10, camera_component.GetNearDistance());
+			res_mgr.SetBoundProgramUniform(11, camera_component.GetFarDistance());
 
 			glEnable(GL_DEPTH_TEST);
 			glDepthMask(GL_TRUE);

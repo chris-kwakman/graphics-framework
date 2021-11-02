@@ -1231,9 +1231,14 @@ namespace Graphics {
 		shader_program_info new_program_info;
 		new_program_info.m_gl_program_object = gl_shader_program_object;
 		new_program_info.m_linked_shader_handles = _shader_handles;
+
+		shader_program_data new_program_data;
+		new_program_data.refresh_cache(gl_shader_program_object);
+
 		shader_program_handle new_shader_program_handle = m_shader_program_handle_counter;
 		m_shader_program_handle_counter++;
-		m_shader_program_info_map.emplace(new_shader_program_handle, new_program_info);
+		m_shader_program_info_map.emplace(new_shader_program_handle, std::move(new_program_info));
+		m_shader_program_data_map.emplace(new_shader_program_handle, std::move(new_program_data));
 		m_named_shader_program_map.emplace(_program_name, new_shader_program_handle);
 
 		// Add program handle to shader info map's "using programs map"
@@ -1297,6 +1302,22 @@ namespace Graphics {
 			m_bound_program = _program_handle;
 			m_bound_gl_program_object = program_info.m_gl_program_object;
 		}
+	}
+
+	int ResourceManager::GetBoundProgramUniformLocation(const char* _uniform_name) const
+	{
+		shader_program_data const & data = m_shader_program_data_map.at(m_bound_program);
+		return data.m_uniform_cache.at(_uniform_name);
+	}
+
+	int ResourceManager::FindBoundProgramUniformLocation(const char* _uniform_name) const
+	{
+		shader_program_data const & data = m_shader_program_data_map.at(m_bound_program);
+		auto iter = data.m_uniform_cache.find(_uniform_name);
+		if (iter == data.m_uniform_cache.end())
+			return -1;
+		else
+			return iter->second;
 	}
 
 	void ResourceManager::SetBoundProgramUniform(unsigned int _uniform_location, unsigned int _uniform_value)
@@ -1716,6 +1737,7 @@ namespace Graphics {
 
 			GfxCall(glDeleteProgram(iter->second.m_gl_program_object));
 			m_shader_program_info_map.erase(iter);
+			m_shader_program_data_map.erase(program);
 		}
 	}
 
@@ -1841,6 +1863,24 @@ namespace Graphics {
 		}
 	}
 
+	/*
+	* Refresh shader program uniforms in cache.
+	* @param	GLuint		OpenGL program object
+	*/
+	void ResourceManager::shader_program_data::refresh_cache(GLuint _gl_program_object)
+	{
+		m_uniform_cache.clear();
+		GfxCall(glGetProgramiv(_gl_program_object, GL_ACTIVE_UNIFORMS, &m_uniform_count));
+		char uniform_name_buffer[32];
+		int uniform_name_length = 0;
+		GLsizei uniform_size;
+		GLenum uniform_data_type;
+		for (int i = 0; i < m_uniform_count; ++i)
+		{
+			glGetActiveUniform(_gl_program_object, i, sizeof(uniform_name_buffer), &uniform_name_length, &uniform_size, &uniform_data_type, uniform_name_buffer);
+			m_uniform_cache.emplace(uniform_name_buffer, glGetUniformLocation(_gl_program_object, uniform_name_buffer));
+		}
+	}
 
 }
 }

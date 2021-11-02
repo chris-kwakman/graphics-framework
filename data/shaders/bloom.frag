@@ -1,9 +1,7 @@
 #version 420
 
-#extension GL_ARB_explicit_uniform_location : enable
-
-layout(location = 0) uniform sampler2D u_sampler_bloom_input;
-layout(location = 1) uniform bool u_bool_blur_horizontal;
+uniform sampler2D u_sampler_bloom_input;
+uniform bool u_bool_blur_horizontal;
 
 layout(location = 0) out vec3 out_bloom;
 

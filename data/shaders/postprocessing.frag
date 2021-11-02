@@ -1,13 +1,11 @@
 #version 420 core
 
-#extension GL_ARB_explicit_uniform_location : enable
+uniform sampler2D u_sampler_scene;
+uniform sampler2D u_sampler_bloom;
+uniform sampler2D u_sampler_depth;
 
-layout(location = 0) uniform sampler2D u_sampler_scene;
-layout(location = 1) uniform sampler2D u_sampler_bloom;
-layout(location = 2) uniform sampler2D u_sampler_depth;
-
-layout(location = 10) uniform float u_exposure;
-layout(location = 11) uniform float u_gamma;
+uniform float u_exposure;
+uniform float u_gamma;
 
 in vec2 f_uv;
 

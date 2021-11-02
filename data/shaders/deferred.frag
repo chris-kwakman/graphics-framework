@@ -1,12 +1,10 @@
 #version 420 core
 
-#extension GL_ARB_explicit_uniform_location : enable
-
-layout(location = 0) uniform sampler2D u_sampler_base_color;
-layout(location = 1) uniform sampler2D u_sampler_metallic_roughness;
-layout(location = 2) uniform sampler2D u_sampler_normal;
-layout(location = 3) uniform vec4 u_base_color_factor;
-layout(location = 10) uniform float	u_alpha_cutoff;
+uniform sampler2D u_sampler_base_color;
+uniform sampler2D u_sampler_metallic_roughness;
+uniform sampler2D u_sampler_normal;
+uniform vec4 u_base_color_factor;
+uniform float	u_alpha_cutoff;
 
 layout(location = 0) out float fb_depth;
 layout(location = 1) out vec3 fb_base_color;
