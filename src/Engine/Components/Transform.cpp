@@ -9,7 +9,9 @@
 #include <Engine/Components/Camera.h>
 #include <Engine/Components/Nameable.h>
 
+#include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
+#include <glm/gtx/euler_angles.hpp>
 
 //TODO: Make transform.cpp not depend on Sandbox content.
 #include <Sandbox/LoadScene.h>
@@ -510,7 +512,7 @@ namespace Component
 	void TransformManager::impl_edit_component(Entity _entity)
 	{
 		static ImGuizmo::OPERATION s_imguizmo_current_operation = ImGuizmo::TRANSLATE;
-		static ImGuizmo::MODE s_imguizmo_current_mode = ImGuizmo::WORLD;
+		static ImGuizmo::MODE s_imguizmo_current_mode = ImGuizmo::LOCAL;
 
 		Transform transform_component = Get(_entity);
 
@@ -537,15 +539,11 @@ namespace Component
 
 		if (is_manipulated)
 		{
-			glm::vec3 translation, scale;
-			glm::quat rotation;
-
-			ImGuizmo::DecomposeMatrixToComponents(&transform_matrix[0][0], &translation[0], &rotation[0], &scale[0]);
-
 			Engine::Math::transform3D transform;
-			transform.position = translation;
-			transform.scale = scale;
-			transform.quaternion = rotation;
+			glm::vec3 skew;
+			glm::vec4 perspective;
+
+			glm::decompose(transform_matrix, transform.scale, transform.quaternion, transform.position, skew, perspective);
 
 			if (s_imguizmo_current_mode == ImGuizmo::LOCAL)
 				transform_component.SetLocalTransform(transform);
