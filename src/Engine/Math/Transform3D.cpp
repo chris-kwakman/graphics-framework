@@ -1,6 +1,7 @@
 #include "Transform3D.h"
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
+#include <glm/gtx/quaternion.hpp>
 
 namespace Engine {
 namespace Math
@@ -97,7 +98,9 @@ namespace Math
 		// Euler-angle to quaternion rotation
 		if (rotate_iter != j.end())
 		{
-			t.quaternion = glm::quat(rotate_iter->get<glm::vec3>());
+			glm::vec3 euler_angles = rotate_iter->get<glm::vec3>();
+			euler_angles *= glm::pi<float>() / 180.0f;
+			t.quaternion = glm::toQuat(glm::orientate3(euler_angles));
 		}
 		// Direct quaternion rotation
 		else if (rotation_iter != j.end())
