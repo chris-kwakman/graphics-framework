@@ -39,10 +39,12 @@ namespace Sandbox
 		auto camera_iter = _scene.find("camera");
 		auto light_iter = _scene.find("lights");
 		auto dirlight_iter = _scene.find("directional_light");
+		auto decal_iter = _scene.find("decals");
 		if (object_iter != _scene.end()) entity_count += object_iter->size();
 		if (camera_iter != _scene.end()) entity_count += 1;
 		if (light_iter != _scene.end()) entity_count += light_iter->size();
 		if (dirlight_iter != _scene.end()) entity_count += 1;
+		if (decal_iter != _scene.end()) entity_count += decal_iter->size();
 
 		// Create entities up-front.
 		std::vector<Entity> created_entities;
@@ -50,11 +52,12 @@ namespace Sandbox
 		bool result = Singleton<EntityManager>().EntityCreationRequest(&created_entities.front(), entity_count);
 		assert(result);
 
-		unsigned int lights_offset, dirlight_offset, camera_offset;
+		unsigned int lights_offset, dirlight_offset, camera_offset, decal_offset;
 
 		lights_offset = object_iter->size();
 		dirlight_offset = lights_offset + light_iter->size();
 		camera_offset = (dirlight_iter != _scene.end()) ? dirlight_offset + 1 : dirlight_offset;
+		decal_offset = (camera_iter != _scene.end()) ? camera_offset + 1 : camera_offset;
 		unsigned int const node_count = object_iter->size();
 
 		Singleton<SceneEntityComponentManager>().RegisterScene(_scene_path);
@@ -152,6 +155,31 @@ namespace Sandbox
 			camera.SetNearDistance(object_json.at("near"));
 			camera.SetFarDistance(object_json.at("far"));
 			camera.SetVerticalFOV(object_json.at("FOVy") * glm::pi<float>() / 180.0f); // Convert to radians
+		}
+
+		for (unsigned int i = decal_offset; i < decal_offset + decal_iter->size(); ++i)
+		{
+			Entity current_object = created_entities[i];
+			current_object.SetName("Decal");
+			json const& decal_json = decal_iter->at(i - decal_offset);
+
+			std::vector<filepath_string> decal_texture_filepaths{
+				decal_json.at("diffuse").get<std::string>(),
+				decal_json.at("metallic").get<std::string>(),
+				decal_json.at("normal").get<std::string>()
+			};
+
+			auto loaded_texture_handles = Singleton<ResourceManager>().LoadTextures(decal_texture_filepaths);
+
+			Decal new_decal = Component::Create<Decal>(current_object);
+			decal_textures & obj_decal_textures = new_decal.GetTexturesRef();
+			
+			obj_decal_textures.m_texture_albedo = loaded_texture_handles[0];
+			obj_decal_textures.m_texture_metallic_roughness = loaded_texture_handles[1];
+			obj_decal_textures.m_texture_normal = loaded_texture_handles[2];
+
+			Transform obj_transform = current_object.GetComponent<Transform>();
+			obj_transform.SetLocalTransform(decal_json);
 		}
 	}
 

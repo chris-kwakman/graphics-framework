@@ -92,6 +92,41 @@ namespace Component
 		decltype(m_skin_instance_map) const& GetAllSkinEntities() const { return m_skin_instance_map; }
 
 	};
+
+	struct decal_textures
+	{
+		texture_handle	m_texture_albedo,
+						m_texture_metallic_roughness,
+						m_texture_normal;
+	};
+
+	class DecalManager;
+	struct Decal : public IComp<DecalManager>
+	{
+		DECLARE_COMPONENT(Decal);
+
+		decal_textures& GetTexturesRef();
+		decal_textures GetTextures() const;
+	};
+
+	class DecalManager : public TCompManager<Decal>
+	{
+		friend struct Decal;
+
+		std::unordered_map<Entity, decal_textures, Entity::hash> m_decal_data_map;
+
+		// Inherited via TCompManager
+		virtual void impl_clear() override;
+		virtual bool impl_create(Entity _e) override;
+		virtual void impl_destroy(Entity const* _entities, unsigned int _count) override;
+		virtual bool impl_component_owned_by_entity(Entity _entity) const override;
+		virtual void impl_edit_component(Entity _entity) override;
+		virtual void impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context) override;
+
+	public:
+
+		virtual const char* GetComponentTypeName() const override;
+	};
 }
 
 #endif // COMPONENT_RENDERABLE_H
