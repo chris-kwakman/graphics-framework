@@ -100,7 +100,7 @@ namespace Math
 		{
 			glm::vec3 euler_angles = rotate_iter->get<glm::vec3>();
 			euler_angles *= glm::pi<float>() / 180.0f;
-			t.quaternion = glm::toQuat(glm::orientate3(euler_angles));
+			t.quaternion = glm::toQuat(glm::orientate3(glm::vec3(euler_angles.z, euler_angles.x, euler_angles.y)));
 		}
 		// Direct quaternion rotation
 		else if (rotation_iter != j.end())
