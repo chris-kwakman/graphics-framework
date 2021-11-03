@@ -891,6 +891,20 @@ namespace Graphics {
 	//////////////////////////////////////////////////////////////////
 
 	/*
+	* Load textures from given filepaths
+	* @param	std::vector<filepath_string>		List of textures w/ filepaths to load.
+	* @returns	std::vector<texture_handle>			List of handles corresponding to given texture filepaths.
+	*												A given handle is zero if it was not found.
+	*/
+	std::vector<texture_handle> ResourceManager::LoadTextures(std::vector<filepath_string> const& _texture_filepaths)
+	{
+		std::vector<texture_handle> loaded_texture_handles(_texture_filepaths.size(), 0);
+		for(unsigned int i = 0; i < _texture_filepaths.size(); ++i)
+			loaded_texture_handles[i] = load_texture(_texture_filepaths[i]);
+		return loaded_texture_handles;
+	}
+
+	/*
 	* Creates a new texture object in graphics manager.
 	* @return	texture_handle
 	*/
@@ -1015,6 +1029,68 @@ namespace Graphics {
 		}
 		GfxCall(glTexParameteri(tex_info.m_target, GL_TEXTURE_MAG_FILTER, _params.m_mag_filter));
 		GfxCall(glTexParameteri(tex_info.m_target, GL_TEXTURE_MIN_FILTER, _params.m_min_filter));
+	}
+
+	/*
+	* Find texture handles corresponding to given texture filepaths
+	* @param	std::vector<filepath_string>		List of textures w/ filepaths to find
+	* @returns	std::vector<texture_handle>			List of handles corresponding to given textures.
+	*												A given handle is zero if it was not found.
+	*/
+	std::vector<texture_handle> ResourceManager::FindLoadedTextures(std::vector<filepath_string> const& _texture_filepaths) const
+	{
+		std::vector<texture_handle> found_handles(_texture_filepaths.size(), 0);
+		for (unsigned int i = 0; i < _texture_filepaths.size(); ++i)
+		{
+			auto fp_tex_iter = m_filepath_texture_map.find(_texture_filepaths[i]);
+			if (fp_tex_iter == m_filepath_texture_map.end())
+				found_handles[i] = fp_tex_iter->second;
+		}
+		return found_handles;
+	}
+
+	/*
+	* Load texture from filepath into program
+	* @param	filepath_string		Filepath to texture
+	* @returns	texture_handle		Return 0 if we failed to load texture
+	*								Return handle to texture if is loaded successfully / is already loaded.
+	*/
+	texture_handle ResourceManager::load_texture(filepath_string const& _texture_filepath)
+	{
+		// Check if we have already loaded texture
+		auto filepath_texture_iter = m_filepath_texture_map.find(_texture_filepath);
+		if (filepath_texture_iter != m_filepath_texture_map.end())
+			return filepath_texture_iter->second;
+
+		int size_x, size_y, components;
+		unsigned char * image_data = stbi_load(
+			_texture_filepath.c_str(),
+			&size_x, &size_y, &components, 0
+		);
+		if (image_data)
+		{
+			GLint internal_format;
+			GLenum input_format;
+			switch (components)
+			{
+			case 1: internal_format = GL_R8;	input_format = GL_R;	break;
+			case 2: internal_format = GL_RG8;	input_format = GL_RG;	break;
+			case 3: internal_format = GL_RGB8;	input_format = GL_RGB;	break;
+			case 4: internal_format = GL_RGBA8;	input_format = GL_RGBA;	break;
+			}
+			texture_handle const new_texture = CreateTexture(_texture_filepath.c_str());
+			assert(new_texture != 0);
+			SpecifyAndUploadTexture2D(
+				new_texture, internal_format, glm::uvec2(size_x, size_y), 0, input_format, GL_UNSIGNED_BYTE, image_data
+			);
+			stbi_image_free(image_data);
+			m_filepath_texture_map.emplace(_texture_filepath, new_texture);
+			return new_texture;
+		}
+		else
+		{
+			return 0;
+		}
 	}
 
 	/*
@@ -1662,6 +1738,16 @@ namespace Graphics {
 			auto texture_info_iter = m_texture_info_map.find(_textures[i]);
 			gl_texture_objects.push_back(texture_info_iter->second.m_gl_source_id);
 			m_texture_info_map.erase(_textures[i]);
+			auto named_texture_iter = m_filepath_texture_map.begin();
+			while (named_texture_iter != m_filepath_texture_map.end())
+			{
+				if (named_texture_iter->second == _textures[i])
+				{
+					m_filepath_texture_map.erase(named_texture_iter);
+					break;
+				}
+				++named_texture_iter;
+			}
 		}
 		// Delete all gl texture objects simultaneously
 		if (!gl_texture_objects.empty())
@@ -1760,13 +1846,14 @@ namespace Graphics {
 	}
 
 
-	enum E_ResourceType {eMesh, eModel, eAnimation, eCOUNT};
+	enum E_ResourceType {eMesh, eModel, eAnimation, eTexture, eCOUNT};
 	static E_ResourceType s_editor_show_resource_list = eModel;
 
 	static std::unordered_map<E_ResourceType, const char*> s_resource_type_name{
 		{E_ResourceType::eMesh, "Mesh"},
 		{E_ResourceType::eModel, "Model"},
-		{E_ResourceType::eAnimation, "Animation"}
+		{E_ResourceType::eAnimation, "Animation"},
+		{E_ResourceType::eTexture, "Texture"}
 	};
 
 	const char* get_type_name(E_ResourceType _type) { return s_resource_type_name.at(_type); }
@@ -1794,6 +1881,7 @@ namespace Graphics {
 			case E_ResourceType::eMesh: editor_mesh_list(); break;
 			case E_ResourceType::eModel: editor_model_list(); break;
 			case E_ResourceType::eAnimation: editor_animation_list(); break;
+			case E_ResourceType::eTexture: editor_texture_list(); break;
 			}
 		}
 		ImGui::End();
@@ -1858,6 +1946,19 @@ namespace Graphics {
 			if (ImGui::BeginDragDropSource())
 			{
 				ImGui::SetDragDropPayload("RESOURCE_ANIMATION", (void const*)&animation.first, sizeof(animation_handle));
+				ImGui::EndDragDropSource();
+			}
+		}
+	}
+
+	void ResourceManager::editor_texture_list()
+	{
+		for (auto const texture : m_filepath_texture_map)
+		{
+			ImGui::Selectable(texture.first.c_str());
+			if (ImGui::BeginDragDropSource())
+			{
+				ImGui::SetDragDropPayload("RESOURCE_TEXTURE", (void const*)&texture.second, sizeof(texture_handle));
 				ImGui::EndDragDropSource();
 			}
 		}

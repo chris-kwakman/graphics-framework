@@ -194,6 +194,7 @@ namespace Graphics {
 		texture_handle			m_texture_handle_counter = 1;
 
 		std::unordered_map<texture_handle, texture_info>	m_texture_info_map;
+		std::unordered_map<filepath_string, texture_handle> m_filepath_texture_map;
 
 		//////////////////////////////////////////////////////
 		//				Animation Data
@@ -351,7 +352,7 @@ namespace Graphics {
 			int m_min_filter = GL_LINEAR;
 		};
 
-
+		std::vector<texture_handle> LoadTextures(std::vector<filepath_string> const& _texture_filepaths);
 		texture_handle	CreateTexture(const char * _debug_name = nullptr);
 		void			DeleteTexture(texture_handle _texture_handle);
 		void			BindTexture(texture_handle _texture_handle) const;
@@ -367,9 +368,11 @@ namespace Graphics {
 			GLenum _input_format, GLenum _input_component_type, void * _data
 		);
 		void SetTextureParameters(texture_handle _texture_handle, texture_parameters _params);
+		std::vector<texture_handle>	FindLoadedTextures(std::vector<filepath_string> const& _texture_filepaths) const;
 
 	private:
 
+		texture_handle load_texture(filepath_string const& _texture_filepath);
 		texture_info & set_texture_target_and_bind(texture_handle _texture_handle, GLenum _target);
 
 		/*
@@ -453,6 +456,7 @@ namespace Graphics {
 		void editor_mesh_list();
 		void editor_model_list();
 		void editor_animation_list();
+		void editor_texture_list();
 
 	private:
 
