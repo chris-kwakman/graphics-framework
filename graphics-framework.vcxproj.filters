@@ -1525,6 +1525,8 @@
     <None Include="include\glm\gtx\wrap.inl">
       <Filter>Header Files</Filter>
     </None>
+    <None Include="data\shaders\deferred_decal.frag" />
+    <None Include="data\shaders\primitive.frag" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="src\Engine\Components\EngineComponents.txt" />

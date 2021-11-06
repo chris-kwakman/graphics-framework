@@ -534,6 +534,7 @@
     <None Include="data\shaders\bloom.frag" />
     <None Include="data\shaders\default.vert" />
     <None Include="data\shaders\deferred.frag" />
+    <None Include="data\shaders\deferred_decal.frag" />
     <None Include="data\shaders\dirlight_shadowmap.frag" />
     <None Include="data\shaders\dirlight_shadowmap.vert" />
     <None Include="data\shaders\display_framebuffer.vert" />
@@ -543,6 +544,7 @@
     <None Include="data\shaders\infinite_grid.vert" />
     <None Include="data\shaders\phong.frag" />
     <None Include="data\shaders\postprocessing.frag" />
+    <None Include="data\shaders\primitive.frag" />
     <None Include="data\shaders\skinned.vert" />
     <None Include="data\shaders\write_csm.frag" />
     <None Include="data\shaders\write_csm.vert" />

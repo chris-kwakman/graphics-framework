@@ -227,11 +227,24 @@ namespace Component
 	//						Decals & Decal Manager
 	///////////////////////////////////////////////////////////////////////////
 
-
+	using E_DecalRenderMode = DecalManager::E_DecalRenderMode;
+	E_DecalRenderMode DecalManager::s_decal_render_mode = E_DecalRenderMode::eDecal;
+	static std::unordered_map<E_DecalRenderMode, const char*> const s_decal_render_mode_names{
+		{E_DecalRenderMode::eDecal, "Decal"},
+		{E_DecalRenderMode::eDecalMask, "Decal Mask"},
+		{E_DecalRenderMode::eDecalBoundingVolume, "Decal Bounding Volume"},
+	};
+	float DecalManager::s_decal_angle_treshhold = 89.7f;
+	bool DecalManager::s_render_decals = true;
 
 	const char* DecalManager::GetComponentTypeName() const
 	{
 		return "Decal";
+	}
+
+	decltype(DecalManager::m_decal_data_map) const& DecalManager::GetAllDecals() const
+	{
+		return m_decal_data_map;
 	}
 
 	void DecalManager::impl_clear()
@@ -283,6 +296,21 @@ namespace Component
 		texture_payload = accept_resource_handle_payload<texture_handle>("RESOURCE_TEXTURE");
 		if (texture_payload)
 			decal_textures.m_texture_normal = texture_payload;
+
+		ImGui::Separator();
+
+		ImGui::Checkbox("Enable Decal Rendering", &s_render_decals);
+		if(ImGui::BeginCombo("Decal Render Mode", s_decal_render_mode_names.at(s_decal_render_mode)))
+		{
+			for (unsigned int i = 0; i < E_DecalRenderMode::COUNT; ++i)
+			{
+				bool selected = ((int)s_decal_render_mode == i);
+				if (ImGui::Selectable(s_decal_render_mode_names.at((E_DecalRenderMode)i), &selected))
+					s_decal_render_mode = (E_DecalRenderMode)i;
+			}
+			ImGui::EndCombo();
+		}
+		ImGui::SliderFloat("Decal Angle Treshhold", &s_decal_angle_treshhold, 0.0f, 90.0f, "%.1f");
 	}
 
 	void DecalManager::impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context)
@@ -297,6 +325,11 @@ namespace Component
 	decal_textures Decal::GetTextures() const
 	{
 		return GetManager().m_decal_data_map.at(Owner());
+	}
+
+	float Decal::GetAngleTreshhold() const
+	{
+		return GetManager().s_decal_angle_treshhold;
 	}
 
 }

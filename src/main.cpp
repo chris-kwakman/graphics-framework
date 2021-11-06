@@ -79,6 +79,7 @@ void import_default_resources()
 {
 	Singleton<Engine::Graphics::ResourceManager>().ImportModel_GLTF("data/gltf/Sphere.gltf");
 	Singleton<Engine::Graphics::ResourceManager>().ImportModel_GLTF("data/gltf/Box.gltf");
+	Singleton<Engine::Graphics::ResourceManager>().ImportModel_GLTF("data/meshes/Cube.gltf");
 }
 
 int main(int argc, char* argv[])

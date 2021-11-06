@@ -1,6 +1,7 @@
 
 #include "render_common.h"
 #include <Engine/Utils/singleton.h>
+#include <Engine/Graphics/manager.h>
 
 namespace Sandbox
 {
@@ -24,6 +25,28 @@ namespace Sandbox
 		GfxCall(glBindTexture(texture_info.m_target, texture_info.m_gl_source_id));
 
 		res_mgr.SetBoundProgramUniform(_program_uniform_index, (int)_texture_index);
+	}
+
+	void render_primitive(mesh_primitive_data const& _primitive)
+	{
+		auto const & res_mgr = Singleton<Engine::Graphics::ResourceManager>();
+		GfxCall(glBindVertexArray(_primitive.m_vao_gl_id));
+		if (_primitive.m_index_buffer_handle != 0)
+		{
+			auto index_buffer_info = res_mgr.GetBufferInfo(_primitive.m_index_buffer_handle);
+			auto ibo_info = res_mgr.GetIndexBufferInfo(_primitive.m_index_buffer_handle);
+			GfxCall(glDrawElements(
+				_primitive.m_render_mode,
+				(GLsizei)_primitive.m_index_count,
+				ibo_info.m_type,
+				(GLvoid*)_primitive.m_index_byte_offset
+			));
+		}
+		else
+		{
+			GfxCall(glDrawArrays(_primitive.m_render_mode, 0, _primitive.m_vertex_count));
+		}
+		glBindVertexArray(0);
 	}
 
 # define M_PI           3.14159265358979323846  

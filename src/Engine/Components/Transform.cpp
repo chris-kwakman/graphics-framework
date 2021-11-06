@@ -588,7 +588,7 @@ namespace Component
 		ImGui::DragFloat4("Orientation", &transform.quaternion.x, 0.025f);
 		transform.quaternion = glm::normalize(transform.quaternion);
 
-		if(s_imguizmo_current_mode == ImGuizmo::LOCAL)
+		/*if(s_imguizmo_current_mode == ImGuizmo::LOCAL)
 			transform_component.SetLocalTransform(transform);
 		else
 		{
@@ -596,7 +596,7 @@ namespace Component
 				(transform_component.ComputeWorldTransform() * transform_component.GetLocalTransform().GetInverse()).GetInverse()
 				* transform
 			);
-		}
+		}*/
 	}
 
 	/*

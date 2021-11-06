@@ -107,9 +107,11 @@ namespace Component
 
 		decal_textures& GetTexturesRef();
 		decal_textures GetTextures() const;
+
+		float			GetAngleTreshhold() const;
 	};
 
-	class DecalManager : public TCompManager<Decal>
+	class DecalManager final : public TCompManager<Decal>
 	{
 		friend struct Decal;
 
@@ -125,7 +127,14 @@ namespace Component
 
 	public:
 
+		enum E_DecalRenderMode {eDecalBoundingVolume, eDecalMask, eDecal, COUNT};
+		static E_DecalRenderMode	s_decal_render_mode;
+		static float				s_decal_angle_treshhold;
+		static bool					s_render_decals;
+
 		virtual const char* GetComponentTypeName() const override;
+		decltype(m_decal_data_map) const& GetAllDecals() const;
+		E_DecalRenderMode GetDecalRenderMode() const { return s_decal_render_mode; }
 	};
 }
 

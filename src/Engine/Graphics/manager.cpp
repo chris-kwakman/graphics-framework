@@ -1366,6 +1366,7 @@ namespace Graphics {
 		{
 			auto const & program_info = m_shader_program_info_map.at(program);
 			link_gl_program_shaders(program_info.m_gl_program_object);
+			m_shader_program_data_map.at(program).refresh_cache(program_info.m_gl_program_object);
 		}
 	}
 

@@ -11,6 +11,7 @@ namespace Sandbox
 	using mesh_handle = Engine::Graphics::mesh_handle;
 	using shader_program_handle = Engine::Graphics::shader_program_handle;
 	using framebuffer_handle = Engine::Graphics::framebuffer_handle;
+	using mesh_primitive_data = Engine::Graphics::ResourceManager::mesh_primitive_data;
 
 	// TODO: Destroy these GL objects properly (at some point in the distant future, probably)
 	extern unsigned int s_gl_tri_ibo;
@@ -28,6 +29,7 @@ namespace Sandbox
 
 	// Activate texture on explicit program.
 	void activate_texture(texture_handle _texture, unsigned int _program_uniform_index, unsigned int _texture_index);
+	void render_primitive(mesh_primitive_data const& _primitive);
 
 	void create_skeleton_bone_model();
 

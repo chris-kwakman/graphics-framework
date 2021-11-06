@@ -25,6 +25,7 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <GLM/gtx/quaternion.hpp>
+#include <glm/gtx/euler_angles.hpp>
 
 #include <ImGui/imgui_stdlib.h>
 
@@ -37,7 +38,7 @@
 
 Engine::Graphics::texture_handle		s_display_gbuffer_texture = 0;
 // Lighting data
-static glm::vec3	s_ambient_color = glm::vec3(0.3f);
+static glm::vec3	s_ambient_color = glm::vec3(1.0f);
 static float		s_exposure = 1.0f;
 static float		s_gamma_correction_factor = 1.1f;
 static float		s_shininess_mult_factor = 100.0f;
@@ -45,7 +46,7 @@ static float		s_shininess_mult_factor = 100.0f;
 static bool			s_bloom_enabled = false;
 static glm::vec3	s_bloom_treshhold_color(0.2126f, 0.7152f, 0.0722f);
 static unsigned int	s_bloom_blur_count = 5;
-static bool			s_render_infinite_grid = true;
+static bool			s_render_infinite_grid = false;
 
 static Engine::Math::transform3D s_camera_default_transform;
 
@@ -80,7 +81,7 @@ namespace Sandbox
 	using texture_handle = Engine::Graphics::texture_handle;
 	static texture_handle s_texture_white = 0;
 
-	static framebuffer_handle s_framebuffer_gbuffer, s_framebuffer_lighting, s_framebuffer_bloom[2], s_framebuffer_shadow;
+	static framebuffer_handle s_framebuffer_gbuffer, s_framebuffer_gbuffer_decal, s_framebuffer_lighting, s_framebuffer_bloom[2], s_framebuffer_shadow;
 
 	static glm::vec4 s_clear_color{ 0.0f,0.0f,0.0f,0.0f };
 
@@ -112,6 +113,7 @@ namespace Sandbox
 			"data/shaders/default.vert",
 			"data/shaders/skinned.vert",
 			"data/shaders/deferred.frag",
+			"data/shaders/deferred_decal.frag",
 			"data/shaders/display_framebuffer.vert",
 			"data/shaders/display_framebuffer_plain.frag",
 			"data/shaders/display_framebuffer_global_light.frag",
@@ -122,7 +124,7 @@ namespace Sandbox
 			"data/shaders/dirlight_shadowmap.frag",
 			"data/shaders/write_csm.vert",
 			"data/shaders/write_csm.frag",
-			"data/shaders/primitive.frag"
+			"data/shaders/primitive.frag",
 		};
 		std::vector<Engine::Graphics::ResourceManager::shader_handle> output_shader_handles;
 		output_shader_handles = system_resource_manager.LoadShaders(shader_paths);
@@ -132,6 +134,7 @@ namespace Sandbox
 		program_shader_path_list const draw_infinite_grid_shaders = { "data/shaders/infinite_grid.vert", "data/shaders/infinite_grid.frag" };
 		program_shader_path_list const draw_gbuffer_skinned_shaders = { "data/shaders/skinned.vert", "data/shaders/deferred.frag" };
 		program_shader_path_list const draw_gbuffer_shaders = { "data/shaders/default.vert", "data/shaders/deferred.frag" };
+		program_shader_path_list const draw_gbuffer_decals = { "data/shaders/default.vert", "data/shaders/deferred_decal.frag" };
 		program_shader_path_list const draw_gbuffer_primitive = { "data/shaders/default.vert", "data/shaders/primitive.frag" };
 		program_shader_path_list const draw_framebuffer_plain_shaders = { "data/shaders/display_framebuffer.vert", "data/shaders/display_framebuffer_plain.frag" };
 		program_shader_path_list const draw_framebuffer_global_light = { "data/shaders/display_framebuffer.vert", "data/shaders/display_framebuffer_global_light.frag" };
@@ -141,9 +144,11 @@ namespace Sandbox
 		program_shader_path_list const directional_light_shaders = { "data/shaders/dirlight_shadowmap.vert", "data/shaders/dirlight_shadowmap.frag" };
 		program_shader_path_list const write_csm_shaders = { "data/shaders/write_csm.vert", "data/shaders/write_csm.frag" };
 
+
 		system_resource_manager.LoadShaderProgram("draw_infinite_grid", draw_infinite_grid_shaders);
 		system_resource_manager.LoadShaderProgram("draw_gbuffer", draw_gbuffer_shaders);
 		system_resource_manager.LoadShaderProgram("draw_gbuffer_skinned", draw_gbuffer_skinned_shaders);
+		system_resource_manager.LoadShaderProgram("draw_gbuffer_decals", draw_gbuffer_decals);
 		system_resource_manager.LoadShaderProgram("draw_gbuffer_primitive", draw_gbuffer_primitive);
 		system_resource_manager.LoadShaderProgram("draw_framebuffer_plain", draw_framebuffer_plain_shaders);
 		system_resource_manager.LoadShaderProgram("draw_framebuffer_global_light", draw_framebuffer_global_light);
@@ -165,6 +170,7 @@ namespace Sandbox
 
 		// Create framebuffer & textures.
 		s_framebuffer_gbuffer = resource_manager.CreateFramebuffer();
+		s_framebuffer_gbuffer_decal = resource_manager.CreateFramebuffer();
 		s_framebuffer_lighting = resource_manager.CreateFramebuffer();
 		s_framebuffer_shadow = resource_manager.CreateFramebuffer();
 		for (unsigned int i = 0; i < 2; ++i)
@@ -217,6 +223,13 @@ namespace Sandbox
 		resource_manager.AttachTextureToFramebuffer(s_framebuffer_gbuffer, GL_COLOR_ATTACHMENT2, s_fb_texture_normal);
 		GLenum const gbuffer_attachment_points[] = { GL_NONE, GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
 		resource_manager.DrawFramebuffers(s_framebuffer_gbuffer, sizeof(gbuffer_attachment_points) / sizeof(GLenum), gbuffer_attachment_points);
+
+		resource_manager.BindFramebuffer(s_framebuffer_gbuffer_decal);
+		resource_manager.AttachTextureToFramebuffer(s_framebuffer_gbuffer_decal, GL_COLOR_ATTACHMENT0, s_fb_texture_base_color);
+		resource_manager.AttachTextureToFramebuffer(s_framebuffer_gbuffer_decal, GL_COLOR_ATTACHMENT1, s_fb_texture_metallic_roughness);
+		resource_manager.AttachTextureToFramebuffer(s_framebuffer_gbuffer_decal, GL_COLOR_ATTACHMENT2, s_fb_texture_normal);
+		GLenum const gbuffer_decal_attachment_points[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+		resource_manager.DrawFramebuffers(s_framebuffer_gbuffer_decal, sizeof(gbuffer_decal_attachment_points) / sizeof(GLenum), gbuffer_decal_attachment_points);
 
 		resource_manager.BindFramebuffer(s_framebuffer_lighting);
 		//resource_manager.AttachTextureToFramebuffer(s_framebuffer_lighting, GL_DEPTH_ATTACHMENT, s_fb_texture_depth);
@@ -724,11 +737,12 @@ namespace Sandbox
 
 		int LOC_SAMPLER_DEPTH = -1;
 		int LOC_SAMPLER_BASE_COLOR = -1;
-		int LOC_SAMPLER_METALLIC_ROUGHNESS = -1;
+		int LOC_SAMPLER_METALLIC = -1;
 		int LOC_SAMPLER_NORMAL = -1;
 		int LOC_BASE_COLOR_FACTOR = -1;
 		int LOC_ALPHA_CUTOFF = -1;
 		int LOC_MAT_MVP = -1;
+		int LOC_MAT_MVP_INV = -1;
 		int LOC_MAT_MV = -1;
 		int LOC_MAT_V = -1;
 		int LOC_MAT_VP = -1;
@@ -740,12 +754,13 @@ namespace Sandbox
 		{
 			LOC_SAMPLER_DEPTH = res_mgr.FindBoundProgramUniformLocation("u_sampler_depth");
 			LOC_SAMPLER_BASE_COLOR = res_mgr.FindBoundProgramUniformLocation("u_sampler_base_color");
-			LOC_SAMPLER_METALLIC_ROUGHNESS = res_mgr.FindBoundProgramUniformLocation("u_sampler_metallic_roughness");
+			LOC_SAMPLER_METALLIC = res_mgr.FindBoundProgramUniformLocation("u_sampler_metallic_roughness");
 			LOC_SAMPLER_NORMAL = res_mgr.FindBoundProgramUniformLocation("u_sampler_normal");
 			LOC_BASE_COLOR_FACTOR = res_mgr.FindBoundProgramUniformLocation("u_base_color_factor");
 			LOC_ALPHA_CUTOFF = res_mgr.FindBoundProgramUniformLocation("u_alpha_cutoff");
 
 			LOC_MAT_MVP = res_mgr.FindBoundProgramUniformLocation("u_mvp");
+			LOC_MAT_MVP_INV = res_mgr.FindBoundProgramUniformLocation("u_mvp_inv");
 			LOC_MAT_MV = res_mgr.FindBoundProgramUniformLocation("u_mv");
 			LOC_MAT_V = res_mgr.FindBoundProgramUniformLocation("u_v");
 			LOC_MAT_VP = res_mgr.FindBoundProgramUniformLocation("u_vp");
@@ -754,8 +769,15 @@ namespace Sandbox
 			LOC_MAT_JOINT_0 = res_mgr.FindBoundProgramUniformLocation("u_joint_matrices[0]");
 		};
 
-		res_mgr.UseProgram(program_draw_gbuffer);
+		//	#
+		//	#	Deferred Rendering
+		//	#
 
+		//
+		//	Renderable Rendering
+		//
+
+		res_mgr.UseProgram(program_draw_gbuffer);
 		set_bound_program_uniform_locations();
 
 		for(unsigned int renderable_idx = 0; renderable_idx < sorted_renderables.size(); ++renderable_idx)
@@ -828,7 +850,7 @@ namespace Sandbox
 
 					// TODO: Implement metallic roughness color factors
 					activate_texture(use_base_color, LOC_SAMPLER_BASE_COLOR, 0);
-					activate_texture(use_metallic_roughness, LOC_SAMPLER_METALLIC_ROUGHNESS, 1);
+					activate_texture(use_metallic_roughness, LOC_SAMPLER_METALLIC, 1);
 					activate_texture(material.m_texture_normal, LOC_SAMPLER_NORMAL, 2);
 					res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, material.m_pbr_metallic_roughness.m_base_color_factor);
 					/*activate_texture(material.m_texture_occlusion, 3, 3);
@@ -851,28 +873,136 @@ namespace Sandbox
 						glEnable(GL_CULL_FACE);
 				}
 
-				GfxCall(glBindVertexArray(primitive.m_vao_gl_id));
-				if (primitive.m_index_buffer_handle != 0)
-				{
-					auto index_buffer_info = res_mgr.GetBufferInfo(primitive.m_index_buffer_handle);
-					auto ibo_info = res_mgr.GetIndexBufferInfo(primitive.m_index_buffer_handle);
-					GfxCall(glDrawElements(
-						primitive.m_render_mode,
-						(GLsizei)primitive.m_index_count,
-						ibo_info.m_type,
-						(GLvoid*)primitive.m_index_byte_offset
-					));
-				}
-				else
-				{
-					GfxCall(glDrawArrays(primitive.m_render_mode, 0, primitive.m_vertex_count));
-				}
-				glBindVertexArray(0);
-
-			
+				render_primitive(primitive);
 			}
 
 		}
+
+		//
+		//	Decal Rendering
+		//
+
+		// TODO: Only apply decal against static objects (not dynamic ones).
+		// No concept for static objects exists at the moment of writing this, but this might be
+		// important for future ideas (i.e. physics & collisions course).
+
+		res_mgr.BindFramebuffer(s_framebuffer_gbuffer_decal);
+
+		auto const & all_decals = Singleton<Component::DecalManager>().GetAllDecals();
+		if (!all_decals.empty() && Singleton<Component::DecalManager>().s_render_decals)
+		{
+			mesh_handle const cube_mesh = res_mgr.FindMesh("Cube/cube");
+			auto const & cube_mesh_primitives = res_mgr.GetMeshPrimitives(cube_mesh);
+
+			using E_DecalRenderMode = Component::DecalManager::E_DecalRenderMode;
+			E_DecalRenderMode const render_mode = Singleton<Component::DecalManager>().GetDecalRenderMode();
+
+			res_mgr.UseProgram(res_mgr.FindShaderProgram("draw_gbuffer_decals"));
+			set_bound_program_uniform_locations();
+
+			// Forcefully rotate this cube mesh because for some reason mesh provided by corresponding GLTF does not take
+			// into account the rotation of the owning model when it is loaded in.
+			glm::quat const cube_rot = glm::quatLookAt(glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(-1.0f, 0.0f, 0.0f));
+			glm::mat4x4 const mat_cube_rot = glm::toMat4(cube_rot);
+
+			res_mgr.SetBoundProgramUniform(LOC_ALPHA_CUTOFF, 0.5f);
+			res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, glm::vec4(1.0f));
+			res_mgr.SetBoundProgramUniform(LOC_MAT_VP, matrix_vp);
+			res_mgr.SetBoundProgramUniform(LOC_MAT_P_INV, glm::inverse(camera_perspective_matrix));
+
+			// TODO: Use subroutine instead of uniform set every frame.
+			int LOC_DECAL_RENDER_MODE = res_mgr.GetBoundProgramUniformLocation("u_decal_render_mode");
+			int LOC_VIEWPORT_SIZE = res_mgr.GetBoundProgramUniformLocation("u_viewport_size");
+			res_mgr.SetBoundProgramUniform(LOC_DECAL_RENDER_MODE, (int)render_mode);
+			res_mgr.SetBoundProgramUniform(LOC_VIEWPORT_SIZE, Singleton<Engine::sdl_manager>().get_window_size());
+
+			glDepthFunc(GL_LEQUAL);
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_ONE, GL_SRC_ALPHA);
+			glEnable(GL_CULL_FACE);
+			if (render_mode == E_DecalRenderMode::eDecalBoundingVolume)
+			{
+				glDepthMask(GL_TRUE);
+
+				activate_texture(s_texture_white, LOC_SAMPLER_BASE_COLOR, 0);
+				activate_texture(s_texture_white, LOC_SAMPLER_NORMAL, 1);
+				activate_texture(s_texture_white, LOC_SAMPLER_METALLIC, 2);
+
+				for (auto decal_pair : all_decals)
+				{
+					Entity decal_entity = decal_pair.first;
+					Component::Transform decal_transform = decal_entity.GetComponent<Component::Transform>();
+					glm::mat4x4 const world_matrix = decal_transform.ComputeWorldMatrix() * mat_cube_rot;
+					glm::mat4x4 const mv = camera_view_matrix * world_matrix;
+					res_mgr.SetBoundProgramUniform(LOC_MAT_MV_T_INV, glm::transpose(glm::inverse(mv)));
+					res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, camera_perspective_matrix * mv);
+
+					for (mesh_primitive_data const& prim : cube_mesh_primitives)
+					{	
+						render_primitive(prim);
+					}
+				}
+			}
+			else
+			{
+				glDepthMask(GL_FALSE);
+				glCullFace(GL_FRONT);
+				glDepthFunc(GL_GEQUAL);
+
+				int LOC_DECAL_ANGLE_TRESHHOLD = res_mgr.FindBoundProgramUniformLocation("u_decal_angle_treshhold");
+				int LOC_SAMPLER_DEFERRED_DEPTH = res_mgr.FindBoundProgramUniformLocation("u_sampler_deferred_depth");
+				int LOC_SAMPLER_DEFERRED_NORMAL = res_mgr.FindBoundProgramUniformLocation("u_sampler_deferred_normal");
+				activate_texture(s_fb_texture_depth, LOC_SAMPLER_DEFERRED_DEPTH, 3);
+				activate_texture(s_fb_texture_normal, LOC_SAMPLER_DEFERRED_NORMAL, 4);
+				float clamped_angle_treshhold = Singleton<Component::DecalManager>().s_decal_angle_treshhold;
+				clamped_angle_treshhold = clamped_angle_treshhold < 0.0f ? 0.0f : clamped_angle_treshhold;
+				clamped_angle_treshhold = clamped_angle_treshhold > 90.0f ? 90.0f : clamped_angle_treshhold;
+				res_mgr.SetBoundProgramUniform(
+					LOC_DECAL_ANGLE_TRESHHOLD, 
+					clamped_angle_treshhold * ((float)M_PI / 180.0f)
+				);
+
+				for (auto decal_pair : all_decals)
+				{
+					Component::decal_textures const&  decal_textures = decal_pair.second;
+					if (render_mode == E_DecalRenderMode::eDecalMask)
+					{
+						activate_texture(s_texture_white, LOC_SAMPLER_BASE_COLOR, 0);
+						activate_texture(s_texture_white, LOC_SAMPLER_NORMAL, 1);
+						activate_texture(s_texture_white, LOC_SAMPLER_METALLIC, 2);
+					}
+					else
+					{
+						activate_texture(decal_textures.m_texture_albedo, LOC_SAMPLER_BASE_COLOR, 0);
+						activate_texture(decal_textures.m_texture_normal, LOC_SAMPLER_NORMAL, 1);
+						activate_texture(decal_textures.m_texture_metallic_roughness, LOC_SAMPLER_METALLIC, 2);
+					}
+
+					Entity decal_entity = decal_pair.first;
+					Component::Transform decal_transform = decal_entity.GetComponent<Component::Transform>();
+					glm::mat4x4 const world_matrix = decal_transform.ComputeWorldMatrix();
+					glm::mat4x4 const mv = camera_view_matrix * world_matrix;
+					glm::mat4x4 const mvp = camera_perspective_matrix * mv;
+					glm::mat4x4 const mvp_inv = glm::inverse(mvp);
+					res_mgr.SetBoundProgramUniform(LOC_MAT_MV_T_INV, glm::transpose(glm::inverse(mv)));
+					res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, mvp);
+					res_mgr.SetBoundProgramUniform(LOC_MAT_MVP_INV, mvp_inv);
+
+					for (mesh_primitive_data const& prim : cube_mesh_primitives)
+					{
+						render_primitive(prim);
+					}
+				}
+			}
+
+
+		}
+
+		// 
+		// Skeleton Node Rendering
+		// 
+
+		res_mgr.BindFramebuffer(s_framebuffer_gbuffer);
 
 		// Render debug all skeleton nodes
 		auto skin_entity_map = Singleton<Component::SkinManager>().GetAllSkinEntities();
@@ -883,7 +1013,7 @@ namespace Sandbox
 			set_bound_program_uniform_locations();
 
 			activate_texture(s_texture_white, LOC_SAMPLER_BASE_COLOR, 0);
-			activate_texture(s_texture_white, LOC_SAMPLER_METALLIC_ROUGHNESS, 1);
+			activate_texture(s_texture_white, LOC_SAMPLER_METALLIC, 1);
 			activate_texture(s_texture_white, LOC_SAMPLER_NORMAL, 2);
 
 			glDepthFunc(GL_LEQUAL);
@@ -957,7 +1087,9 @@ namespace Sandbox
 			}
 		}
 
+		//
 		// Debug render for curves and curve nodes
+		//
 
 		auto& curve_interpolator = Singleton<Component::CurveInterpolatorManager>();
 		auto curve_entities = curve_interpolator.GetRenderableCurves();
@@ -1013,9 +1145,9 @@ namespace Sandbox
 
 			mesh_handle box_mesh = res_mgr.FindMesh("Box/Mesh");
 			auto const & box_primitives = res_mgr.GetMeshPrimitives(box_mesh);
-			auto const& render_primitive = box_primitives.front();
+			auto const& primitive = box_primitives.front();
 
-			glBindVertexArray(render_primitive.m_vao_gl_id);
+			glBindVertexArray(primitive.m_vao_gl_id);
 			for (Component::CurveInterpolator curve_comp : curve_entities)
 			{
 				Engine::Math::transform3D node_transform;
@@ -1035,18 +1167,15 @@ namespace Sandbox
 					res_mgr.SetBoundProgramUniform(LOC_MAT_MV, matrix_mv);
 					res_mgr.SetBoundProgramUniform(LOC_MAT_MV_T_INV, matrix_t_inv_mv);
 					
-					auto ibo_comp_type = res_mgr.GetIndexBufferInfo(render_primitive.m_index_buffer_handle).m_type;
-					GfxCall(glDrawElements(
-						GL_TRIANGLES,
-						(GLsizei)render_primitive.m_index_count,
-						ibo_comp_type,
-						(void const*)render_primitive.m_index_byte_offset
-					));
-
+					auto ibo_comp_type = res_mgr.GetIndexBufferInfo(primitive.m_index_buffer_handle).m_type;
+					render_primitive(primitive);
 				}
 			}
 		}
 
+		// # 
+		// # Cascading Shadow Map Rendering
+		// # 
 
 		cascading_shadow_map_data csm_data;
 		if (Singleton<Component::DirectionalLightManager>().GetDirectionalLight().IsValid())
@@ -1077,7 +1206,7 @@ namespace Sandbox
 
 		activate_texture(s_fb_texture_depth, LOC_SAMPLER_DEPTH, 0);
 		activate_texture(s_fb_texture_base_color, LOC_SAMPLER_BASE_COLOR, 1);
-		activate_texture(s_fb_texture_metallic_roughness, LOC_SAMPLER_METALLIC_ROUGHNESS, 2);
+		activate_texture(s_fb_texture_metallic_roughness, LOC_SAMPLER_METALLIC, 2);
 		activate_texture(s_fb_texture_normal, LOC_SAMPLER_NORMAL, 3);
 
 		mesh_handle sphere_mesh = res_mgr.FindMesh("Sphere/Sphere");
