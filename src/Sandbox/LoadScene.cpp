@@ -29,10 +29,16 @@ namespace Sandbox
 		return json::parse(in_file);
 	}
 
-	void LoadScene(nlohmann::json const& _scene, const char * _scene_path)
+	void LoadScene(nlohmann::json const& _scene, const char* _scene_path)
 	{
 		using namespace Component;
 		using namespace Engine::ECS;
+
+		int decal_count = 0;
+		int dirlight_count = 0;
+		int pointlight_count = 0;
+		int camera_count = 0;
+		int object_count = 0;
 
 		unsigned int entity_count = 0;
 		auto object_iter = _scene.find("objects");
@@ -40,11 +46,27 @@ namespace Sandbox
 		auto light_iter = _scene.find("lights");
 		auto dirlight_iter = _scene.find("directional_light");
 		auto decal_iter = _scene.find("decals");
-		if (object_iter != _scene.end()) entity_count += object_iter->size();
-		if (camera_iter != _scene.end()) entity_count += 1;
-		if (light_iter != _scene.end()) entity_count += light_iter->size();
-		if (dirlight_iter != _scene.end()) entity_count += 1;
-		if (decal_iter != _scene.end()) entity_count += decal_iter->size();
+		if (object_iter != _scene.end()) {
+			object_count += object_iter->size();
+		}
+		if (camera_iter != _scene.end()) {
+			camera_count += 1;
+		}
+		if (light_iter != _scene.end()) {
+			pointlight_count += light_iter->size();
+		}
+		if (dirlight_iter != _scene.end()) {
+			dirlight_count += 1;
+		}
+		if (decal_iter != _scene.end()) {
+			entity_count += decal_count;
+		}
+
+		entity_count += object_count;
+		entity_count += decal_count;
+		entity_count += dirlight_count;
+		entity_count += pointlight_count;
+		entity_count += camera_count;
 
 		// Create entities up-front.
 		std::vector<Entity> created_entities;
@@ -71,7 +93,7 @@ namespace Sandbox
 		auto & resource_manager = Singleton<Engine::Graphics::ResourceManager>();
 
 		// Create root entities of scene
-		for (unsigned int i = 0; i < lights_offset; ++i)
+		for (unsigned int i = 0; i < object_count; ++i)
 		{
 			Entity current_entity = created_entities[i];
 			auto current_transform = current_entity.GetComponent<Transform>();
@@ -115,7 +137,7 @@ namespace Sandbox
 
 		}
 
-		for (unsigned int i = lights_offset; i < dirlight_offset; ++i)
+		for (unsigned int i = lights_offset; i < lights_offset + pointlight_count; ++i)
 		{
 			Entity current_object = created_entities[i];
 			json const& object_json = light_iter->at(i - lights_offset);
@@ -127,7 +149,7 @@ namespace Sandbox
 			current_object.SetName("Light");
 		}
 
-		for (unsigned int i = dirlight_offset; i < camera_offset; ++i)
+		for (unsigned int i = dirlight_offset; i < dirlight_offset + dirlight_count; ++i)
 		{
 			Entity current_object = created_entities[i];
 			json const& object_json = *dirlight_iter;
@@ -145,7 +167,7 @@ namespace Sandbox
 			current_object.SetName("Directional Light");
 		}
 
-		for (unsigned int i = camera_offset; i <= camera_offset; ++i)
+		for (unsigned int i = camera_offset; i < camera_offset + camera_count; ++i)
 		{
 			Entity current_object = created_entities[i];
 			current_object.SetName("Camera");
@@ -157,7 +179,7 @@ namespace Sandbox
 			camera.SetVerticalFOV(object_json.at("FOVy") * glm::pi<float>() / 180.0f); // Convert to radians
 		}
 
-		for (unsigned int i = decal_offset; i < decal_offset + decal_iter->size(); ++i)
+		for (unsigned int i = decal_offset; i < decal_offset + decal_count; ++i)
 		{
 			Entity current_object = created_entities[i];
 			current_object.SetName("Decal");

@@ -41,12 +41,12 @@ Engine::Graphics::texture_handle		s_display_gbuffer_texture = 0;
 static glm::vec3	s_ambient_color = glm::vec3(1.0f);
 static float		s_exposure = 1.0f;
 static float		s_gamma_correction_factor = 1.1f;
-static float		s_shininess_mult_factor = 100.0f;
+static float		s_shininess_mult_factor = 25.0f;
 // Blur data
-static bool			s_bloom_enabled = false;
+static bool			s_bloom_enabled = true;
 static glm::vec3	s_bloom_treshhold_color(0.2126f, 0.7152f, 0.0722f);
 static unsigned int	s_bloom_blur_count = 5;
-static bool			s_render_infinite_grid = false;
+static bool			s_render_infinite_grid = true;
 
 static Engine::Math::transform3D s_camera_default_transform;
 
