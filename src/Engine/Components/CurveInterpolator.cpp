@@ -27,8 +27,8 @@ namespace Component
 	bool CurveInterpolatorManager::impl_create(Entity _e)
 	{
 		piecewise_curve new_curve;
-		new_curve.m_type = piecewise_curve::EType::Linear;
 		new_curve.m_nodes.clear();
+		new_curve.set_curve_type(piecewise_curve::EType::Linear);
 
 		m_map.emplace(_e, std::move(new_curve));
 		m_renderable_curves.insert(_e);
@@ -106,7 +106,7 @@ namespace Component
 					selected = true;
 				if (ImGui::Selectable(get_curve_type_name(curr_type), &selected))
 				{
-					curve.m_type = curr_type;
+					curve.set_curve_type(curr_type);
 					generate_curve_lut(&curve, &curve.m_lut, curve_resolution);
 				}
 			}
@@ -137,7 +137,26 @@ namespace Component
 					delete_point_index = i;
 				ImGui::PopStyleColor();
 				ImGui::SameLine();
+
+				// Apply different color to distringuish between point-only curves and point+tangent curves
+				ImGuiCol const edit_imgui_elem_col = ImGuiCol_FrameBg;
+				ImVec4 const default_style_col = ImGui::GetStyleColorVec4(edit_imgui_elem_col);
+				ImVec4 const color_node_position = ImVec4(0.1f, 0.5f, 0.1f, default_style_col.w);
+				ImVec4 const color_node_tangent = ImVec4(0.5f, 0.5f, 0.1f, default_style_col.w);
+				if (curve.m_type == piecewise_curve::EType::Linear || curve.m_type == piecewise_curve::EType::Catmull)
+				{
+					ImGui::PushStyleColor(edit_imgui_elem_col, color_node_position);
+				}
+				else
+				{
+					ImGui::PushStyleColor(
+						edit_imgui_elem_col, 
+						(i % 3 == 0) ? color_node_position : color_node_tangent
+					);
+				}
 				ImGui::DragFloat3(buffer, &curve.m_nodes[i].x, 0.01f, -FLT_MAX, FLT_MAX, "%.2f");
+				ImGui::PopStyleColor(1);
+
 				if (i != curve.m_nodes.size() - 1)
 				{
 					ImGui::SameLine();
@@ -275,7 +294,7 @@ namespace Component
 
 				_lut->m_points[i] = 0.5f * (a * s_u3 + b * s_u2 + c * s_u + d);
 
-				normalized_distance += normalized_distance_delta;
+				normalized_distance = std::clamp(normalized_distance + normalized_distance_delta, 0.0f, 1.0f);
 			}
 		}
 		else if (_curve->m_type == piecewise_curve::EType::Bezier && nodes.size() >= 4)
@@ -299,5 +318,69 @@ namespace Component
 		piecewise_curve & curve = GetManager().m_map.at(m_owner);
 		curve = _curve;
 		GetManager().generate_curve_lut(&curve, &curve.m_lut, _resolution);
+	}
+
+
+	/*
+	* Sets the type of the piecewise curve. Will attempt to reformat internal
+	* node structure to preserve curve node positions.
+	* @param	EType	Curve type
+	*/
+	void piecewise_curve::set_curve_type(EType _type)
+	{
+		// ### Curve has two node storage formats:
+		// # Linear / Catmull: 
+		// Each node is an explicit position on the curve.
+		// # Hermite / Bezier
+		// Only the 1st and 1+3n-th nodes are positions on the curve.
+		// The nodes inbetween define the tangents corresponding to these positions.
+
+		// Swiching between the above types should make sure to reduce the format properly, or to
+		// provide a "correct" generated format.
+
+		bool old_is_linear_or_catmull = (m_type == EType::Linear || m_type == EType::Catmull);
+		bool new_is_linear_or_catmull = (_type == EType::Linear || _type == EType::Catmull);
+
+		if (!m_nodes.empty() && old_is_linear_or_catmull != new_is_linear_or_catmull)
+		{
+			// Generate new curve along with default tangents / intermediate positions.
+			if (old_is_linear_or_catmull)
+			{
+				std::vector<glm::vec3> generated_nodes(m_nodes.size() * 3 + 1, glm::vec3(0));
+				generated_nodes[0] = m_nodes[0];
+				if (_type == EType::Hermite)
+				{
+					for (unsigned int i = 1; i < m_nodes.size(); ++i)
+					{
+						glm::vec3 const dir_vec = glm::normalize(m_nodes[i] - m_nodes[i - 1]);
+						generated_nodes[3 * i - 2] = dir_vec;
+						generated_nodes[3 * i - 1] = dir_vec;
+						generated_nodes[3 * i] = m_nodes[i];
+					}
+				}
+				else if (_type == EType::Bezier)
+				{
+					for (unsigned int i = 1; i < m_nodes.size(); ++i)
+					{
+						glm::vec3 const halfway_point = (m_nodes[i] + m_nodes[i - 1])*0.5f;
+						generated_nodes[3 * i - 2] = halfway_point;
+						generated_nodes[3 * i - 1] = halfway_point;
+						generated_nodes[3 * i] = m_nodes[i];
+					}
+				}
+				m_nodes = std::move(generated_nodes);
+			}
+			// Reduce existing curve. Only take 3n-th points
+			else
+			{
+				size_t const reduced_size = m_nodes.size() < 4 ? 0 : (m_nodes.size() - 1) / 3;
+				std::vector<glm::vec3> generated_nodes(reduced_size, glm::vec3(0));
+				for (unsigned int i = 0; i < generated_nodes.size(); ++i)
+					generated_nodes[i] = m_nodes[3 * i];
+
+				m_nodes = std::move(generated_nodes);
+			}
+		}
+		m_type = _type;
 	}
 }

@@ -19,7 +19,9 @@ namespace Component
 		enum EType { Linear, Hermite, Catmull, Bezier, COUNT };
 		std::vector<glm::vec3>	m_nodes;
 		lookup_table			m_lut;
-		EType					m_type;
+		EType mutable			m_type;
+
+		void set_curve_type(EType _type);
 	};
 
 	class CurveInterpolatorManager;
