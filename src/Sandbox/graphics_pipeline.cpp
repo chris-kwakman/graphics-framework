@@ -508,7 +508,7 @@ namespace Sandbox
 
 			std::vector<glm::vec3> line_mesh;
 
-			for (Component::CurveInterpolator curve_comp : curve_entities)
+			for (Component::CurveInterpolator curve_comp : curve_node_entities)
 			{
 				glBindVertexArray(primitive.m_vao_gl_id);
 				res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, Component::COLOR_NODE_POSITION);

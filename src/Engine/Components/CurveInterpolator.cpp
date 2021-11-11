@@ -89,30 +89,58 @@ namespace Component
 		bool rendering_curve = (m_renderable_curves.find(_entity) != m_renderable_curves.end());
 		bool rendering_curve_nodes = (m_renderable_curve_nodes.find(_entity) != m_renderable_curve_nodes.end());
 
+		if (ImGui::Button("Copy JSON data to clipboard"))
+		{
+			nlohmann::json curve_json;
+			nlohmann::json& nodes = curve_json["nodes"];
+			nlohmann::json& type = curve_json["type"];
+			nlohmann::json& resolution = curve_json["resolution"];
+
+			nodes = curve.m_nodes;
+			std::string type_name = std::string(s_curve_type_names.at(curve.m_type));
+			std::transform(type_name.begin(), type_name.end(), type_name.begin(), std::tolower);
+			type = type_name;
+			resolution = curve.m_lut.m_arclengths.size();
+
+			ImGui::SetClipboardText(curve_json.dump(4).c_str());
+		}
+
 		auto mirror_curve_node = [&](int node_index)
 		{
 			// If we are editing curve w/ tangent / intermediate nodes (Hermite / Bezier),
 			// adjust node values to maintain continuity.
 			if (curve.m_type == curve_type::Hermite || curve.m_type == curve_type::Bezier)
 			{
+				float dir_mult = 1.0f;
+				if (curve.m_type == curve_type::Bezier)
+					dir_mult = -1.0f;
+
 				int given_remainder = node_index % 3;
 				if (given_remainder == 1 && node_index > 1)
 				{
 					float length = 0.0f;
 					if (glm::all(glm::epsilonEqual(curve.m_nodes[node_index - 2], glm::vec3(0.0f), glm::epsilon<float>())))
-						length = 0.0f;
+					{
+						curve.m_nodes[node_index - 2] = glm::vec3(0.0f);
+					}
 					else
+					{
 						length = glm::length(curve.m_nodes[node_index - 2]);
-					curve.m_nodes[node_index - 2] = -length * glm::normalize(curve.m_nodes[node_index]);
+						curve.m_nodes[node_index - 2] = dir_mult * length * glm::normalize(curve.m_nodes[node_index]);
+					}
 				}
 				else if (given_remainder == 2 && node_index < curve.m_nodes.size() - 2)
-				{
+				{ 
 					float length = 0.0f;
 					if (glm::all(glm::epsilonEqual(curve.m_nodes[node_index + 2], glm::vec3(0.0f), glm::epsilon<float>())))
-						length = 0.0f;
+					{
+						curve.m_nodes[node_index + 2] = glm::vec3(0.0f);
+					}
 					else
+					{
 						length = glm::length(curve.m_nodes[node_index + 2]);
-					curve.m_nodes[node_index + 2] = -length * glm::normalize(curve.m_nodes[node_index]);
+						curve.m_nodes[node_index + 2] = dir_mult * length * glm::normalize(curve.m_nodes[node_index]);
+					}
 				}
 			}
 		};
@@ -154,10 +182,32 @@ namespace Component
 		ImGui::SliderInt("Curve Resolution", &curve_resolution, 2, 200);
 		if (ImGui::Button("Regenerate LUT"))
 			generate_curve_lut(&curve, &curve.m_lut, curve_resolution);
-		ImGui::Checkbox("Show Curve Point List", &show_curve_point_list);
+		ImGui::Checkbox("Show Curve Node List", &show_curve_point_list);
 		ImGui::Checkbox("Show Distance LUT", &show_distance_lut_table);
-		if (ImGui::Button("Add Curve Point"))
-			curve.m_nodes.push_back(glm::vec3(0.0f));
+		if (ImGui::Button("Add Curve Node"))
+		{
+			if(curve.m_nodes.empty())
+				curve.m_nodes.push_back(glm::vec3(0.0f));
+			else
+				curve.m_nodes.push_back(curve.m_nodes.back());
+
+			generate_curve_lut(&curve, &curve.m_lut, curve_resolution);
+		}
+
+		// Debugging tool for testing whether normalized parameter computation works.
+		static float s_input_arclength = 0.0f;
+		static float s_output_parameter = 0.0f;
+		if (ImGui::SliderFloat(
+			"Get Normalized Param", 
+			&s_input_arclength, 
+			0.0f, 
+			curve.m_lut.m_arclengths.empty() ? 0.0f : curve.m_lut.m_arclengths.back(), 
+			"%.2f"
+		))
+			s_output_parameter = curve.m_lut.compute_normalized_parameter(s_input_arclength);
+		ImGui::SameLine();
+		ImGui::Text("%.3f", s_output_parameter);
+
 		if (show_curve_point_list && ImGui::BeginListBox("Curve Nodes", ImVec2(0.0f, 0.0f)))
 		{
 
@@ -167,6 +217,7 @@ namespace Component
 
 			static int transform_node_index = 0;
 			transform_node_index = std::clamp(transform_node_index, -1, (int)curve.m_nodes.size() - 1);
+
 
 			if (
 				(transform_node_index >= 0 && transform_node_index < curve.m_nodes.size()) &&
@@ -190,6 +241,8 @@ namespace Component
 					else if (transform_idx_remainder == 2)
 						node_position += curve.m_nodes[transform_node_index + 1];
 				}
+				Component::Transform const edit_entity_transform = _entity.GetComponent<Component::Transform>();
+				node_position += edit_entity_transform.ComputeWorldTransform().position;
 
 				glm::mat4x4 transform_matrix = glm::translate(glm::identity<glm::mat4x4>(), node_position);
 
@@ -211,6 +264,7 @@ namespace Component
 						else if (transform_idx_remainder == 2)
 							translation -= curve.m_nodes[transform_node_index + 1];
 					}
+					translation -= edit_entity_transform.ComputeWorldTransform().position;
 
 					curve.m_nodes[transform_node_index] = translation;
 
@@ -303,13 +357,17 @@ namespace Component
 				ImGui::PopID();
 			}
 			if (delete_point_index != -1)
+			{
 				curve.m_nodes.erase(curve.m_nodes.begin() + delete_point_index);
+				generate_curve_lut(&curve, &curve.m_lut, curve_resolution);
+			}
 			if (move_point_index != -1)
 			{
 				std::swap(
 					curve.m_nodes.at(move_point_index), 
 					curve.m_nodes.at(move_point_index + (int)!move_up - (int)move_up)
 				);
+				generate_curve_lut(&curve, &curve.m_lut, curve_resolution);
 			}
 			ImGui::EndListBox();
 		}
@@ -317,11 +375,11 @@ namespace Component
 		{
 			if (ImGui::BeginTable("Distance LUT", 2))
 			{
-				for (unsigned int i = 0; i < curve.m_lut.m_distances.size(); ++i)
+				for (unsigned int i = 0; i < curve.m_lut.m_arclengths.size(); ++i)
 				{
 					ImGui::TableNextRow();
 					ImGui::TableNextColumn();
-					ImGui::Text("%.3f", curve.m_lut.m_distances[i]);
+					ImGui::Text("%.3f", curve.m_lut.m_arclengths[i]);
 					ImGui::TableNextColumn();
 					glm::vec3 const point = curve.m_lut.m_points[i];
 					ImGui::Text("%.2f, %.2f, %.2f", point.x, point.y, point.z);
@@ -342,12 +400,12 @@ namespace Component
 
 		if (_curve->m_type == curve_type::Linear)
 		{
-			_lut->m_distances.resize(_curve->m_nodes.size());
+			_lut->m_arclengths.resize(_curve->m_nodes.size());
 			_lut->m_points.resize(_curve->m_nodes.size());
 		}
 		else
 		{
-			_lut->m_distances.resize(_lut_resolution);
+			_lut->m_arclengths.resize(_lut_resolution);
 			_lut->m_points.resize(_lut_resolution);
 		}
 
@@ -445,9 +503,9 @@ namespace Component
 
 		// Generate distance part of LUT (brute force)
 		//TODO: Use proper method describes in presentation.
-		_lut->m_distances[0] = 0.0f;
+		_lut->m_arclengths[0] = 0.0f;
 		for (unsigned int i = 1; i < _curve->m_lut.m_points.size(); ++i)
-			_lut->m_distances[i] = _lut->m_distances[i-1] + glm::distance(_lut->m_points[i], _lut->m_points[i - 1]);
+			_lut->m_arclengths[i] = _lut->m_arclengths[i-1] + glm::distance(_lut->m_points[i], _lut->m_points[i - 1]);
 	}
 
 	piecewise_curve const& CurveInterpolator::GetPiecewiseCurve() const
@@ -523,5 +581,57 @@ namespace Component
 			}
 		}
 		m_type = _type;
+	}
+
+	/*
+	* Compute normalized parameter given an index in the lookup table
+	* Curve is sampled at uniform parameter interval.
+	* @param	unsigned int		Index in lookup table
+	* @returns	float				Normalized parameter value within curve.
+	*/
+	float lookup_table::get_normalized_parameter(unsigned int _index) const
+	{
+		return (float)_index / (float)((unsigned int)m_points.size() - 1u);
+	}
+
+	/*
+	* Compute normalized parameter given arclength from the start of the curve.
+	* @param	float				Arclength from start of curve
+	* @returns	float				Normalized parameter value within curve.
+	* @details						Performs binary search in LUT to find
+	*								nearest arclength values, and interpolates
+	*								between those corresponding normalized parameter
+	*								values to get appropriate normalized parameter.
+	*/
+	float lookup_table::compute_normalized_parameter(float _arclength) const
+	{
+		int idx_min = 0;
+		int idx_max = m_points.size()-1;
+
+		if (m_points.size() < 2)
+			return 0.0f;
+		else if (m_points.size() < 3)
+		{
+			idx_min = 0;
+			idx_max = 1;
+		}
+		else
+		{
+			// Binary search to find bracketing indices whose values contain given arclength.
+			do
+			{
+				int idx_mid = (idx_max + idx_min) / 2;
+				if (_arclength < m_arclengths[idx_mid])
+					idx_max = idx_mid;
+				else
+					idx_min = idx_mid;
+			} while (idx_max - idx_min > 1);
+		}
+
+		float offset = _arclength - m_arclengths[idx_min];
+		float bracket_range = m_arclengths[idx_max] - m_arclengths[idx_min];
+		float segment_param = std::clamp(offset / bracket_range, 0.0f, 1.0f);
+		return get_normalized_parameter((unsigned int)idx_min) * (1.0f - segment_param)
+			+ get_normalized_parameter((unsigned int)idx_max) * segment_param;
 	}
 }

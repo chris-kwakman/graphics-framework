@@ -13,8 +13,15 @@ namespace Component
 
 	struct lookup_table
 	{
-		std::vector<float>		m_distances;
+		// Cumulative arclengths across whole curve.
+		std::vector<float>		m_arclengths;
+		// Normalized parameter corresponding to index is
+		// (i / (N-1)) where N is the resolution of the curve
+		// Sampled point of owning curve, corresponds to parameter.
 		std::vector<glm::vec3>	m_points;
+
+		float get_normalized_parameter(unsigned int _index) const;
+		float compute_normalized_parameter(float _arclength) const;
 	};
 
 	struct piecewise_curve
