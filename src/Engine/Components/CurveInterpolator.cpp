@@ -24,6 +24,11 @@ namespace Component
 		return m_renderable_curve_nodes;
 	}
 
+	decltype(CurveInterpolatorManager::m_renderable_curve_lut) const& CurveInterpolatorManager::GetRenderableCurveLUTs() const
+	{
+		return m_renderable_curve_lut;
+	}
+
 	void CurveInterpolatorManager::impl_clear()
 	{
 		m_map.clear();
@@ -88,19 +93,34 @@ namespace Component
 
 		bool rendering_curve = (m_renderable_curves.find(_entity) != m_renderable_curves.end());
 		bool rendering_curve_nodes = (m_renderable_curve_nodes.find(_entity) != m_renderable_curve_nodes.end());
+		bool rendering_curve_lut = (m_renderable_curve_lut.find(_entity) != m_renderable_curve_lut.end());
 
 		if (ImGui::Button("Copy JSON data to clipboard"))
 		{
 			nlohmann::json curve_json;
 			nlohmann::json& nodes = curve_json["nodes"];
 			nlohmann::json& type = curve_json["type"];
-			nlohmann::json& resolution = curve_json["resolution"];
+			nlohmann::json& adaptive = curve_json["adaptive"];
+
+			adaptive = curve.m_lut.m_adaptive;
+			if (curve.m_lut.m_adaptive)
+			{
+				nlohmann::json& tolerance = curve_json["tolerance"];
+				nlohmann::json& max_subdivisions = curve_json["max_subdivisions"];
+
+				tolerance = curve.m_lut.m_tolerance;
+				max_subdivisions = (unsigned char)curve.m_lut.m_max_subdivisions;
+			}
+			else
+			{
+				nlohmann::json& resolution = curve_json["resolution"];
+				resolution = curve.m_lut.m_arclengths.size();
+			}
 
 			nodes = curve.m_nodes;
 			std::string type_name = std::string(s_curve_type_names.at(curve.m_type));
 			std::transform(type_name.begin(), type_name.end(), type_name.begin(), std::tolower);
 			type = type_name;
-			resolution = curve.m_lut.m_arclengths.size();
 
 			ImGui::SetClipboardText(curve_json.dump(4).c_str());
 		}
@@ -158,6 +178,13 @@ namespace Component
 				m_renderable_curve_nodes.emplace(_entity);
 			else
 				m_renderable_curve_nodes.erase(_entity);
+		}
+		if (ImGui::Checkbox("Render Curve LUT Points", &rendering_curve_lut))
+		{
+			if (rendering_curve_lut)
+				m_renderable_curve_lut.emplace(_entity);
+			else
+				m_renderable_curve_lut.erase(_entity);
 		}
 
 		ImGui::Separator();
@@ -457,6 +484,8 @@ namespace Component
 		assert(_curve);
 		assert(_lut);
 
+		_lut->m_resolution = _lut_resolution;
+
 		_lut->m_arclengths.clear();
 		_lut->m_points.clear();
 		_lut->m_normalized_parameters.clear();
@@ -527,6 +556,10 @@ namespace Component
 	{
 		assert(_curve);
 		assert(_lut);
+
+		_lut->m_adaptive = true;
+		_lut->m_max_subdivisions = _subdivisions;
+		_lut->m_tolerance = _tolerance;
 
 		_lut->m_arclengths.clear();
 		_lut->m_points.clear();
@@ -623,11 +656,30 @@ namespace Component
 	{
 		return GetManager().m_map.at(m_owner);
 	}
+
+	/*
+	* Set piecewise curve and generate regular LUT
+	* @param	piecewise_curve			Reference curve
+	* @param	unsigned int			Resolution of generated LUT (i.e. # of samples)
+	*/
 	void CurveInterpolator::SetPiecewiseCurve(piecewise_curve _curve, unsigned int _resolution)
 	{
 		piecewise_curve & curve = GetManager().m_map.at(m_owner);
 		curve = _curve;
 		GetManager().generate_curve_lut(&curve, &curve.m_lut, _resolution);
+	}
+
+	/*
+	* Set piecewise curve and generate adaptive LUT.
+	* @param	piecewise_curve			Reference curve
+	* @param	float					Adaptive forward differencing tolerance
+	* @param	unsigned int			Max number of subdivisions when checking for tolerance
+	*/
+	void CurveInterpolator::SetPiecewiseCurve(piecewise_curve _curve, float _tolerance, unsigned int _max_subdivisions)
+	{
+		piecewise_curve& curve = GetManager().m_map.at(m_owner);
+		curve = _curve;
+		GetManager().generate_curve_lut_adaptive(&curve, &curve.m_lut, _max_subdivisions, _tolerance);
 	}
 
 

@@ -447,117 +447,36 @@ namespace Sandbox
 			}
 		}
 
-		//
-		// Debug render for curves and curve nodes
-		//
 
-		auto& curve_interpolator = Singleton<Component::CurveInterpolatorManager>();
-		auto curve_entities = curve_interpolator.GetRenderableCurves();
-		if (!curve_entities.empty())
 		{
-			res_mgr.UseProgram(res_mgr.FindShaderProgram("draw_gbuffer_primitive"));
+			//
+			// Debug render for curves and curve nodes
+			//
 
-			set_bound_program_uniform_locations();
-
-			res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, Component::COLOR_CURVE_LINE);
-
-			// Line Rendering
-
-			glDepthMask(GL_TRUE);
-			glDepthFunc(GL_ALWAYS);
-			glDisable(GL_BLEND);
-			glLineWidth(10.0f);
-
-			glBindVertexArray(s_gl_line_vao);
-			for (Component::CurveInterpolator curve_comp : curve_entities)
+			auto& curve_interpolator = Singleton<Component::CurveInterpolatorManager>();
+			auto curve_entities = curve_interpolator.GetRenderableCurves();
+			if (!curve_entities.empty())
 			{
-				Component::Transform renderable_transform = curve_comp.Owner().GetComponent<Component::Transform>();
-				// TODO: Use cached world matrix in transform manager (once implemented)
-				auto model_transform = renderable_transform.ComputeWorldTransform();
-				glm::mat4 const mesh_model_matrix = model_transform.GetMatrix();
-				glm::mat4 const matrix_mv = camera_view_matrix * mesh_model_matrix;
-				glm::mat4 const matrix_t_inv_mv = glm::transpose(glm::inverse(matrix_mv));
+				res_mgr.UseProgram(res_mgr.FindShaderProgram("draw_gbuffer_primitive"));
 
-				res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, matrix_vp * mesh_model_matrix);
-				res_mgr.SetBoundProgramUniform(LOC_MAT_MV, matrix_mv);
-				res_mgr.SetBoundProgramUniform(LOC_MAT_MV_T_INV, matrix_t_inv_mv);
+				set_bound_program_uniform_locations();
 
-				auto curve = curve_comp.GetPiecewiseCurve();
-				set_line_mesh(&curve.m_lut.m_points.front(), curve.m_lut.m_points.size());
-				GfxCall(glDrawElements(
-					GL_LINE_STRIP,
-					curve.m_lut.m_points.size(),
-					GL_UNSIGNED_INT,
-					(void*)0
-				));
-			}
-		}
+				res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, Component::COLOR_CURVE_LINE);
 
-		// Node Rendering
-
-		auto curve_node_entities = curve_interpolator.GetRenderableCurveNodes();
-		if (!curve_node_entities.empty())
-		{
-			res_mgr.UseProgram(res_mgr.FindShaderProgram("draw_gbuffer_primitive"));
-
-			set_bound_program_uniform_locations();
-
-			mesh_handle box_mesh = res_mgr.FindMesh("Box/Mesh");
-			auto const& box_primitives = res_mgr.GetMeshPrimitives(box_mesh);
-			auto const& primitive = box_primitives.front();
-
-			std::vector<glm::vec3> line_mesh;
-
-			for (Component::CurveInterpolator curve_comp : curve_node_entities)
-			{
-				glBindVertexArray(primitive.m_vao_gl_id);
-				res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, Component::COLOR_NODE_POSITION);
+				// Line Rendering
 
 				glDepthMask(GL_TRUE);
 				glDepthFunc(GL_ALWAYS);
 				glDisable(GL_BLEND);
+				glLineWidth(10.0f);
 
-				Engine::Math::transform3D node_transform;
-				node_transform.scale = glm::vec3(0.5f);
-
-				using curve_type = Component::piecewise_curve::EType;
-				Component::piecewise_curve const& curve = curve_comp.GetPiecewiseCurve();
-
-				for (unsigned int i = 0; i < curve.m_nodes.size(); ++i)
+				glBindVertexArray(s_gl_line_vao);
+				for (Component::CurveInterpolator curve_comp : curve_entities)
 				{
-					glm::vec3 const node = curve.m_nodes[i];
-					glm::vec3 node_modified = node;
-
-					if (curve.m_type == curve_type::Bezier || curve.m_type == curve_type::Hermite)
-					{
-						int remainder = (i % 3);
-						if (remainder == 0)
-							res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, Component::COLOR_NODE_POSITION);
-						else
-						{
-							res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, Component::COLOR_NODE_TANGENT);
-							if (remainder == 1)
-							{
-								node_modified += curve.m_nodes[i - 1];
-								// Add nodes to line mesh for rendering lines between positional nodes and tangent / intermediate nodes.
-								line_mesh.emplace_back(curve.m_nodes[i - 1]);
-								line_mesh.emplace_back(node_modified);
-							}
-							else
-							{
-								node_modified += curve.m_nodes[i + 1];
-								// Add nodes to line mesh for rendering lines between positional nodes and tangent / intermediate nodes.
-								line_mesh.emplace_back(curve.m_nodes[i + 1]);
-								line_mesh.emplace_back(node_modified);
-							}
-
-						}
-					}
-
-					node_transform.position = node_modified;
 					Component::Transform renderable_transform = curve_comp.Owner().GetComponent<Component::Transform>();
 					// TODO: Use cached world matrix in transform manager (once implemented)
-					glm::mat4 const mesh_model_matrix = renderable_transform.ComputeWorldMatrix() * node_transform.GetMatrix();
+					auto model_transform = renderable_transform.ComputeWorldTransform();
+					glm::mat4 const mesh_model_matrix = model_transform.GetMatrix();
 					glm::mat4 const matrix_mv = camera_view_matrix * mesh_model_matrix;
 					glm::mat4 const matrix_t_inv_mv = glm::transpose(glm::inverse(matrix_mv));
 
@@ -565,38 +484,164 @@ namespace Sandbox
 					res_mgr.SetBoundProgramUniform(LOC_MAT_MV, matrix_mv);
 					res_mgr.SetBoundProgramUniform(LOC_MAT_MV_T_INV, matrix_t_inv_mv);
 
-
-					auto ibo_comp_type = res_mgr.GetIndexBufferInfo(primitive.m_index_buffer_handle).m_type;
-					render_primitive(primitive);
+					auto curve = curve_comp.GetPiecewiseCurve();
+					set_line_mesh(&curve.m_lut.m_points.front(), curve.m_lut.m_points.size());
+					GfxCall(glDrawElements(
+						GL_LINE_STRIP,
+						curve.m_lut.m_points.size(),
+						GL_UNSIGNED_INT,
+						(void*)0
+					));
 				}
-				set_line_mesh(&line_mesh[0], line_mesh.size());	
-				
-				Component::Transform curve_transform = curve_comp.Owner().GetComponent<Component::Transform>();
-				// TODO: Use cached world matrix in transform manager (once implemented)
-				auto model_transform = curve_transform.ComputeWorldTransform();
-				glm::mat4 const mesh_model_matrix = model_transform.GetMatrix();
-				glm::mat4 const matrix_mv = camera_view_matrix * mesh_model_matrix;
-				glm::mat4 const matrix_t_inv_mv = glm::transpose(glm::inverse(matrix_mv));
+			}
 
-				res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
-				res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, matrix_vp* mesh_model_matrix);
-				res_mgr.SetBoundProgramUniform(LOC_MAT_MV, matrix_mv);
-				res_mgr.SetBoundProgramUniform(LOC_MAT_MV_T_INV, matrix_t_inv_mv);
+			// Node Rendering
 
-				glDepthMask(GL_TRUE);
-				glDepthFunc(GL_ALWAYS);
-				glDisable(GL_BLEND);
-				glLineWidth(5.0f);
+			auto curve_node_entities = curve_interpolator.GetRenderableCurveNodes();
+			if (!curve_node_entities.empty())
+			{
+				res_mgr.UseProgram(res_mgr.FindShaderProgram("draw_gbuffer_primitive"));
 
-				glBindVertexArray(s_gl_line_vao);
-				GfxCall(glDrawElements(
-					GL_LINES,
-					line_mesh.size(),
-					GL_UNSIGNED_INT,
-					(void*)0
-				));
+				set_bound_program_uniform_locations();
 
-				line_mesh.clear();
+				mesh_handle box_mesh = res_mgr.FindMesh("Box/Mesh");
+				auto const& box_primitives = res_mgr.GetMeshPrimitives(box_mesh);
+				auto const& primitive = box_primitives.front();
+
+				std::vector<glm::vec3> line_mesh;
+
+				for (Component::CurveInterpolator curve_comp : curve_node_entities)
+				{
+					glBindVertexArray(primitive.m_vao_gl_id);
+					res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, Component::COLOR_NODE_POSITION);
+
+					glDepthMask(GL_TRUE);
+					glDepthFunc(GL_ALWAYS);
+					glDisable(GL_BLEND);
+
+					Engine::Math::transform3D node_transform;
+					node_transform.scale = glm::vec3(0.5f);
+
+					using curve_type = Component::piecewise_curve::EType;
+					Component::piecewise_curve const& curve = curve_comp.GetPiecewiseCurve();
+
+					for (unsigned int i = 0; i < curve.m_nodes.size(); ++i)
+					{
+						glm::vec3 const node = curve.m_nodes[i];
+						glm::vec3 node_modified = node;
+
+						if (curve.m_type == curve_type::Bezier || curve.m_type == curve_type::Hermite)
+						{
+							int remainder = (i % 3);
+							if (remainder == 0)
+								res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, Component::COLOR_NODE_POSITION);
+							else
+							{
+								res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, Component::COLOR_NODE_TANGENT);
+								if (remainder == 1)
+								{
+									node_modified += curve.m_nodes[i - 1];
+									// Add nodes to line mesh for rendering lines between positional nodes and tangent / intermediate nodes.
+									line_mesh.emplace_back(curve.m_nodes[i - 1]);
+									line_mesh.emplace_back(node_modified);
+								}
+								else
+								{
+									node_modified += curve.m_nodes[i + 1];
+									// Add nodes to line mesh for rendering lines between positional nodes and tangent / intermediate nodes.
+									line_mesh.emplace_back(curve.m_nodes[i + 1]);
+									line_mesh.emplace_back(node_modified);
+								}
+
+							}
+						}
+
+						node_transform.position = node_modified;
+						Component::Transform renderable_transform = curve_comp.Owner().GetComponent<Component::Transform>();
+						// TODO: Use cached world matrix in transform manager (once implemented)
+						glm::mat4 const mesh_model_matrix = renderable_transform.ComputeWorldMatrix() * node_transform.GetMatrix();
+						glm::mat4 const matrix_mv = camera_view_matrix * mesh_model_matrix;
+						glm::mat4 const matrix_t_inv_mv = glm::transpose(glm::inverse(matrix_mv));
+
+						res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, matrix_vp * mesh_model_matrix);
+						res_mgr.SetBoundProgramUniform(LOC_MAT_MV, matrix_mv);
+						res_mgr.SetBoundProgramUniform(LOC_MAT_MV_T_INV, matrix_t_inv_mv);
+
+
+						auto ibo_comp_type = res_mgr.GetIndexBufferInfo(primitive.m_index_buffer_handle).m_type;
+						render_primitive(primitive);
+					}
+					set_line_mesh(&line_mesh[0], line_mesh.size());
+
+					Component::Transform curve_transform = curve_comp.Owner().GetComponent<Component::Transform>();
+					// TODO: Use cached world matrix in transform manager (once implemented)
+					auto model_transform = curve_transform.ComputeWorldTransform();
+					glm::mat4 const mesh_model_matrix = model_transform.GetMatrix();
+					glm::mat4 const matrix_mv = camera_view_matrix * mesh_model_matrix;
+					glm::mat4 const matrix_t_inv_mv = glm::transpose(glm::inverse(matrix_mv));
+
+					res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
+					res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, matrix_vp * mesh_model_matrix);
+					res_mgr.SetBoundProgramUniform(LOC_MAT_MV, matrix_mv);
+					res_mgr.SetBoundProgramUniform(LOC_MAT_MV_T_INV, matrix_t_inv_mv);
+
+					glDepthMask(GL_TRUE);
+					glDepthFunc(GL_ALWAYS);
+					glDisable(GL_BLEND);
+					glLineWidth(5.0f);
+
+					glBindVertexArray(s_gl_line_vao);
+					GfxCall(glDrawElements(
+						GL_LINES,
+						line_mesh.size(),
+						GL_UNSIGNED_INT,
+						(void*)0
+					));
+
+					line_mesh.clear();
+				}
+			}
+
+			// LUT rendering
+
+			auto curve_lut_entities = curve_interpolator.GetRenderableCurveLUTs();
+			if (!curve_lut_entities.empty())
+			{
+				res_mgr.UseProgram(res_mgr.FindShaderProgram("draw_gbuffer_primitive"));
+
+				set_bound_program_uniform_locations();
+
+				mesh_handle box_mesh = res_mgr.FindMesh("Box/Mesh");
+				auto const& box_primitives = res_mgr.GetMeshPrimitives(box_mesh);
+				auto const& primitive = box_primitives.front();
+
+				glBindVertexArray(primitive.m_vao_gl_id);
+				res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, Component::COLOR_CURVE_LUT_POINT);
+
+				Engine::Math::transform3D node_transform;
+				node_transform.scale = glm::vec3(0.25f);
+				for (Component::CurveInterpolator curve_comp : curve_lut_entities)
+				{
+
+					glDepthMask(GL_TRUE);
+					glDepthFunc(GL_ALWAYS);
+					glDisable(GL_BLEND);
+
+					Component::Transform renderable_transform = curve_comp.Owner().GetComponent<Component::Transform>();
+					glm::vec3 const renderable_pos = renderable_transform.ComputeWorldTransform().position;
+
+					using curve_type = Component::piecewise_curve::EType;
+					Component::piecewise_curve const& curve = curve_comp.GetPiecewiseCurve();
+
+					for (unsigned int i = 0; i < curve.m_lut.m_points.size(); ++i)
+					{
+						node_transform.position = curve.m_lut.m_points[i] + renderable_pos;
+						glm::mat4 const mesh_model_matrix = node_transform.GetMatrix();
+						res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, matrix_vp * mesh_model_matrix);
+
+						render_primitive(primitive);
+					}
+				}
 			}
 		}
 

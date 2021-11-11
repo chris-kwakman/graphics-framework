@@ -10,6 +10,7 @@ namespace Component
 	glm::vec4 const COLOR_CURVE_LINE(1.0f, 1.0f, 0.0f, 1.0f);
 	glm::vec4 const COLOR_NODE_POSITION(0.0f, 1.0f, 0.0f, 1.0f);
 	glm::vec4 const COLOR_NODE_TANGENT(1.0f, 0.0f, 0.0f, 1.0f);
+	glm::vec4 const COLOR_CURVE_LUT_POINT(0.5f, 0.5f, 0.5f, 1.0f);
 
 	struct lookup_table
 	{
@@ -76,6 +77,7 @@ namespace Component
 		piecewise_curve const & GetPiecewiseCurve() const;
 		// TODO: Separate into two different methods.
 		void SetPiecewiseCurve(piecewise_curve _curve, unsigned int _resolution);
+		void SetPiecewiseCurve(piecewise_curve _curve, float _tolerance, unsigned int _max_subdivisions);
 	};
 	class CurveInterpolatorManager final : public TCompManager<CurveInterpolator>
 	{
@@ -84,6 +86,7 @@ namespace Component
 
 		std::unordered_set<Entity, Entity::hash> m_renderable_curves;
 		std::unordered_set<Entity, Entity::hash> m_renderable_curve_nodes;
+		std::unordered_set<Entity, Entity::hash> m_renderable_curve_lut;
 
 		// Inherited via TCompManager
 		virtual void impl_clear() override;
@@ -112,6 +115,7 @@ namespace Component
 		// Used for debug rendering in graphics pipeline.
 		decltype(m_renderable_curves) const& GetRenderableCurves() const;
 		decltype(m_renderable_curve_nodes) const& GetRenderableCurveNodes() const;
+		decltype(m_renderable_curve_lut) const& GetRenderableCurveLUTs() const;
 	};
 }
 
