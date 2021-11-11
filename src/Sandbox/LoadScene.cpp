@@ -98,13 +98,13 @@ namespace Sandbox
 			Entity current_entity = created_entities[i];
 			auto current_transform = current_entity.GetComponent<Transform>();
 			json const& object_json = object_iter->at(i);
+			current_transform.SetLocalTransform(object_json);
 
 			auto name_iter = object_json.find("name");
 			auto mesh_iter = object_json.find("mesh");
 			auto curve_interp_iter = object_json.find("curve_interpolator");
 			if (mesh_iter != object_json.end())
 			{
-				current_transform.SetLocalTransform(object_json);
 				std::string const model_path = mesh_iter->get<std::string>();
 				if (!resource_manager.IsGLTFModelImported(model_path.c_str()))
 					resource_manager.ImportModel_GLTF(model_path.c_str());
@@ -118,17 +118,20 @@ namespace Sandbox
 			{
 				auto curve = Component::Create<CurveInterpolator>(current_entity);
 				piecewise_curve	new_pw_curve;
-				new_pw_curve.m_nodes = curve_interp_iter->at("nodes").get<std::vector<glm::vec3>>();
 
-				std::string curve_type = curve_interp_iter->at("type");
-				if (curve_type == "catmull")
-					new_pw_curve.m_type = piecewise_curve::EType::Catmull;
-				else if (curve_type == "hermite")
-					new_pw_curve.m_type = piecewise_curve::EType::Hermite;
-				else if (curve_type == "bezier")
-					new_pw_curve.m_type = piecewise_curve::EType::Bezier;
+				std::string curve_type_name = curve_interp_iter->at("type");
+				piecewise_curve::EType new_curve_type = piecewise_curve::EType::Linear;
+				if (curve_type_name == "catmull")
+					new_curve_type = piecewise_curve::EType::Catmull;
+				else if (curve_type_name == "hermite")
+					new_curve_type = piecewise_curve::EType::Hermite;
+				else if (curve_type_name == "bezier")
+					new_curve_type = piecewise_curve::EType::Bezier;
 				else
-					new_pw_curve.m_type = piecewise_curve::EType::Linear;
+					new_curve_type = piecewise_curve::EType::Linear;
+				new_pw_curve.set_curve_type(new_curve_type);
+
+				new_pw_curve.m_nodes = curve_interp_iter->at("nodes").get<std::vector<glm::vec3>>();
 
 				curve.SetPiecewiseCurve(new_pw_curve, curve_interp_iter->at("resolution"));
 			}
