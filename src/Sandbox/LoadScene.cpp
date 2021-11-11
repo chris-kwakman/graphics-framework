@@ -119,6 +119,8 @@ namespace Sandbox
 				auto curve = Component::Create<CurveInterpolator>(current_entity);
 				piecewise_curve	new_pw_curve;
 
+				auto adaptive_state_iter = curve_interp_iter->find("adaptive");
+
 				std::string curve_type_name = curve_interp_iter->at("type");
 				piecewise_curve::EType new_curve_type = piecewise_curve::EType::Linear;
 				if (curve_type_name == "catmull")
@@ -133,7 +135,10 @@ namespace Sandbox
 
 				new_pw_curve.m_nodes = curve_interp_iter->at("nodes").get<std::vector<glm::vec3>>();
 
-				curve.SetPiecewiseCurve(new_pw_curve, curve_interp_iter->at("resolution"));
+				if (adaptive_state_iter == curve_interp_iter->end()|| !adaptive_state_iter->get<bool>())
+					curve.SetPiecewiseCurve(new_pw_curve, curve_interp_iter->at("resolution"));
+				else
+					curve.SetPiecewiseCurve(new_pw_curve, curve_interp_iter->at("tolerance"), curve_interp_iter->at("max_subdivisions"));
 			}
 			if (name_iter != object_json.end())
 				current_entity.SetName(name_iter->get<std::string>().c_str());
