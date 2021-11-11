@@ -6,7 +6,7 @@
 #include <Engine/Components/Camera.h>
 #include <Engine/Components/Renderable.h>
 
-#include "render_common.h"
+#include "../render_common.h"
 
 #include <glm/common.hpp>
 #include <glm/gtx/quaternion.hpp>

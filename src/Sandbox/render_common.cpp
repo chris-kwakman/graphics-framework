@@ -6,6 +6,49 @@
 namespace Sandbox
 {
 
+	// Graphics Objects
+
+	texture_handle
+		s_fb_texture_depth,
+		s_fb_texture_base_color,
+		s_fb_texture_normal,
+		s_fb_texture_metallic_roughness,
+		s_fb_texture_light_color,
+		s_fb_texture_luminance,
+		s_fb_texture_bloom_pingpong[2],
+		s_fb_texture_shadow
+	;
+
+	texture_handle s_texture_white = 0;
+
+	framebuffer_handle 
+		s_framebuffer_gbuffer, 
+		s_framebuffer_gbuffer_decal, 
+		s_framebuffer_lighting, 
+		s_framebuffer_bloom[2], 
+		s_framebuffer_shadow
+	;
+
+	// Lighting data
+	glm::vec4		s_clear_color{ 0.0f,0.0f,0.0f,0.0f };
+	glm::vec3		s_ambient_color = glm::vec3(1.0f);
+	float			s_exposure = 1.0f;
+	float			s_gamma_correction_factor = 1.1f;
+	float			s_shininess_mult_factor = 25.0f;
+	// Blur data
+	bool			s_bloom_enabled = true;
+	glm::uvec2		s_bloom_texture_size(0, 0);
+	glm::vec3		s_bloom_treshhold_color(0.2126f, 0.7152f, 0.0722f);
+	unsigned int	s_bloom_blur_count = 5;
+
+	// Editor Data
+	bool			s_render_infinite_grid = true;
+
+
+
+
+
+
 	unsigned int s_gl_tri_ibo = 0, s_gl_tri_vao = 0, s_gl_tri_vbo = 0;
 	unsigned int s_gl_bone_vao, s_gl_bone_vbo, s_gl_bone_ibo, s_gl_joint_vao, s_gl_joint_vbo, s_gl_joint_ibo;
 	unsigned int joint_index_count, bone_index_count;

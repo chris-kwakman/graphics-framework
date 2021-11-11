@@ -7,6 +7,9 @@ namespace Component
 {
 	using namespace Engine::ECS;
 
+	glm::vec4 const COLOR_CURVE_LINE(1.0f, 1.0f, 0.0f, 1.0f);
+	glm::vec4 const COLOR_NODE_POSITION(0.0f, 1.0f, 0.0f, 1.0f);
+	glm::vec4 const COLOR_NODE_TANGENT(1.0f, 0.0f, 0.0f, 1.0f);
 
 	struct lookup_table
 	{

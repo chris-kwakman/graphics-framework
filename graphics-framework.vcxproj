@@ -201,7 +201,8 @@
     <ClCompile Include="src\Engine\Serialisation\scene.cpp" />
     <ClCompile Include="src\Engine\Serialisation\serialise_gltf.cpp" />
     <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\Sandbox\lighting_pass.cpp" />
+    <ClCompile Include="src\Sandbox\graphics_pipeline.cpp" />
+    <ClCompile Include="src\Sandbox\GraphicsPipeline\lighting_pass.cpp" />
     <ClCompile Include="src\Sandbox\LoadScene.cpp" />
     <ClCompile Include="src\Sandbox\render_common.cpp" />
     <ClCompile Include="src\Sandbox\sandbox.cpp" />
@@ -523,7 +524,8 @@
     <ClInclude Include="src\Engine\Serialisation\serialise_gltf.h" />
     <ClInclude Include="src\Engine\Utils\logging.h" />
     <ClInclude Include="src\Engine\Utils\singleton.h" />
-    <ClInclude Include="src\Sandbox\lighting_pass.h" />
+    <ClInclude Include="src\Sandbox\graphics_pipeline.h" />
+    <ClInclude Include="src\Sandbox\GraphicsPipeline\lighting_pass.h" />
     <ClInclude Include="src\Sandbox\render_common.h" />
     <ClInclude Include="src\Sandbox\sandbox.h" />
     <ClInclude Include="src\Sandbox\LoadScene.h" />

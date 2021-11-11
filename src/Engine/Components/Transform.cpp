@@ -514,6 +514,9 @@ namespace Component
 		static ImGuizmo::OPERATION s_imguizmo_current_operation = ImGuizmo::TRANSLATE;
 		static ImGuizmo::MODE s_imguizmo_current_mode = ImGuizmo::LOCAL;
 
+		if (ImGui::IsItemFocused())
+			Singleton<Engine::Editor::Editor>().ComponentUsingImguizmoWidget = GetComponentTypeName();
+
 		Transform transform_component = Get(_entity);
 
 		auto editor = Singleton<Engine::Editor::Editor>();
@@ -529,13 +532,17 @@ namespace Component
 		else
 			transform_matrix = transform_component.GetLocalTransform().GetMatrix();
 
-		bool is_manipulated = ImGuizmo::Manipulate(
-			&matrix_view[0][0],
-			&matrix_perspective[0][0],
-			s_imguizmo_current_operation,
-			s_imguizmo_current_mode,
-			&transform_matrix[0][0]
-		);
+		bool is_manipulated = false;
+		if (Singleton<Engine::Editor::Editor>().ComponentUsingImguizmoWidget == GetComponentTypeName())
+		{
+			is_manipulated = ImGuizmo::Manipulate(
+				&matrix_view[0][0],
+				&matrix_perspective[0][0],
+				s_imguizmo_current_operation,
+				s_imguizmo_current_mode,
+				&transform_matrix[0][0]
+			);
+		}
 
 		if (is_manipulated)
 		{

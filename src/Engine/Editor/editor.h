@@ -19,6 +19,7 @@ namespace Editor {
 		void Shutdown();
 
 		Engine::ECS::Entity EditorCameraEntity;
+		const char* ComponentUsingImguizmoWidget = nullptr;
 
 	private:
 

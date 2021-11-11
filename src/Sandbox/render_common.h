@@ -6,12 +6,53 @@
 
 namespace Sandbox
 {
-
 	using texture_handle = Engine::Graphics::texture_handle;
 	using mesh_handle = Engine::Graphics::mesh_handle;
 	using shader_program_handle = Engine::Graphics::shader_program_handle;
 	using framebuffer_handle = Engine::Graphics::framebuffer_handle;
 	using mesh_primitive_data = Engine::Graphics::ResourceManager::mesh_primitive_data;
+
+	// Graphics Objects
+
+# define MATH_PI           3.14159265358979323846f
+
+	extern texture_handle
+		s_fb_texture_depth,
+		s_fb_texture_base_color,
+		s_fb_texture_normal,
+		s_fb_texture_metallic_roughness,
+		s_fb_texture_light_color,
+		s_fb_texture_luminance,
+		s_fb_texture_bloom_pingpong[2],
+		s_fb_texture_shadow
+		;
+
+	extern texture_handle s_texture_white;
+
+	extern framebuffer_handle
+		s_framebuffer_gbuffer,
+		s_framebuffer_gbuffer_decal,
+		s_framebuffer_lighting,
+		s_framebuffer_bloom[2],
+		s_framebuffer_shadow
+		;
+
+	// Lighting data
+	extern glm::vec4		s_clear_color;
+	extern glm::vec3		s_ambient_color;
+	extern float			s_exposure;
+	extern float			s_gamma_correction_factor;
+	extern float			s_shininess_mult_factor;
+	// Blur data
+	extern bool				s_bloom_enabled;
+	extern glm::uvec2		s_bloom_texture_size;
+	extern glm::vec3		s_bloom_treshhold_color;
+	extern unsigned int		s_bloom_blur_count;
+
+	// Editor Data
+	extern bool				s_render_infinite_grid;
+
+	// Miscellaneous Graphics Stuff
 
 	// TODO: Destroy these GL objects properly (at some point in the distant future, probably)
 	extern unsigned int s_gl_tri_ibo;

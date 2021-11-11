@@ -1,5 +1,12 @@
 #include "CurveInterpolator.h"
 
+#include <ImGuizmo/ImGuizmo.h>
+#include <Engine/Editor/editor.h>
+#include <Engine/Components/Camera.h>
+#include <Engine/Components/Transform.h>
+
+#include <glm/gtx/matrix_decompose.hpp>
+
 namespace Component
 {
 	const char* CurveInterpolatorManager::GetComponentTypeName() const
@@ -68,6 +75,9 @@ namespace Component
 
 	void CurveInterpolatorManager::impl_edit_component(Entity _entity)
 	{
+		if (ImGui::IsItemFocused())
+			Singleton<Engine::Editor::Editor>().ComponentUsingImguizmoWidget = GetComponentTypeName();
+
 		static int curve_resolution = 20;
 		static int const MAX_POINTS_DISPLAYED = 7;
 		static bool show_curve_point_list = true;
@@ -78,6 +88,34 @@ namespace Component
 
 		bool rendering_curve = (m_renderable_curves.find(_entity) != m_renderable_curves.end());
 		bool rendering_curve_nodes = (m_renderable_curve_nodes.find(_entity) != m_renderable_curve_nodes.end());
+
+		auto mirror_curve_node = [&](int node_index)
+		{
+			// If we are editing curve w/ tangent / intermediate nodes (Hermite / Bezier),
+			// adjust node values to maintain continuity.
+			if (curve.m_type == curve_type::Hermite || curve.m_type == curve_type::Bezier)
+			{
+				int given_remainder = node_index % 3;
+				if (given_remainder == 1 && node_index > 1)
+				{
+					float length = 0.0f;
+					if (glm::all(glm::epsilonEqual(curve.m_nodes[node_index - 2], glm::vec3(0.0f), glm::epsilon<float>())))
+						length = 0.0f;
+					else
+						length = glm::length(curve.m_nodes[node_index - 2]);
+					curve.m_nodes[node_index - 2] = -length * glm::normalize(curve.m_nodes[node_index]);
+				}
+				else if (given_remainder == 2 && node_index < curve.m_nodes.size() - 2)
+				{
+					float length = 0.0f;
+					if (glm::all(glm::epsilonEqual(curve.m_nodes[node_index + 2], glm::vec3(0.0f), glm::epsilon<float>())))
+						length = 0.0f;
+					else
+						length = glm::length(curve.m_nodes[node_index + 2]);
+					curve.m_nodes[node_index + 2] = -length * glm::normalize(curve.m_nodes[node_index]);
+				}
+			}
+		};
 
 		if (ImGui::Checkbox("Render Curve", &rendering_curve))
 		{
@@ -127,35 +165,116 @@ namespace Component
 			int move_point_index = -1;
 			bool move_up = true; // False if we should move point index down.
 
+			static int transform_node_index = 0;
+			transform_node_index = std::clamp(transform_node_index, -1, (int)curve.m_nodes.size() - 1);
+
+			if (
+				(transform_node_index >= 0 && transform_node_index < curve.m_nodes.size()) &&
+				Singleton<Engine::Editor::Editor>().ComponentUsingImguizmoWidget == GetComponentTypeName()
+				)
+			{
+				int const transform_idx_remainder = transform_node_index % 3;
+
+				Engine::ECS::Entity const editor_cam_entity = Singleton<Engine::Editor::Editor>().EditorCameraEntity;
+				auto editor_camera = editor_cam_entity.GetComponent<Component::Camera>();
+				auto editor_camera_transform = editor_cam_entity.GetComponent<Component::Transform>();
+
+				glm::mat4x4 const view_matrix = editor_camera_transform.ComputeWorldTransform().GetInvMatrix();
+				glm::mat4x4 const perspective_matrix = editor_camera.GetCameraData().get_perspective_matrix();
+
+				glm::vec3 node_position = curve.m_nodes[transform_node_index];
+				if (curve.m_type == curve_type::Bezier || curve.m_type == curve_type::Hermite)
+				{
+					if (transform_idx_remainder == 1)
+						node_position += curve.m_nodes[transform_node_index - 1];
+					else if (transform_idx_remainder == 2)
+						node_position += curve.m_nodes[transform_node_index + 1];
+				}
+
+				glm::mat4x4 transform_matrix = glm::translate(glm::identity<glm::mat4x4>(), node_position);
+
+				if (ImGuizmo::Manipulate(
+					(float*)&view_matrix[0][0], (float*)&perspective_matrix[0][0],
+					ImGuizmo::TRANSLATE, ImGuizmo::WORLD,
+					(float*)&transform_matrix[0][0]
+				))
+				{
+					glm::vec3 scale, translation, skew;
+					glm::quat rotation;
+					glm::vec4 perspective;
+					glm::decompose(transform_matrix, scale, rotation, translation, skew, perspective);
+
+					if (curve.m_type == curve_type::Bezier || curve.m_type == curve_type::Hermite)
+					{
+						if (transform_idx_remainder == 1)
+							translation -= curve.m_nodes[transform_node_index - 1];
+						else if (transform_idx_remainder == 2)
+							translation -= curve.m_nodes[transform_node_index + 1];
+					}
+
+					curve.m_nodes[transform_node_index] = translation;
+
+					generate_curve_lut(&curve, &curve.m_lut, curve_resolution);
+					mirror_curve_node(transform_node_index);
+				}
+
+			}
+
 			for (unsigned int i = 0; i < curve.m_nodes.size(); ++i)
 			{
+				int const remainder = i % 3;
+
 				ImGui::PushID(i);
 				char buffer[16];
 				snprintf(buffer, sizeof(buffer), "###Point %i", i);
-				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
-				if (ImGui::SmallButton("X"))
-					delete_point_index = i;
-				ImGui::PopStyleColor();
+
+				if (ImGui::RadioButton("###TransformCurveNode", (transform_node_index == i)))
+				{
+					Singleton<Engine::Editor::Editor>().ComponentUsingImguizmoWidget = GetComponentTypeName();
+					transform_node_index = i;
+				}
 				ImGui::SameLine();
 
 				// Apply different color to distringuish between point-only curves and point+tangent curves
+				float const style_color_mult = 0.5f;
 				ImGuiCol const edit_imgui_elem_col = ImGuiCol_FrameBg;
 				ImVec4 const default_style_col = ImGui::GetStyleColorVec4(edit_imgui_elem_col);
-				ImVec4 const color_node_position = ImVec4(0.1f, 0.5f, 0.1f, default_style_col.w);
-				ImVec4 const color_node_tangent = ImVec4(0.5f, 0.5f, 0.1f, default_style_col.w);
+				ImVec4 const style_color_node_position = ImVec4(
+					style_color_mult * COLOR_NODE_POSITION.x, 
+					style_color_mult * COLOR_NODE_POSITION.y,
+					style_color_mult * COLOR_NODE_POSITION.z,
+					default_style_col.w
+				);
+				ImVec4 const style_color_node_tangent = ImVec4(
+					style_color_mult * COLOR_NODE_TANGENT.x,
+					style_color_mult * COLOR_NODE_TANGENT.y,
+					style_color_mult * COLOR_NODE_TANGENT.z,
+					default_style_col.w
+				);
 				if (curve.m_type == piecewise_curve::EType::Linear || curve.m_type == piecewise_curve::EType::Catmull)
 				{
-					ImGui::PushStyleColor(edit_imgui_elem_col, color_node_position);
+					ImGui::PushStyleColor(edit_imgui_elem_col, style_color_node_position);
 				}
 				else
 				{
 					ImGui::PushStyleColor(
 						edit_imgui_elem_col, 
-						(i % 3 == 0) ? color_node_position : color_node_tangent
+						(i % 3 == 0) ? style_color_node_position : style_color_node_tangent
 					);
 				}
-				ImGui::DragFloat3(buffer, &curve.m_nodes[i].x, 0.01f, -FLT_MAX, FLT_MAX, "%.2f");
+				if (ImGui::DragFloat3(buffer, &curve.m_nodes[i].x, 0.01f, -FLT_MAX, FLT_MAX, "%.2f"))
+				{
+					generate_curve_lut(&curve, &curve.m_lut, curve_resolution);
+					mirror_curve_node(i);
+				}
 				ImGui::PopStyleColor(1);
+				ImGui::SameLine();
+
+				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+				if (ImGui::SmallButton("X"))
+					delete_point_index = i;
+				ImGui::PopStyleColor();
+				ImGui::SameLine();
 
 				if (i != curve.m_nodes.size() - 1)
 				{
@@ -240,36 +359,6 @@ namespace Component
 		{
 			_lut->m_points = nodes;
 		}
-		else if (_curve->m_type == piecewise_curve::EType::Hermite && nodes.size() >= 4)
-		{
-			// Only process 3 nodes at a time when using Hermite.
-			// P0, P'0, P'1, P1 = P2, P'2, P'3, P3 = P4, etc...
-			unsigned int const segment_count = (nodes.size() - 1) / 3;
-			float const curve_segment_normalized_length = 1.0f / float(segment_count);
-			for (unsigned int i = 0; i < _lut_resolution; ++i)
-			{
-				float curve_distance = normalized_distance / curve_segment_normalized_length;
-				unsigned int segment = floor(curve_distance);
-				float const s_u = fmodf(curve_distance, 1.0f);
-				float const s_u2 = s_u * s_u;
-				float const s_u3 = s_u * s_u2;
-
-				unsigned int const segment_node_offset = 3 * segment;
-				glm::vec3 const s_p0 = nodes[segment_node_offset];
-				glm::vec3 const s_p0_t = nodes[segment_node_offset+1];
-				glm::vec3 const s_p1_t = nodes[segment_node_offset+2];
-				glm::vec3 const s_p1 = nodes[segment_node_offset+3];
-
-				glm::vec3 const a = 2.0f * (s_p0 - s_p1) + s_p0_t + s_p1_t;
-				glm::vec3 const b = 3.0f * (s_p1 - s_p0) - 2.0f * s_p0_t - s_p1_t;
-				glm::vec3 const c = s_p0_t;
-				glm::vec3 const d = s_p0;
-
-				_lut->m_points[i] = a * s_u3 + b * s_u2 + c * s_u + d;
-
-				normalized_distance += normalized_distance_delta;
-			}
-		}
 		else if (_curve->m_type == piecewise_curve::EType::Catmull && nodes.size() >= 2)
 		{
 			unsigned int const segment_count = (nodes.size() - 1);
@@ -297,9 +386,61 @@ namespace Component
 				normalized_distance = std::clamp(normalized_distance + normalized_distance_delta, 0.0f, 1.0f);
 			}
 		}
+		else if (_curve->m_type == piecewise_curve::EType::Hermite && nodes.size() >= 4)
+		{
+			// Only process 3 nodes at a time when using Hermite.
+			// P0, P'0, P'1, P1 = P2, P'2, P'3, P3 = P4, etc...
+			unsigned int const segment_count = (nodes.size() - 1) / 3;
+			float const curve_segment_normalized_length = 1.0f / float(segment_count);
+			for (unsigned int i = 0; i < _lut_resolution; ++i)
+			{
+				float curve_distance = normalized_distance / curve_segment_normalized_length;
+				unsigned int segment = floor(curve_distance);
+				float const s_u = fmodf(curve_distance, 1.0f);
+				float const s_u2 = s_u * s_u;
+				float const s_u3 = s_u * s_u2;
+
+				unsigned int const segment_node_offset = 3 * segment;
+				glm::vec3 const s_p0 = nodes[segment_node_offset];
+				glm::vec3 const s_p0_t = nodes[segment_node_offset+1];
+				glm::vec3 const s_p1_t = nodes[segment_node_offset+2];
+				glm::vec3 const s_p1 = nodes[segment_node_offset+3];
+
+				glm::vec3 const a = 2.0f * (s_p0 - s_p1) + s_p0_t + s_p1_t;
+				glm::vec3 const b = 3.0f * (s_p1 - s_p0) - 2.0f * s_p0_t - s_p1_t;
+				glm::vec3 const c = s_p0_t;
+				glm::vec3 const d = s_p0;
+
+				_lut->m_points[i] = a * s_u3 + b * s_u2 + c * s_u + d;
+
+				normalized_distance = std::clamp(normalized_distance + normalized_distance_delta, 0.0f, 1.0f);
+			}
+		}
 		else if (_curve->m_type == piecewise_curve::EType::Bezier && nodes.size() >= 4)
 		{
-			//TODO: Implement Bezier
+			unsigned int const segment_count = (nodes.size() - 1) / 3;
+			float const curve_segment_normalized_length = 1.0f / float(segment_count);
+			for (unsigned int i = 0; i < _lut_resolution; ++i)
+			{
+				float curve_distance = normalized_distance / curve_segment_normalized_length;
+				unsigned int segment = floor(curve_distance);
+				float const s_u = fmodf(curve_distance, 1.0f);
+				float const s_u2 = s_u * s_u;
+				float const s_u3 = s_u * s_u2;
+				float const s_inv_u = 1 - s_u;
+				float const s_inv_u2 = s_inv_u * s_inv_u;
+				float const s_inv_u3 = s_inv_u2 * s_inv_u;
+
+				unsigned int const segment_node_offset = 3 * segment;
+				glm::vec3 const s_p0 = nodes[segment_node_offset];
+				glm::vec3 const s_p1 = s_p0 + nodes[segment_node_offset + 1];
+				glm::vec3 const s_p3 = nodes[segment_node_offset + 3];
+				glm::vec3 const s_p2 = s_p3 + nodes[segment_node_offset + 2];
+
+				_lut->m_points[i] = s_inv_u3 * s_p0 + 3 * s_u * s_inv_u2 * s_p1 + 3 * s_u2 * s_inv_u * s_p2 + s_u3 * s_p3;
+
+				normalized_distance = std::clamp(normalized_distance + normalized_distance_delta, 0.0f, 1.0f);
+			}
 		}
 
 		// Generate distance part of LUT (brute force)
