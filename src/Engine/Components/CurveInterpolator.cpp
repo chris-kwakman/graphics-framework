@@ -78,11 +78,11 @@ namespace Component
 		if (ImGui::IsItemFocused())
 			Singleton<Engine::Editor::Editor>().ComponentUsingImguizmoWidget = GetComponentTypeName();
 
-		static int curve_resolution = 20;
 		static int const MAX_POINTS_DISPLAYED = 7;
 		static bool show_curve_point_list = true;
 		static bool show_distance_lut_table = false;
 		static Entity editing_entity = Entity::InvalidEntity;
+		static bool generate_lut = false;
 
 		piecewise_curve& curve = m_map.at(_entity);
 
@@ -173,15 +173,49 @@ namespace Component
 				if (ImGui::Selectable(get_curve_type_name(curr_type), &selected))
 				{
 					curve.set_curve_type(curr_type);
-					generate_curve_lut(&curve, &curve.m_lut, curve_resolution);
+					generate_lut = true;
 				}
 			}
 			ImGui::EndCombo();
 		}
 
-		ImGui::SliderInt("Curve Resolution", &curve_resolution, 2, 200);
+		if (ImGui::Checkbox("Adaptive LUT", &curve.m_lut.m_adaptive))
+		{
+			if (curve.m_lut.m_adaptive)
+			{
+				curve.m_lut.m_tolerance = 0.4f;
+				curve.m_lut.m_max_subdivisions = 6;
+			}
+			else
+			{
+				curve.m_lut.m_resolution = 100;
+			}
+			generate_lut = true;
+		}
+		if (curve.m_lut.m_adaptive)
+		{
+			int casted_max_subdivisions = (int)curve.m_lut.m_max_subdivisions;
+			if (ImGui::SliderInt("Max Subdivisions", &casted_max_subdivisions, 1, 16, "%d", ImGuiSliderFlags_AlwaysClamp))
+			{
+				curve.m_lut.m_max_subdivisions = (unsigned int)casted_max_subdivisions;
+				generate_lut = true;
+			}
+			float copied_tolerance = curve.m_lut.m_tolerance;
+			if (ImGui::SliderFloat("Tolerance", &copied_tolerance, 0.00001f, 1.0f, "%.4f"))
+			{
+				curve.m_lut.m_tolerance = copied_tolerance;
+				generate_lut = true;
+			}
+		}
+		else
+		{
+			int casted_resolution = (int)curve.m_lut.m_resolution;
+			if (ImGui::SliderInt("Curve Resolution", &casted_resolution, 2, 200, "%d", ImGuiSliderFlags_AlwaysClamp))
+				curve.m_lut.m_resolution = (unsigned int)casted_resolution;
+		}
 		if (ImGui::Button("Regenerate LUT"))
-			generate_curve_lut(&curve, &curve.m_lut, curve_resolution);
+			generate_lut = true;
+
 		ImGui::Checkbox("Show Curve Node List", &show_curve_point_list);
 		ImGui::Checkbox("Show Distance LUT", &show_distance_lut_table);
 		if (ImGui::Button("Add Curve Node"))
@@ -191,7 +225,7 @@ namespace Component
 			else
 				curve.m_nodes.push_back(curve.m_nodes.back());
 
-			generate_curve_lut(&curve, &curve.m_lut, curve_resolution);
+			generate_lut = true;
 		}
 
 		// Debugging tool for testing whether normalized parameter computation works.
@@ -268,8 +302,9 @@ namespace Component
 
 					curve.m_nodes[transform_node_index] = translation;
 
-					generate_curve_lut(&curve, &curve.m_lut, curve_resolution);
 					mirror_curve_node(transform_node_index);
+
+					generate_lut = true;
 				}
 
 			}
@@ -318,7 +353,7 @@ namespace Component
 				}
 				if (ImGui::DragFloat3(buffer, &curve.m_nodes[i].x, 0.01f, -FLT_MAX, FLT_MAX, "%.2f"))
 				{
-					generate_curve_lut(&curve, &curve.m_lut, curve_resolution);
+					generate_lut = true;
 					mirror_curve_node(i);
 				}
 				ImGui::PopStyleColor(1);
@@ -359,7 +394,7 @@ namespace Component
 			if (delete_point_index != -1)
 			{
 				curve.m_nodes.erase(curve.m_nodes.begin() + delete_point_index);
-				generate_curve_lut(&curve, &curve.m_lut, curve_resolution);
+				generate_lut = true;
 			}
 			if (move_point_index != -1)
 			{
@@ -367,25 +402,49 @@ namespace Component
 					curve.m_nodes.at(move_point_index), 
 					curve.m_nodes.at(move_point_index + (int)!move_up - (int)move_up)
 				);
-				generate_curve_lut(&curve, &curve.m_lut, curve_resolution);
+				generate_lut = true;
 			}
 			ImGui::EndListBox();
 		}
 		if (show_distance_lut_table)
 		{
-			if (ImGui::BeginTable("Distance LUT", 2))
+			ImGuiTableFlags const table_flags =
+				ImGuiTableFlags_Hideable |
+				ImGuiTableFlags_Reorderable |
+				ImGuiTableFlags_ScrollY |
+				ImGuiTableFlags_Borders;
+			unsigned int const TABLE_COLUMN_COUNT = (curve.m_lut.m_normalized_parameters.empty() ? 3 : 4);
+			if (ImGui::BeginTable("Distance LUT", TABLE_COLUMN_COUNT, table_flags, ImVec2(ImGui::GetWindowWidth(), 400.0f)))
 			{
 				for (unsigned int i = 0; i < curve.m_lut.m_arclengths.size(); ++i)
 				{
 					ImGui::TableNextRow();
 					ImGui::TableNextColumn();
-					ImGui::Text("%.3f", curve.m_lut.m_arclengths[i]);
+					ImGui::Text("%i", i);
+
 					ImGui::TableNextColumn();
 					glm::vec3 const point = curve.m_lut.m_points[i];
 					ImGui::Text("%.2f, %.2f, %.2f", point.x, point.y, point.z);
+
+					if (!curve.m_lut.m_normalized_parameters.empty())
+					{
+						ImGui::TableNextColumn();
+						ImGui::Text("%.3f", curve.m_lut.m_normalized_parameters[i]);
+					}
+					ImGui::TableNextColumn();
+					ImGui::Text("%.3f", curve.m_lut.m_arclengths[i]);
 				}
 				ImGui::EndTable();
 			}
+		}
+
+		if (generate_lut)
+		{
+			generate_lut = false;
+			if (curve.m_lut.m_adaptive)
+				generate_curve_lut_adaptive(&curve, &curve.m_lut, curve.m_lut.m_max_subdivisions, curve.m_lut.m_tolerance);
+			else
+				generate_curve_lut(&curve, &curve.m_lut, curve.m_lut.m_resolution);
 		}
 	}
 
@@ -397,6 +456,10 @@ namespace Component
 	{
 		assert(_curve);
 		assert(_lut);
+
+		_lut->m_arclengths.clear();
+		_lut->m_points.clear();
+		_lut->m_normalized_parameters.clear();
 
 		if (_curve->m_type == curve_type::Linear)
 		{
@@ -419,28 +482,9 @@ namespace Component
 		}
 		else if (_curve->m_type == piecewise_curve::EType::Catmull && nodes.size() >= 2)
 		{
-			unsigned int const segment_count = (nodes.size() - 1);
-			float const curve_segment_normalized_length = 1.0f / float(segment_count);
 			for (unsigned int i = 0; i < _lut_resolution; ++i)
 			{
-				float curve_distance = normalized_distance / curve_segment_normalized_length;
-				int segment = floor(curve_distance);
-				float const s_u = fmodf(curve_distance, 1.0f);
-				float const s_u2 = s_u * s_u;
-				float const s_u3 = s_u * s_u2;
-
-				glm::vec3 p0 = nodes[std::max(segment - 1, 0)];
-				glm::vec3 p1 = nodes[segment];
-				glm::vec3 p2 = nodes[segment + 1];
-				glm::vec3 p3 = nodes[std::min(segment + 2, (int)nodes.size() - 1)];
-
-				glm::vec3 const a = -p0 + 3.0f * p1 - 3.0f * p2 + p3;
-				glm::vec3 const b = 2.0f * p0 - 5.0f * p1 + 4.0f * p2 - p3;
-				glm::vec3 const c = -p0 + p2;
-				glm::vec3 const d = 2.0f * p1;
-
-				_lut->m_points[i] = 0.5f * (a * s_u3 + b * s_u2 + c * s_u + d);
-
+				_lut->m_points[i] = _curve->numerical_sample_catmull(normalized_distance);
 				normalized_distance = std::clamp(normalized_distance + normalized_distance_delta, 0.0f, 1.0f);
 			}
 		}
@@ -448,65 +492,132 @@ namespace Component
 		{
 			// Only process 3 nodes at a time when using Hermite.
 			// P0, P'0, P'1, P1 = P2, P'2, P'3, P3 = P4, etc...
-			unsigned int const segment_count = (nodes.size() - 1) / 3;
-			float const curve_segment_normalized_length = 1.0f / float(segment_count);
 			for (unsigned int i = 0; i < _lut_resolution; ++i)
 			{
-				float curve_distance = normalized_distance / curve_segment_normalized_length;
-				unsigned int segment = floor(curve_distance);
-				float const s_u = fmodf(curve_distance, 1.0f);
-				float const s_u2 = s_u * s_u;
-				float const s_u3 = s_u * s_u2;
-
-				unsigned int const segment_node_offset = 3 * segment;
-				glm::vec3 const s_p0 = nodes[segment_node_offset];
-				glm::vec3 const s_p0_t = nodes[segment_node_offset+1];
-				glm::vec3 const s_p1_t = nodes[segment_node_offset+2];
-				glm::vec3 const s_p1 = nodes[segment_node_offset+3];
-
-				glm::vec3 const a = 2.0f * (s_p0 - s_p1) + s_p0_t + s_p1_t;
-				glm::vec3 const b = 3.0f * (s_p1 - s_p0) - 2.0f * s_p0_t - s_p1_t;
-				glm::vec3 const c = s_p0_t;
-				glm::vec3 const d = s_p0;
-
-				_lut->m_points[i] = a * s_u3 + b * s_u2 + c * s_u + d;
-
+				_lut->m_points[i] = _curve->numerical_sample_hermite(normalized_distance);
 				normalized_distance = std::clamp(normalized_distance + normalized_distance_delta, 0.0f, 1.0f);
 			}
 		}
 		else if (_curve->m_type == piecewise_curve::EType::Bezier && nodes.size() >= 4)
 		{
-			unsigned int const segment_count = (nodes.size() - 1) / 3;
-			float const curve_segment_normalized_length = 1.0f / float(segment_count);
 			for (unsigned int i = 0; i < _lut_resolution; ++i)
 			{
-				float curve_distance = normalized_distance / curve_segment_normalized_length;
-				unsigned int segment = floor(curve_distance);
-				float const s_u = fmodf(curve_distance, 1.0f);
-				float const s_u2 = s_u * s_u;
-				float const s_u3 = s_u * s_u2;
-				float const s_inv_u = 1 - s_u;
-				float const s_inv_u2 = s_inv_u * s_inv_u;
-				float const s_inv_u3 = s_inv_u2 * s_inv_u;
-
-				unsigned int const segment_node_offset = 3 * segment;
-				glm::vec3 const s_p0 = nodes[segment_node_offset];
-				glm::vec3 const s_p1 = s_p0 + nodes[segment_node_offset + 1];
-				glm::vec3 const s_p3 = nodes[segment_node_offset + 3];
-				glm::vec3 const s_p2 = s_p3 + nodes[segment_node_offset + 2];
-
-				_lut->m_points[i] = s_inv_u3 * s_p0 + 3 * s_u * s_inv_u2 * s_p1 + 3 * s_u2 * s_inv_u * s_p2 + s_u3 * s_p3;
-
+				_lut->m_points[i] = _curve->numerical_sample_bezier(normalized_distance);
 				normalized_distance = std::clamp(normalized_distance + normalized_distance_delta, 0.0f, 1.0f);
 			}
 		}
 
 		// Generate distance part of LUT (brute force)
-		//TODO: Use proper method describes in presentation.
 		_lut->m_arclengths[0] = 0.0f;
 		for (unsigned int i = 1; i < _curve->m_lut.m_points.size(); ++i)
 			_lut->m_arclengths[i] = _lut->m_arclengths[i-1] + glm::distance(_lut->m_points[i], _lut->m_points[i - 1]);
 	}
+
+	/*
+	* Applies adaptive forward differencing to curve to generate LUT.
+	* @param	piecewise_curve *	Curve that will be sampled
+	* @param	lookup_table *		Lookup table to adaptively reduce
+	* @param	unsigned int		Level of subdivision that will be applied to curve.
+	* @param	float				Treshhold
+	*/
+	void CurveInterpolatorManager::generate_curve_lut_adaptive(
+		piecewise_curve const* _curve, lookup_table* _lut, 
+		unsigned int _subdivisions, float _tolerance
+	)
+	{
+		assert(_curve);
+		assert(_lut);
+
+		_lut->m_arclengths.clear();
+		_lut->m_points.clear();
+		_lut->m_normalized_parameters.clear();
+
+		if (_curve->m_type == piecewise_curve::EType::Linear)
+			generate_curve_lut(_curve, _lut, _curve->m_nodes.size());
+		else
+		{
+			_lut->m_arclengths.resize(1);
+			_lut->m_normalized_parameters.resize(1);
+			_lut->m_points.resize(1);
+
+			_lut->m_normalized_parameters[0] = 0.0f;
+			_lut->m_arclengths[0] = 0.0f;
+			_lut->m_points[0] = _curve->m_nodes[0];
+
+			rec_adaptive_forward_differencing(
+				_curve, _lut, 0.0f, 1.0f, _subdivisions, _tolerance
+			);
+
+			_lut->m_normalized_parameters.push_back(1.0f);
+			_lut->m_arclengths.push_back(
+				_lut->m_arclengths.back() + glm::distance(_curve->m_nodes.back(), _lut->m_points.back())
+			);
+			_lut->m_points.push_back(_curve->m_nodes.back());
+			
+		}
+	}
+
+	/*
+	* Helper function to recursively sample curves
+	* @param	piecewise_curve *	Curve to sample
+	* @param	float				Normalized parameter of front of segment
+	* @param	float				Normalized parameter of back of segment.
+	* @param	int					Remaining subdivisions
+	* @param	float				Tolerance for accepting early breaks.
+	*/
+	void CurveInterpolatorManager::rec_adaptive_forward_differencing(
+		piecewise_curve const* _curve, 
+		lookup_table * _lut,
+		float _u_left, float _u_right, 
+		int _remaining_subdivisions, float _tolerance
+	)
+	{
+		float const u_middle = _u_left + (_u_right - _u_left) * 0.5f;
+		float length_left, length_right, length_total;
+		glm::vec3 point_left, point_right, point_middle;
+
+		point_left = _curve->numerical_sample(_u_left);
+		point_middle = _curve->numerical_sample(u_middle);
+		length_left = glm::distance(point_left, point_middle);
+
+		if (_remaining_subdivisions >= 0)
+		{
+			// Test if distance between left segment, right segment and direct distance is below tolerance.
+			point_right = _curve->numerical_sample(_u_right);
+			length_right = glm::distance(point_right, point_middle);
+			length_total = glm::distance(point_left, point_right);
+
+			if (glm::abs((length_left + length_right) - length_total) < _tolerance)
+			{
+				_lut->m_arclengths.push_back(_lut->m_arclengths.back() + length_left);
+				_lut->m_points.push_back(point_middle);
+				_lut->m_normalized_parameters.push_back(u_middle);
+			}
+			else
+			{
+				rec_adaptive_forward_differencing(
+					_curve, _lut,
+					_u_left, u_middle,
+					_remaining_subdivisions - 1,
+					_tolerance * 0.5f
+				);
+				rec_adaptive_forward_differencing(
+					_curve, _lut,
+					u_middle, _u_right,
+					_remaining_subdivisions - 1,
+					_tolerance * 0.5f
+				);
+			}
+		}
+		else
+		{
+			_lut->m_arclengths.push_back(_lut->m_arclengths.back() + length_left);
+			_lut->m_points.push_back(point_middle);
+			_lut->m_normalized_parameters.push_back(u_middle);
+		}
+	}
+
+	
 
 	piecewise_curve const& CurveInterpolator::GetPiecewiseCurve() const
 	{
@@ -581,6 +692,112 @@ namespace Component
 			}
 		}
 		m_type = _type;
+	}
+
+	glm::vec3 piecewise_curve::numerical_sample(float _param) const
+	{
+		switch (m_type)
+		{
+		case EType::Linear: return numerical_sample_linear(_param); 
+		case EType::Catmull: return numerical_sample_catmull(_param);
+		case EType::Hermite: return numerical_sample_hermite(_param);
+		case EType::Bezier: return numerical_sample_bezier(_param);
+		}
+	}
+
+	struct setup_sample_output
+	{
+		int left;
+		int right;
+		float local_segment_param;
+	};
+
+	static setup_sample_output setup_sample_contiguous_curve(float _param, unsigned int _point_count)
+	{
+		setup_sample_output new_sso;
+
+		float const FLT_SEGMENT_COUNT = (float)_point_count - 1.0f;
+		float const param_sample_segment = _param * FLT_SEGMENT_COUNT;
+		new_sso.local_segment_param = fmodf(param_sample_segment, 1.0f);
+		new_sso.left = (int)floorf(param_sample_segment);
+		new_sso.right = (int)ceilf(param_sample_segment);
+		return new_sso;
+	}
+
+	glm::vec3 piecewise_curve::numerical_sample_linear(float _param) const
+	{
+		auto result = setup_sample_contiguous_curve(_param, m_nodes.size());
+		return	(1.0f - result.local_segment_param) * m_nodes[result.left] +
+			result.local_segment_param * m_nodes[result.right];
+	}
+
+	glm::vec3 piecewise_curve::numerical_sample_catmull(float _param) const
+	{
+		auto result = setup_sample_contiguous_curve(_param, m_nodes.size());
+
+		float const s_u = result.local_segment_param;
+		float const s_u2 = s_u * s_u;
+		float const s_u3 = s_u * s_u2;
+
+		glm::vec3 const p0 = m_nodes[std::max(result.left - 1, 0)];
+		glm::vec3 const p1 = m_nodes[result.left];
+		glm::vec3 const p2 = m_nodes[result.right];
+		glm::vec3 const p3 = m_nodes[std::min(result.right + 1, (int)m_nodes.size() - 1)];
+
+		glm::vec3 const a = -p0 + 3.0f * p1 - 3.0f * p2 + p3;
+		glm::vec3 const b = 2.0f * p0 - 5.0f * p1 + 4.0f * p2 - p3;
+		glm::vec3 const c = -p0 + p2;
+		glm::vec3 const d = 2.0f * p1;
+
+		return 0.5f * (a * s_u3 + b * s_u2 + c * s_u + d);
+	}
+
+	glm::vec3 piecewise_curve::numerical_sample_hermite(float _param) const
+	{
+		// Number of points in the curve (NOT nodes)
+		unsigned int const POINT_COUNT = 1 + (m_nodes.size() - 1) / 3;
+		auto result = setup_sample_contiguous_curve(_param, POINT_COUNT);
+
+		unsigned int const segment = (unsigned int)floorf(_param * (float)(POINT_COUNT - 1));
+		float const s_u = result.local_segment_param;
+		float const s_u2 = s_u * s_u;
+		float const s_u3 = s_u * s_u2;
+
+		unsigned int const segment_node_offset = 3 * segment;
+		glm::vec3 const s_p0 =		m_nodes[segment_node_offset];
+		glm::vec3 const s_p0_t =	m_nodes[segment_node_offset + 1];
+		glm::vec3 const s_p1_t =	m_nodes[segment_node_offset + 2];
+		glm::vec3 const s_p1 =		m_nodes[segment_node_offset + 3];
+
+		glm::vec3 const a = 2.0f * (s_p0 - s_p1) + s_p0_t + s_p1_t;
+		glm::vec3 const b = 3.0f * (s_p1 - s_p0) - 2.0f * s_p0_t - s_p1_t;
+		glm::vec3 const c = s_p0_t;
+		glm::vec3 const d = s_p0;
+
+		return a * s_u3 + b * s_u2 + c * s_u + d;
+	}
+
+	glm::vec3 piecewise_curve::numerical_sample_bezier(float _param) const
+	{
+		// Number of points in the curve (NOT nodes)
+		unsigned int const POINT_COUNT = 1 + (m_nodes.size() - 1) / 3;
+		auto result = setup_sample_contiguous_curve(_param, POINT_COUNT);
+
+		unsigned int const segment = _param * (float)(POINT_COUNT - 1);
+		float const s_u = result.local_segment_param;
+		float const s_u2 = s_u * s_u;
+		float const s_u3 = s_u * s_u2;
+		float const s_inv_u = 1 - s_u;
+		float const s_inv_u2 = s_inv_u * s_inv_u;
+		float const s_inv_u3 = s_inv_u2 * s_inv_u;
+
+		unsigned int const segment_node_offset = 3 * segment;
+		glm::vec3 const s_p0 = m_nodes[segment_node_offset];
+		glm::vec3 const s_p1 = s_p0 + m_nodes[segment_node_offset + 1];
+		glm::vec3 const s_p3 = m_nodes[segment_node_offset + 3];
+		glm::vec3 const s_p2 = s_p3 + m_nodes[segment_node_offset + 2];
+
+		return s_inv_u3 * s_p0 + 3 * s_u * s_inv_u2 * s_p1 + 3 * s_u2 * s_inv_u * s_p2 + s_u3 * s_p3;
 	}
 
 	/*

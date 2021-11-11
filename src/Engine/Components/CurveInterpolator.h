@@ -13,12 +13,40 @@ namespace Component
 
 	struct lookup_table
 	{
+		lookup_table() { m_resolution = 100; m_adaptive = false; }
+
 		// Cumulative arclengths across whole curve.
 		std::vector<float>		m_arclengths;
 		// Normalized parameter corresponding to index is
 		// (i / (N-1)) where N is the resolution of the curve
 		// Sampled point of owning curve, corresponds to parameter.
+		// If LUT is adaptive, store our own index-normalized parameter 'map'
+		std::vector<float>		m_normalized_parameters;
 		std::vector<glm::vec3>	m_points;
+
+		union
+		{
+			unsigned int m_lut_metadata;
+			struct
+			{
+				unsigned int m_resolution;
+			};
+			struct
+			{
+				union
+				{
+					float m_tolerance;
+					struct
+					{
+						uint32_t m_tolerance_bits : 26;
+						uint8_t m_max_subdivisions : 6;
+					};
+				};
+
+			};
+		};
+
+		bool m_adaptive = false;
 
 		float get_normalized_parameter(unsigned int _index) const;
 		float compute_normalized_parameter(float _arclength) const;
@@ -32,6 +60,12 @@ namespace Component
 		EType mutable			m_type;
 
 		void set_curve_type(EType _type);
+
+		glm::vec3 numerical_sample(float _param) const;
+		glm::vec3 numerical_sample_linear(float _param) const;
+		glm::vec3 numerical_sample_catmull(float _param) const;
+		glm::vec3 numerical_sample_hermite(float _param) const;
+		glm::vec3 numerical_sample_bezier(float _param) const;
 	};
 
 	class CurveInterpolatorManager;
@@ -60,7 +94,14 @@ namespace Component
 		virtual void impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context) override;
 
 		static void generate_curve_lut(piecewise_curve const* _curve, lookup_table* _lut, unsigned int _lut_resolution);
-		static void adaptive_reduce_curve_lut(lookup_table* _lut, float _treshhold);
+		static void generate_curve_lut_adaptive(piecewise_curve const* _curve, lookup_table* _lut, unsigned int _subdivisions, float _treshhold);
+
+		static void rec_adaptive_forward_differencing(
+			piecewise_curve const* _curve, 
+			lookup_table* _lut,
+			float _u_left, float _u_right,
+			int _remaining_subdivisions, float _tolerance
+		);
 
 		friend struct CurveInterpolator;
 
