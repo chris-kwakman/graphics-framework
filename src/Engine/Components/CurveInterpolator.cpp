@@ -494,11 +494,13 @@ namespace Component
 		{
 			_lut->m_arclengths.resize(_curve->m_nodes.size());
 			_lut->m_points.resize(_curve->m_nodes.size());
+			_lut->m_normalized_parameters.resize(_curve->m_nodes.size());
 		}
 		else
 		{
 			_lut->m_arclengths.resize(_lut_resolution);
 			_lut->m_points.resize(_lut_resolution);
+			_lut->m_normalized_parameters.resize(_lut_resolution);
 		}
 
 		std::vector<glm::vec3> const& nodes = _curve->m_nodes;
@@ -508,12 +510,15 @@ namespace Component
 		if (_curve->m_type == piecewise_curve::EType::Linear)
 		{
 			_lut->m_points = nodes;
+			for (unsigned int i = 0; i < _curve->m_nodes.size(); ++i)
+				_lut->m_normalized_parameters[i] = (float)i / float(_curve->m_nodes.size() - 1u);
 		}
 		else if (_curve->m_type == piecewise_curve::EType::Catmull && nodes.size() >= 2)
 		{
 			for (unsigned int i = 0; i < _lut_resolution; ++i)
 			{
 				_lut->m_points[i] = _curve->numerical_sample_catmull(normalized_distance);
+				_lut->m_normalized_parameters[i] = normalized_distance;
 				normalized_distance = std::clamp(normalized_distance + normalized_distance_delta, 0.0f, 1.0f);
 			}
 		}
@@ -524,6 +529,7 @@ namespace Component
 			for (unsigned int i = 0; i < _lut_resolution; ++i)
 			{
 				_lut->m_points[i] = _curve->numerical_sample_hermite(normalized_distance);
+				_lut->m_normalized_parameters[i] = normalized_distance;
 				normalized_distance = std::clamp(normalized_distance + normalized_distance_delta, 0.0f, 1.0f);
 			}
 		}
@@ -532,6 +538,7 @@ namespace Component
 			for (unsigned int i = 0; i < _lut_resolution; ++i)
 			{
 				_lut->m_points[i] = _curve->numerical_sample_bezier(normalized_distance);
+				_lut->m_normalized_parameters[i] = normalized_distance;
 				normalized_distance = std::clamp(normalized_distance + normalized_distance_delta, 0.0f, 1.0f);
 			}
 		}
@@ -580,13 +587,6 @@ namespace Component
 			rec_adaptive_forward_differencing(
 				_curve, _lut, 0.0f, 1.0f, _subdivisions, _tolerance
 			);
-
-			_lut->m_normalized_parameters.push_back(1.0f);
-			_lut->m_arclengths.push_back(
-				_lut->m_arclengths.back() + glm::distance(_curve->m_nodes.back(), _lut->m_points.back())
-			);
-			_lut->m_points.push_back(_curve->m_nodes.back());
-			
 		}
 	}
 
@@ -622,9 +622,9 @@ namespace Component
 
 			if (glm::abs((length_left + length_right) - length_total) < _tolerance)
 			{
-				_lut->m_arclengths.push_back(_lut->m_arclengths.back() + length_left);
-				_lut->m_points.push_back(point_middle);
-				_lut->m_normalized_parameters.push_back(u_middle);
+				_lut->m_arclengths.push_back(_lut->m_arclengths.back() + length_total);
+				_lut->m_points.push_back(point_right);
+				_lut->m_normalized_parameters.push_back(_u_right);
 			}
 			else
 			{
@@ -680,6 +680,17 @@ namespace Component
 		piecewise_curve& curve = GetManager().m_map.at(m_owner);
 		curve = _curve;
 		GetManager().generate_curve_lut_adaptive(&curve, &curve.m_lut, _max_subdivisions, _tolerance);
+	}
+
+	/*
+	* Get position on curve in space of owning entity
+	* @param	float		Distance parameter
+	* @returns	glm::vec3	Position on curve in space of owning entity
+	*/
+	glm::vec3 CurveInterpolator::GetPosition(float _distance) const
+	{
+		Component::Transform owner_transform = Owner().GetComponent<Component::Transform>();
+		return owner_transform.ComputeWorldTransform().position + GetPiecewiseCurve().m_lut.get_distance_position(_distance);
 	}
 
 
@@ -864,6 +875,62 @@ namespace Component
 	}
 
 	/*
+	* Helper method to perform binary search for containing bracket in float value array
+	* @param	float *		Pointer to floating value array with keys to search through
+	* @param	size_t		Size of array
+	* @param	float		Key value to search for
+	* @param	std::pair<int,int>	Indices that contain the given value to search for.
+	*/
+	static std::pair<int, int> float_binary_search(float const * _array, size_t _array_size, float _value)
+	{
+		int idx_min = 0;
+		int idx_max = (int)_array_size;
+		do
+		{
+			int idx_mid = (idx_max + idx_min) / 2;
+			if (_value < _array[idx_mid])
+				idx_max = idx_mid;
+			else
+				idx_min = idx_mid;
+		} while (idx_max - idx_min > 1);
+
+		return { idx_min, idx_max };
+	}
+
+	/*
+	* Compute distance given normalized parameter from the start of the curve.
+	* @param	float				Normalized parameter within curve [0.0f,1.0f]
+	* @details						Performs binary search in LUT to find
+	*								nearest arclength values, and interpolates
+	*								between those corresponding arclength 
+	*								values to get appropriate arclength.
+	*/
+	float lookup_table::compute_arclength(float _normalized_param) const
+	{
+		int idx_min = 0;
+		int idx_max = m_points.size() - 1;
+		if (m_points.size() < 2)
+			return 0.0f;
+		else if (m_points.size() < 3)
+		{
+			idx_min = 0;
+			idx_max = 1;
+		}
+		else
+		{
+			// Binary search to find bracketing indices whose values contain given parameters.
+			auto bracket_pair = float_binary_search(&m_normalized_parameters.front() + idx_min, (idx_max - idx_min) + 1, _normalized_param);
+			idx_min = bracket_pair.first;
+			idx_max = bracket_pair.second;
+		}
+
+		float offset = _normalized_param - m_normalized_parameters[idx_min];
+		float bracket_range = m_normalized_parameters[idx_max] - m_normalized_parameters[idx_min];
+		float segment_param = std::clamp(offset / bracket_range, 0.0f, 1.0f);
+		return m_arclengths[idx_min] * (1.0f - segment_param) + m_arclengths[idx_max] * segment_param;
+	}
+
+	/*
 	* Compute normalized parameter given arclength from the start of the curve.
 	* @param	float				Arclength from start of curve
 	* @returns	float				Normalized parameter value within curve.
@@ -887,6 +954,33 @@ namespace Component
 		else
 		{
 			// Binary search to find bracketing indices whose values contain given arclength.
+			auto bracket_pair = float_binary_search(&m_arclengths.front() + idx_min, (idx_max - idx_min) + 1, _arclength);
+			idx_min = bracket_pair.first;
+			idx_max = bracket_pair.second;
+		}
+
+		float offset = _arclength - m_arclengths[idx_min];
+		float bracket_range = m_arclengths[idx_max] - m_arclengths[idx_min];
+		float segment_param = std::clamp(offset / bracket_range, 0.0f, 1.0f);
+		return m_normalized_parameters[idx_min] * (1.0f - segment_param)
+			+ m_normalized_parameters[idx_max] * segment_param;
+	}
+
+	glm::vec3 lookup_table::get_distance_position(float _arclength) const
+	{
+		int idx_min = 0;
+		int idx_max = m_points.size() - 1;
+
+		if (m_points.size() < 2)
+			return glm::vec3(0.0f);
+		else if (m_points.size() < 3)
+		{
+			idx_min = 0;
+			idx_max = 1;
+		}
+		else
+		{
+			// Binary search to find bracketing indices whose values contain given arclength.
 			do
 			{
 				int idx_mid = (idx_max + idx_min) / 2;
@@ -900,7 +994,7 @@ namespace Component
 		float offset = _arclength - m_arclengths[idx_min];
 		float bracket_range = m_arclengths[idx_max] - m_arclengths[idx_min];
 		float segment_param = std::clamp(offset / bracket_range, 0.0f, 1.0f);
-		return get_normalized_parameter((unsigned int)idx_min) * (1.0f - segment_param)
-			+ get_normalized_parameter((unsigned int)idx_max) * segment_param;
+		
+		return (1.0f - segment_param) * m_points[idx_min] + segment_param * m_points[idx_max];
 	}
 }

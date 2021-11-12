@@ -9,6 +9,7 @@
 #include <Engine/Graphics/manager.h>
 
 #include <Engine/Components/SkeletonAnimator.h>
+#include <Engine/Components/CurveFollower.h>
 
 #include "Sandbox/sandbox.h"
 
@@ -63,7 +64,9 @@ void update_loop()
 		Sandbox::Update();
 
 		//TODO: Use frame rate controller DT
-		Singleton<Component::SkeletonAnimatorManager>().UpdateAnimatorInstances(1.0f / 60.0f);
+		float const TEMP_DT = 1.0f / 60.0f;
+		Singleton<Component::CurveFollowerManager>().UpdateFollowers(TEMP_DT);
+		Singleton<Component::SkeletonAnimatorManager>().UpdateAnimatorInstances(TEMP_DT);
 
 		Singleton<Engine::Editor::Editor>().Render();
 		Singleton<Engine::ECS::EntityManager>().FreeQueuedEntities();

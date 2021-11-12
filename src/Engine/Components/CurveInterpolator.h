@@ -50,7 +50,10 @@ namespace Component
 		bool m_adaptive = false;
 
 		float get_normalized_parameter(unsigned int _index) const;
+		float compute_arclength(float _normalized_param) const;
 		float compute_normalized_parameter(float _arclength) const;
+
+		glm::vec3 get_distance_position(float _arclength) const;
 	};
 
 	struct piecewise_curve
@@ -78,6 +81,8 @@ namespace Component
 		// TODO: Separate into two different methods.
 		void SetPiecewiseCurve(piecewise_curve _curve, unsigned int _resolution);
 		void SetPiecewiseCurve(piecewise_curve _curve, float _tolerance, unsigned int _max_subdivisions);
+
+		glm::vec3 GetPosition(float _distance) const;
 	};
 	class CurveInterpolatorManager final : public TCompManager<CurveInterpolator>
 	{

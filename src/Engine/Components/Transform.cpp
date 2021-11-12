@@ -443,7 +443,7 @@ namespace Component
 
 		bool const node_open = ImGui::TreeNodeEx((void*)_e.ID(), entity_node_flags, "%s", _e.GetName());
 
-		if (ImGui::IsItemClicked())
+		if (ImGui::IsItemFocused() && ImGui::IsItemHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
 		{
 			if (ImGui::IsKeyDown(SDL_SCANCODE_LCTRL))
 			{

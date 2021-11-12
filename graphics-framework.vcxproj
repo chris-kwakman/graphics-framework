@@ -177,6 +177,7 @@
     <ClCompile Include="include\ImGui\imgui_tables.cpp" />
     <ClCompile Include="include\ImGui\imgui_widgets.cpp" />
     <ClCompile Include="src\Engine\Components\Camera.cpp" />
+    <ClCompile Include="src\Engine\Components\CurveFollower.cpp" />
     <ClCompile Include="src\Engine\Components\CurveInterpolator.cpp" />
     <ClCompile Include="src\Engine\Components\EngineCompManager.cpp" />
     <ClCompile Include="src\Engine\Components\Light.cpp">
@@ -503,6 +504,7 @@
     <ClInclude Include="include\ImGui\imstb_truetype.h" />
     <ClInclude Include="include\ImGui\misc\single_file\imgui_single_file.h" />
     <ClInclude Include="src\Engine\Components\Camera.h" />
+    <ClInclude Include="src\Engine\Components\CurveFollower.h" />
     <ClInclude Include="src\Engine\Components\CurveInterpolator.h" />
     <ClInclude Include="src\Engine\Components\EngineCompManager.h" />
     <ClInclude Include="src\Engine\Components\Light.h" />

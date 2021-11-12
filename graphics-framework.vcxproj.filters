@@ -129,6 +129,9 @@
     <ClCompile Include="src\Sandbox\GraphicsPipeline\lighting_pass.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\Engine\Components\CurveFollower.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Sandbox\sandbox.h">
@@ -1092,6 +1095,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\Sandbox\GraphicsPipeline\lighting_pass.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Engine\Components\CurveFollower.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

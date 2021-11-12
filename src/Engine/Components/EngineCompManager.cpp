@@ -9,6 +9,7 @@
 #include "Light.h"
 #include "Nameable.h"
 #include "CurveInterpolator.h"
+#include "CurveFollower.h"
 
 void Component::InitializeEngineComponentManagers()
 {

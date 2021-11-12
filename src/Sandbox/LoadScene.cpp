@@ -7,6 +7,7 @@
 #include <Engine/Components/Light.h>
 #include <Engine/Components/SkeletonAnimator.h>
 #include <Engine/Components/CurveInterpolator.h>
+#include <Engine/Components/CurveFollower.h>
 
 #include <glm/gtx/quaternion.hpp>
 #include <algorithm>
@@ -103,6 +104,7 @@ namespace Sandbox
 			auto name_iter = object_json.find("name");
 			auto mesh_iter = object_json.find("mesh");
 			auto curve_interp_iter = object_json.find("curve_interpolator");
+			auto curve_follower_iter = object_json.find("curve_follower");
 			if (mesh_iter != object_json.end())
 			{
 				std::string const model_path = mesh_iter->get<std::string>();
@@ -139,6 +141,40 @@ namespace Sandbox
 					curve.SetPiecewiseCurve(new_pw_curve, curve_interp_iter->at("resolution"));
 				else
 					curve.SetPiecewiseCurve(new_pw_curve, curve_interp_iter->at("tolerance"), curve_interp_iter->at("max_subdivisions"));
+			}
+			if (curve_follower_iter != object_json.end())
+			{
+				auto follower = Component::Create<CurveFollower>(current_entity);
+				auto & data = follower.GetFollowerData();
+				
+				data.m_arclength = curve_follower_iter->value("arclength", 0.0f);
+				data.m_max_travel_rate = curve_follower_iter->value("max_travel_rate", 10.0f);
+				data.m_loop = curve_follower_iter->value("loop", true);
+				data.set_linear_dist_time_func_data(1.0f);
+
+				auto object_index_iter = curve_follower_iter->find("curve_object_index");
+				if (object_index_iter != curve_follower_iter->end())
+					data.m_curve_component = created_entities[object_index_iter->get<unsigned int>()].GetComponent<CurveInterpolator>();
+
+				follower.SetPlayingState(curve_follower_iter->value("playing", false));
+
+				std::string const distance_time_func_name = curve_follower_iter->value("distance_time_func", "linear");
+
+				if (distance_time_func_name == "linear")
+				{
+					data.set_linear_dist_time_func_data(curve_follower_iter->value("travel_rate", 1.0f));
+				}
+				else if (distance_time_func_name == "sine_interpolation")
+				{
+					float param_travel_rate = curve_follower_iter->value("travel_rate", 0.1f);
+					float seg_front_param = curve_follower_iter->value("seg_back_param", 0.25f);
+					float seg_back_param = curve_follower_iter->value("seg_front_param", 0.25f);;
+					data.set_sine_interp_dist_time_func_data(
+						param_travel_rate, 
+						seg_front_param, 
+						seg_back_param
+					);
+				}
 			}
 			if (name_iter != object_json.end())
 				current_entity.SetName(name_iter->get<std::string>().c_str());
