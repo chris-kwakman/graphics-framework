@@ -24,7 +24,9 @@ namespace Sandbox
 		s_fb_texture_light_color,
 		s_fb_texture_luminance,
 		s_fb_texture_bloom_pingpong[2],
-		s_fb_texture_shadow
+		s_fb_texture_shadow,
+		s_fb_texture_ao,
+		s_fb_texture_ao_pingpong[2]
 		;
 
 	extern texture_handle s_texture_white;
@@ -34,7 +36,9 @@ namespace Sandbox
 		s_framebuffer_gbuffer_decal,
 		s_framebuffer_lighting,
 		s_framebuffer_bloom[2],
-		s_framebuffer_shadow
+		s_framebuffer_shadow,
+		s_framebuffer_ao,
+		s_framebuffer_ao_pingpong
 		;
 
 	// Lighting data
@@ -48,6 +52,25 @@ namespace Sandbox
 	extern glm::uvec2		s_bloom_texture_size;
 	extern glm::vec3		s_bloom_treshhold_color;
 	extern unsigned int		s_bloom_blur_count;
+
+	// Ambient occlusion data
+	struct GfxAmbientOcclusion
+	{
+		// AO Rendering Settings
+		bool disable = false;
+
+		// AO Configuration
+		float radius_scale = 10.0f;
+		float angle_bias = 3.1415f / 20.0f;
+		float attenuation_scale = 1.0f;
+		int sample_directions = 4;
+		int sample_steps = 4;
+
+		float sigma = 0.2f;
+		float contrast = 0.0f;
+		int blur_passes = 2;
+	};
+	extern GfxAmbientOcclusion s_ambient_occlusion;
 
 	// Editor Data
 	extern bool				s_render_infinite_grid;

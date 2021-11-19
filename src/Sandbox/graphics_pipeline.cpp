@@ -106,6 +106,7 @@ namespace Sandbox
 		int LOC_MAT_MV = -1;
 		int LOC_MAT_V = -1;
 		int LOC_MAT_VP = -1;
+		int LOC_MAT_P = -1;
 		int LOC_MAT_P_INV = -1;
 		int LOC_MAT_MV_T_INV = -1;
 		int LOC_MAT_JOINT_0 = -1;
@@ -123,6 +124,7 @@ namespace Sandbox
 			LOC_MAT_MVP_INV = res_mgr.FindBoundProgramUniformLocation("u_mvp_inv");
 			LOC_MAT_MV = res_mgr.FindBoundProgramUniformLocation("u_mv");
 			LOC_MAT_V = res_mgr.FindBoundProgramUniformLocation("u_v");
+			LOC_MAT_P = res_mgr.FindBoundProgramUniformLocation("u_p");
 			LOC_MAT_VP = res_mgr.FindBoundProgramUniformLocation("u_vp");
 			LOC_MAT_P_INV = res_mgr.FindBoundProgramUniformLocation("u_p_inv");
 			LOC_MAT_MV_T_INV = res_mgr.FindBoundProgramUniformLocation("u_mv_t_inv");
@@ -356,6 +358,94 @@ namespace Sandbox
 			}
 
 
+		}
+
+		//
+		//	Ambient Occlusion
+		//
+
+		if (!s_ambient_occlusion.disable)
+		{
+			res_mgr.BindFramebuffer(s_framebuffer_ao);
+
+			// Set viewport size to size of final AO texture.
+			auto ao_texture_info = res_mgr.GetTextureInfo(s_fb_texture_ao);
+			glViewport(0, 0, ao_texture_info.m_size.x, ao_texture_info.m_size.y);
+
+			glDepthMask(GL_TRUE);
+			glDepthFunc(GL_ALWAYS);
+			glDisable(GL_BLEND);
+
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+			shader_program_handle const ao_program = res_mgr.FindShaderProgram("draw_framebuffer_ambient_occlusion");
+			res_mgr.UseProgram(ao_program);
+			set_bound_program_uniform_locations();
+
+			if(LOC_MAT_P != -1)
+				res_mgr.SetBoundProgramUniform(LOC_MAT_P, camera_perspective_matrix);
+			if(LOC_MAT_P_INV != -1)
+				res_mgr.SetBoundProgramUniform(LOC_MAT_P_INV, glm::inverse(camera_perspective_matrix));
+
+			auto set_if_found = [&res_mgr](const char* _name, auto const& _value)
+			{
+				int LOC_VALUE = res_mgr.FindBoundProgramUniformLocation(_name);
+				if (LOC_VALUE != -1)
+					res_mgr.SetBoundProgramUniform(LOC_VALUE, _value);
+			};
+
+			auto const & s_ao = s_ambient_occlusion;
+			set_if_found("u_ao.radius", s_ao.radius_scale);
+			set_if_found("u_ao.angle_bias", s_ao.angle_bias);
+			set_if_found("u_ao.attenuation", s_ao.attenuation_scale);
+			set_if_found("u_ao.sample_directions", s_ao.sample_directions);
+			set_if_found("u_ao.sample_steps", s_ao.sample_steps);
+
+			activate_texture(s_fb_texture_depth, LOC_SAMPLER_DEPTH, 0);
+
+			GfxCall(glBindVertexArray(0));
+			GfxCall(glDrawArrays(GL_TRIANGLES, 0, 3));
+
+			//
+			//	AO Blurring Pass
+			//
+
+			GLenum const attachments_ao_pingpong[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+			res_mgr.BindFramebuffer(s_framebuffer_ao_pingpong);
+			res_mgr.DrawFramebuffers(s_framebuffer_ao_pingpong, 1, attachments_ao_pingpong + 1);
+
+			// Blit ambient occlusion texture into pingpong texture.
+			auto ao_pingpong_texture_info = res_mgr.GetTextureInfo(s_fb_texture_ao_pingpong[1]);
+			glm::uvec2 ao_pp_size = ao_pingpong_texture_info.m_size;
+			glBlitNamedFramebuffer(
+				s_framebuffer_ao, s_framebuffer_ao_pingpong,
+				0, 0, ao_texture_info.m_size.x, ao_texture_info.m_size.y,
+				0, 0, ao_pp_size.x, ao_pp_size.y,
+				GL_COLOR_BUFFER_BIT,
+				GL_LINEAR
+			);
+
+			glViewport(0, 0, ao_pp_size.x, ao_pp_size.y);
+			
+			glDepthFunc(GL_ALWAYS);
+			glDisable(GL_BLEND);
+
+			res_mgr.UseProgram(res_mgr.FindShaderProgram("blur_ambient_occlusion"));
+			//set_bound_program_uniform_locations();
+			int LOC_SAMPLER_DEPTH = res_mgr.FindBoundProgramUniformLocation("u_sampler_depth");
+			int LOC_SAMPLER_AO_INPUT = res_mgr.FindBoundProgramUniformLocation("u_sampler_ao");
+			int LOC_SIGMA = res_mgr.FindBoundProgramUniformLocation("u_sigma");
+			int LOC_BLUR_HORIZONTAL = res_mgr.FindBoundProgramUniformLocation("u_bool_blur_horizontal");
+			res_mgr.SetBoundProgramUniform(LOC_SIGMA, s_ambient_occlusion.sigma);
+			activate_texture(s_fb_texture_depth, LOC_SAMPLER_DEPTH, 0);
+			for (unsigned int i = 0; i < s_ambient_occlusion.blur_passes; ++i)
+			{
+				activate_texture(s_fb_texture_ao_pingpong[((i+1) % 2)], LOC_SAMPLER_AO_INPUT, 1);
+				res_mgr.SetBoundProgramUniform(LOC_BLUR_HORIZONTAL, (i%2) == 0);
+				res_mgr.DrawFramebuffers(s_framebuffer_ao_pingpong, 1, attachments_ao_pingpong + (i % 2));
+
+				glDrawArrays(GL_TRIANGLES, 0, 3);
+			}
 		}
 
 		// 
@@ -732,14 +822,8 @@ namespace Sandbox
 		GLenum const draw_fb_lighting_attachment_0[] = { GL_COLOR_ATTACHMENT0 };
 		res_mgr.DrawFramebuffers(s_framebuffer_lighting, 1, draw_fb_lighting_attachment_0);
 
-		GfxCall(glBindVertexArray(s_gl_tri_vao));
-		GfxCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_gl_tri_ibo));
-		GfxCall(glDrawElements(
-			GL_TRIANGLES,
-			3,
-			GL_UNSIGNED_BYTE,
-			nullptr
-		));
+		GfxCall(glBindVertexArray(0));
+		GfxCall(glDrawArrays(GL_TRIANGLES, 0, 3));
 
 		/////////// Bloom //////////////
 
@@ -764,8 +848,7 @@ namespace Sandbox
 			glBindTexture(luminance_tex_info.m_target, luminance_tex_info.m_gl_source_id);
 			glGenerateMipmap(luminance_tex_info.m_target);
 
-			GfxCall(glBindVertexArray(s_gl_tri_vao));
-			GfxCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_gl_tri_ibo));
+			GfxCall(glBindVertexArray(0));
 
 			bool first_iteration = true;
 			for (unsigned int i = 0; i < s_bloom_blur_count; ++i)
@@ -779,17 +862,10 @@ namespace Sandbox
 
 				res_mgr.SetBoundProgramUniform(LOC_BOOL_BLUR_HORIZONTAL, (int)((i % 2) == 0));
 
-				GfxCall(glDrawElements(
-					GL_TRIANGLES,
-					3,
-					GL_UNSIGNED_BYTE,
-					nullptr
-				));
+				GfxCall(glDrawArrays(GL_TRIANGLES, 0, 3));
 				first_iteration = false;
 
 			}
-
-			glBindVertexArray(0);
 		}
 
 		// Render onto final framebuffer
@@ -822,16 +898,8 @@ namespace Sandbox
 		res_mgr.SetBoundProgramUniform(LOC_EXPOSURE, s_exposure);
 		res_mgr.SetBoundProgramUniform(LOC_GAMMA, s_gamma_correction_factor);
 
-		GfxCall(glBindVertexArray(s_gl_tri_vao));
-		GfxCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_gl_tri_ibo));
-		GfxCall(glDrawElements(
-			GL_TRIANGLES,
-			3,
-			GL_UNSIGNED_BYTE,
-			nullptr
-		));
-
-		glBindVertexArray(0);
+		GfxCall(glBindVertexArray(0));
+		GfxCall(glDrawArrays(GL_TRIANGLES, 0, 3));
 
 		if (s_render_infinite_grid)
 		{

@@ -536,6 +536,7 @@
     <None Include=".gitattributes" />
     <None Include=".gitignore" />
     <None Include="data\shaders\bloom.frag" />
+    <None Include="data\shaders\blur_ambient_occlusion.frag" />
     <None Include="data\shaders\default.vert" />
     <None Include="data\shaders\deferred.frag" />
     <None Include="data\shaders\deferred_decal.frag" />
@@ -544,6 +545,7 @@
     <None Include="data\shaders\display_framebuffer.vert" />
     <None Include="data\shaders\display_framebuffer_global_light.frag" />
     <None Include="data\shaders\display_framebuffer_plain.frag" />
+    <None Include="data\shaders\display_framebuffer_ambient_occlusion.frag" />
     <None Include="data\shaders\infinite_grid.frag" />
     <None Include="data\shaders\infinite_grid.vert" />
     <None Include="data\shaders\phong.frag" />

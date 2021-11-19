@@ -83,6 +83,8 @@ namespace Sandbox
 			"data/shaders/display_framebuffer.vert",
 			"data/shaders/display_framebuffer_plain.frag",
 			"data/shaders/display_framebuffer_global_light.frag",
+			"data/shaders/display_framebuffer_ambient_occlusion.frag",
+			"data/shaders/blur_ambient_occlusion.frag",
 			"data/shaders/phong.frag",
 			"data/shaders/bloom.frag",
 			"data/shaders/postprocessing.frag",
@@ -104,6 +106,8 @@ namespace Sandbox
 		program_shader_path_list const draw_gbuffer_primitive = { "data/shaders/default.vert", "data/shaders/primitive.frag" };
 		program_shader_path_list const draw_framebuffer_plain_shaders = { "data/shaders/display_framebuffer.vert", "data/shaders/display_framebuffer_plain.frag" };
 		program_shader_path_list const draw_framebuffer_global_light = { "data/shaders/display_framebuffer.vert", "data/shaders/display_framebuffer_global_light.frag" };
+		program_shader_path_list const draw_framebuffer_ambient_occlusion = { "data/shaders/display_framebuffer.vert", "data/shaders/display_framebuffer_ambient_occlusion.frag" };
+		program_shader_path_list const blur_ambient_occlusion_shaders = { "data/shaders/display_framebuffer.vert", "data/shaders/blur_ambient_occlusion.frag" };
 		program_shader_path_list const draw_phong_shaders = { "data/shaders/default.vert", "data/shaders/phong.frag" };
 		program_shader_path_list const process_bloom_blur_shaders = { "data/shaders/display_framebuffer.vert", "data/shaders/bloom.frag" };
 		program_shader_path_list const draw_postprocessing_shaders = { "data/shaders/display_framebuffer.vert", "data/shaders/postprocessing.frag" };
@@ -118,6 +122,8 @@ namespace Sandbox
 		system_resource_manager.LoadShaderProgram("draw_gbuffer_primitive", draw_gbuffer_primitive);
 		system_resource_manager.LoadShaderProgram("draw_framebuffer_plain", draw_framebuffer_plain_shaders);
 		system_resource_manager.LoadShaderProgram("draw_framebuffer_global_light", draw_framebuffer_global_light);
+		system_resource_manager.LoadShaderProgram("draw_framebuffer_ambient_occlusion", draw_framebuffer_ambient_occlusion);
+		system_resource_manager.LoadShaderProgram("blur_ambient_occlusion", blur_ambient_occlusion_shaders);
 		system_resource_manager.LoadShaderProgram("draw_phong", draw_phong_shaders);
 		system_resource_manager.LoadShaderProgram("process_bloom_blur", process_bloom_blur_shaders);
 		system_resource_manager.LoadShaderProgram("postprocessing", draw_postprocessing_shaders);
@@ -139,7 +145,8 @@ namespace Sandbox
 		s_framebuffer_shadow = resource_manager.CreateFramebuffer();
 		for (unsigned int i = 0; i < 2; ++i)
 			s_framebuffer_bloom[i] = resource_manager.CreateFramebuffer();
-		
+		s_framebuffer_ao = resource_manager.CreateFramebuffer();
+		s_framebuffer_ao_pingpong = resource_manager.CreateFramebuffer();
 
 		s_fb_texture_depth = resource_manager.CreateTexture("FB Depth Texture");
 		s_fb_texture_base_color = resource_manager.CreateTexture("FB Base Color Texture");
@@ -148,11 +155,14 @@ namespace Sandbox
 		s_fb_texture_light_color = resource_manager.CreateTexture("FB Light Color");
 		s_fb_texture_luminance = resource_manager.CreateTexture("FB Luminance");
 		s_fb_texture_shadow = resource_manager.CreateTexture("FB Shadow Map");
+		s_fb_texture_ao = resource_manager.CreateTexture("FB Ambient Occlusion");
 		for (unsigned int i = 0; i < 2; ++i)
 			s_fb_texture_bloom_pingpong[i] = resource_manager.CreateTexture("FB Bloom Pingpong");
+		for (unsigned int i = 0; i < 2; ++i)
+			s_fb_texture_ao_pingpong[i] = resource_manager.CreateTexture("FB AO Pingpong");
 		s_texture_white = resource_manager.CreateTexture("White Texture");
 
-		s_display_gbuffer_texture = s_fb_texture_base_color;
+		s_display_gbuffer_texture = s_fb_texture_ao;
 
 		//resource_manager.SpecifyAndUploadTexture2D(s_fb_texture_depth, GL_DEPTH_COMPONENT, surface_size, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
 		using tex_params = Engine::Graphics::ResourceManager::texture_parameters;
@@ -167,6 +177,7 @@ namespace Sandbox
 		resource_manager.AllocateTextureStorage2D(s_fb_texture_normal, GL_RGB8, surface_size, default_fb_texture_params);
 		resource_manager.AllocateTextureStorage2D(s_fb_texture_light_color, GL_RGB16F, surface_size, default_fb_texture_params);
 		resource_manager.AllocateTextureStorage2D(s_fb_texture_shadow, GL_R16F, surface_size, default_fb_texture_params);
+		resource_manager.AllocateTextureStorage2D(s_fb_texture_ao, GL_R16F, surface_size / 1u, default_fb_texture_params);
 		tex_params luminance_params = default_fb_texture_params;
 		luminance_params.m_min_filter = GL_LINEAR_MIPMAP_LINEAR;
 		resource_manager.AllocateTextureStorage2D(s_fb_texture_luminance, GL_RGB16F, surface_size, luminance_params,3);
@@ -175,6 +186,8 @@ namespace Sandbox
 		{
 			// TODO: Half size of bloom blur textures
 			resource_manager.AllocateTextureStorage2D(s_fb_texture_bloom_pingpong[i], GL_RGB16F, s_bloom_texture_size, default_fb_texture_params);
+			// Screensize AO blurring textures
+			resource_manager.AllocateTextureStorage2D(s_fb_texture_ao_pingpong[i], GL_R16F, surface_size, default_fb_texture_params);
 		}
 		glm::vec3 color_white{ 1.0f,1.0f,1.0f };
 		resource_manager.SpecifyAndUploadTexture2D(s_texture_white, GL_RGB8, glm::uvec2(1, 1), 0, GL_RGB, GL_FLOAT, (void*)&color_white);
@@ -215,6 +228,20 @@ namespace Sandbox
 			resource_manager.DrawFramebuffers(s_framebuffer_bloom[i], 1, &blur_texture_attachment_point);
 		}
 
+		resource_manager.BindFramebuffer(s_framebuffer_ao);
+		resource_manager.AttachTextureToFramebuffer(s_framebuffer_ao, GL_COLOR_ATTACHMENT0, s_fb_texture_ao);
+		GLenum const ao_attachment_points[] = { GL_COLOR_ATTACHMENT0 };
+		resource_manager.DrawFramebuffers(s_framebuffer_ao, 1, ao_attachment_points);
+
+		resource_manager.BindFramebuffer(s_framebuffer_ao_pingpong);
+		for (unsigned int i = 0; i < 2; ++i)
+		{
+			resource_manager.AttachTextureToFramebuffer(s_framebuffer_ao_pingpong, GL_COLOR_ATTACHMENT0 + i, s_fb_texture_ao_pingpong[i]);
+			// Manually change DrawFramebuffers when performing AO blurring.
+			GLenum const ao_pingpong_attachment_point = GL_COLOR_ATTACHMENT0;
+			resource_manager.DrawFramebuffers(s_framebuffer_ao, 1, &ao_pingpong_attachment_point);
+		}
+
 		g_gbuffer_textures = {
 			s_fb_texture_base_color,
 			s_fb_texture_depth,
@@ -222,7 +249,9 @@ namespace Sandbox
 			s_fb_texture_metallic_roughness,
 			s_fb_texture_light_color,
 			s_fb_texture_luminance,
-			s_fb_texture_shadow
+			s_fb_texture_shadow,
+			s_fb_texture_ao,
+			s_fb_texture_ao_pingpong[1]
 		};
 	}
 
@@ -306,7 +335,7 @@ namespace Sandbox
 			if (argc >= 2)
 				s_scene_loaded = argv[1];
 			else
-				s_scene_loaded = "data/scenes/sceneCurves.json";
+				s_scene_loaded = "data/scenes/sceneAO.json";
 		}
 
 		if (argc >= 3)
@@ -428,7 +457,6 @@ namespace Sandbox
 	}
 
 	bool show_demo_window = false;
-	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
 	const char * get_texture_name(texture_handle _texture)
 	{
@@ -446,6 +474,10 @@ namespace Sandbox
 			return "Luminance";
 		else if (s_fb_texture_shadow == _texture)
 			return "Shadow Map";
+		else if (s_fb_texture_ao == _texture)
+			return "Ambient Occlusion";
+		else if (s_fb_texture_ao_pingpong[0] == _texture)
+			return "AO Blur";
 		else return "Undefined";
 	}
 
@@ -511,6 +543,18 @@ namespace Sandbox
 				ImVec2(content_region_avail.x, content_region_avail.x * image_ar),
 				ImVec2(0, 1), ImVec2(1, 0)
 			);
+		}
+		ImGui::End();
+		if (ImGui::Begin("Ambient Occlusion"))
+		{
+			ImGui::DragFloat("Radius Scale", &s_ambient_occlusion.radius_scale, 1.0f, 0.0f, FLT_MAX, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+			ImGui::SliderFloat("Angle Bias", &s_ambient_occlusion.angle_bias, 0.0f, M_PI / 2, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+			ImGui::DragFloat("Attenuation Scale", &s_ambient_occlusion.attenuation_scale, 0.01f, 0.0f, 1.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+			ImGui::SliderInt("Sample Directions", &s_ambient_occlusion.sample_directions, 1, 16, "%d", ImGuiSliderFlags_AlwaysClamp);
+			ImGui::SliderInt("Sample Steps", &s_ambient_occlusion.sample_steps, 1, 16, "%d", ImGuiSliderFlags_AlwaysClamp);
+			ImGui::SliderFloat("Contrast", &s_ambient_occlusion.contrast, 0.0f, 1.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+			ImGui::SliderFloat("Blur Sigma", &s_ambient_occlusion.sigma, 0.0f, 1.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+			ImGui::SliderInt("Blur Passes", &s_ambient_occlusion.blur_passes, 0, 16, "%d", ImGuiSliderFlags_AlwaysClamp);
 		}
 		ImGui::End();
 

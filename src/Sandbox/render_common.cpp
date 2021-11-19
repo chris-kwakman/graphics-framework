@@ -16,7 +16,9 @@ namespace Sandbox
 		s_fb_texture_light_color,
 		s_fb_texture_luminance,
 		s_fb_texture_bloom_pingpong[2],
-		s_fb_texture_shadow
+		s_fb_texture_shadow,
+		s_fb_texture_ao,
+		s_fb_texture_ao_pingpong[2]
 	;
 
 	texture_handle s_texture_white = 0;
@@ -26,7 +28,9 @@ namespace Sandbox
 		s_framebuffer_gbuffer_decal, 
 		s_framebuffer_lighting, 
 		s_framebuffer_bloom[2], 
-		s_framebuffer_shadow
+		s_framebuffer_shadow,
+		s_framebuffer_ao,
+		s_framebuffer_ao_pingpong
 	;
 
 	// Lighting data
@@ -45,7 +49,7 @@ namespace Sandbox
 	bool			s_render_infinite_grid = true;
 
 
-
+	GfxAmbientOcclusion s_ambient_occlusion;
 
 
 
