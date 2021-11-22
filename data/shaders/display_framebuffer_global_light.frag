@@ -5,6 +5,7 @@ const unsigned int CSM_PARTITION_COUNT = 3;
 uniform sampler2D u_sampler_depth;
 uniform sampler2D u_sampler_base_color;
 uniform sampler2D u_sampler_shadow;
+uniform sampler2D u_sampler_ao;
 
 uniform vec3 u_ambient_color;
 uniform vec3 u_sunlight_color = vec3(1);
@@ -18,10 +19,11 @@ layout(location = 0) out vec4 out_color;
 void main()
 {
 	float sunlight_factor = texture2D(u_sampler_shadow, f_uv).r;
+	float ao_factor = texture2D(u_sampler_ao, f_uv).r;
 
 	vec3 texture_color = texture(u_sampler_base_color, f_uv).rgb;
 
-	vec3 frag_color = vec3((u_ambient_color + sunlight_factor * u_sunlight_color) * texture_color);
+	vec3 frag_color = vec3((u_ambient_color * ao_factor + sunlight_factor * u_sunlight_color) * texture_color);
 
 	if(u_csm_render_cascades)
 	{

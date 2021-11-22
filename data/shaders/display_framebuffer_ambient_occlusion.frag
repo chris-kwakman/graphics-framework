@@ -4,7 +4,8 @@ struct AO_Config
 {
 	float radius;
 	float angle_bias;
-	float attenuation;
+	float attenuation_scale;
+	float ao_scale;
 	int sample_directions;
 	int sample_steps;
 };
@@ -98,6 +99,7 @@ void main()
 		vec3 H = min_depth_view_sample_pos - view_pos;
 		if(H == vec3(0))
 			continue;
+		
 		const float length_H = length(H);
 		H = normalize(H);
 		const float angle_h = atan(H.z, length(H.xy));
@@ -105,9 +107,9 @@ void main()
 
 		// Compute linear attenuation function
 		const float normalized_radius = length_H / u_ao.radius;
-		const float w = max(0, 1 - normalized_radius * normalized_radius);
+		const float w = max(0, 1 - u_ao.attenuation_scale * normalized_radius * normalized_radius);
 		const float ao = sin_angle_h - sin_angle_tangent;
-		accum_ao += ao * w;
+		accum_ao += u_ao.ao_scale * ao * w;
 	}
 	accum_ao /= u_ao.sample_directions;
 	out_ao = 1 - accum_ao;

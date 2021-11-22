@@ -26,7 +26,7 @@ namespace Sandbox
 		s_fb_texture_bloom_pingpong[2],
 		s_fb_texture_shadow,
 		s_fb_texture_ao,
-		s_fb_texture_ao_pingpong[2]
+		s_fb_texture_ao_pingpong
 		;
 
 	extern texture_handle s_texture_white;
@@ -60,15 +60,18 @@ namespace Sandbox
 		bool disable = false;
 
 		// AO Configuration
-		float radius_scale = 10.0f;
-		float angle_bias = 3.1415f / 20.0f;
+		float radius_scale = 7.0f;
+		float angle_bias = 3.1415f / 30.0f;
 		float attenuation_scale = 1.0f;
-		int sample_directions = 4;
+		float ao_scale = 1.0f;
+		int sample_directions = 6;
 		int sample_steps = 4;
 
-		float sigma = 0.2f;
-		float contrast = 0.0f;
-		int blur_passes = 2;
+		float sigma = 4.0f;
+		int blur_passes = 6;
+
+		enum RenderMode {eAO_Applied = 0, eAO_Monochrome = 1};
+		RenderMode render_mode{ eAO_Applied };
 	};
 	extern GfxAmbientOcclusion s_ambient_occlusion;
 

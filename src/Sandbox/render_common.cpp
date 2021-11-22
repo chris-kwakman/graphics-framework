@@ -18,7 +18,7 @@ namespace Sandbox
 		s_fb_texture_bloom_pingpong[2],
 		s_fb_texture_shadow,
 		s_fb_texture_ao,
-		s_fb_texture_ao_pingpong[2]
+		s_fb_texture_ao_pingpong
 	;
 
 	texture_handle s_texture_white = 0;
@@ -46,7 +46,7 @@ namespace Sandbox
 	unsigned int	s_bloom_blur_count = 5;
 
 	// Editor Data
-	bool			s_render_infinite_grid = true;
+	bool			s_render_infinite_grid = false;
 
 
 	GfxAmbientOcclusion s_ambient_occlusion;

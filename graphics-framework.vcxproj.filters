@@ -1541,6 +1541,7 @@
     <None Include="data\shaders\primitive.frag" />
     <None Include="data\shaders\display_framebuffer_ambient_occlusion.frag" />
     <None Include="data\shaders\blur_ambient_occlusion.frag" />
+    <None Include="data\shaders\display_framebuffer_ao_monochrome.frag" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="src\Engine\Components\EngineComponents.txt" />
