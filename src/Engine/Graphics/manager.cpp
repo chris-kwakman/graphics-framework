@@ -297,7 +297,6 @@ namespace Graphics {
 					// Determine location of attribute in shader.
 					// Assume position, normal and tangent attributes always exist in primitives.
 
-					//TODO: Support joints, weights (and colors?)
 					unsigned int gl_attribute_index = 0;
 					if (primitive_attrib.first == "POSITION") {
 						gl_attribute_index = VTX_ATTRIB_POSITION_OFFSET;

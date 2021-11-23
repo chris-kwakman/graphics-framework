@@ -6,6 +6,53 @@ namespace Component
 	using namespace Engine::ECS;
 	using namespace Engine::Graphics;
 
+	struct animation_instance
+	{
+		union
+		{
+			float mutable			m_anim_speed = 1.0f;
+			struct
+			{
+				uint32_t			m_anim_speed_bits : 30;
+				bool				m_loop : 1;
+				bool				m_paused : 1;
+			};
+		};
+		float						m_global_time;
+		animation_handle mutable	m_animation_handle;
+
+		void set_animation(animation_handle _anim);
+		void set_anim_speed(float _speed);
+	};
+
+	namespace AnimationUtil
+	{
+
+		void update_joint_transforms(
+			animation_data* const _animation_data,
+			float const* _in_anim_channel_data,
+			Engine::Math::transform3D* const _joint_transforms,
+			unsigned int _joint_transform_count
+		);
+		void compute_animation_channel_data( 
+			animation_data* const _animation_data,
+			float _time, 
+			float* _out_anim_channel_data,
+			bool _use_slerp
+		);
+		void interpolate_vector(
+			glm::vec3* _dest,
+			glm::vec3 const* _left, glm::vec3 const* _right, float _right_weight,
+			animation_sampler_data::E_interpolation_type _interpolation_type
+		);
+		void interpolate_quaternion(
+			glm::quat* _dest,
+			glm::quat const* _left, glm::quat const* _right, float _right_weight,
+			animation_sampler_data::E_interpolation_type _interpolation_type,
+			bool _use_slerp = false
+		);
+	}
+
 	class SkeletonAnimatorManager;
 	struct SkeletonAnimator : public IComp<SkeletonAnimatorManager>
 	{
@@ -23,23 +70,6 @@ namespace Component
 	{
 		friend struct SkeletonAnimator;
 
-		struct animation_instance
-		{
-			union
-			{
-				float				m_anim_speed = 1.0f;
-				struct
-				{
-					uint32_t		m_anim_speed_bits : 30;
-					bool			m_loop : 1;
-					bool			m_paused : 1;
-				};
-			};
-			float					m_global_time;
-			animation_handle		m_animation_handle;
-			std::vector<float>		m_instance_data;
-		};
-
 		// TODO: Existential processing, split instances by whether they should be animated or not.
 		// I.e. sort by playing / paused / invalid.
 		std::unordered_map<Entity, animation_instance, Entity::hash> m_entity_anim_inst_map;
@@ -56,19 +86,6 @@ namespace Component
 
 		animation_instance& get_entity_instance(Entity _e);
 		void set_instance_animation(Entity _e, animation_handle _animation);
-		void update_instance_properties(animation_data const& _data, animation_instance & _instance, float _time);
-		
-		static std::pair<unsigned int, unsigned int> interpolation_search(float _time, std::vector<float> const & _keyframe_arr, size_t _keyframe_count);
-		void interpolate_vector(
-			glm::vec3* _dest, 
-			glm::vec3 const* _left, glm::vec3 const* _right, float _right_weight,
-			animation_sampler_data::E_interpolation_type _interpolation_type
-		);
-		void interpolate_quaternion(
-			glm::quat* _dest,
-			glm::quat const* _left, glm::quat const* _right, float _right_weight,
-			animation_sampler_data::E_interpolation_type _interpolation_type
-		);
 
 	public:
 

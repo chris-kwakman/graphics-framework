@@ -6,6 +6,7 @@
 #include <Engine/Components/Transform.h>
 
 #include <glm/gtx/matrix_decompose.hpp>
+#include <Engine/Utils/algorithm.h>
 
 namespace Component
 {
@@ -875,29 +876,6 @@ namespace Component
 	}
 
 	/*
-	* Helper method to perform binary search for containing bracket in float value array
-	* @param	float *		Pointer to floating value array with keys to search through
-	* @param	size_t		Size of array
-	* @param	float		Key value to search for
-	* @param	std::pair<int,int>	Indices that contain the given value to search for.
-	*/
-	static std::pair<int, int> float_binary_search(float const * _array, size_t _array_size, float _value)
-	{
-		int idx_min = 0;
-		int idx_max = (int)_array_size;
-		do
-		{
-			int idx_mid = (idx_max + idx_min) / 2;
-			if (_value < _array[idx_mid])
-				idx_max = idx_mid;
-			else
-				idx_min = idx_mid;
-		} while (idx_max - idx_min > 1);
-
-		return { idx_min, idx_max };
-	}
-
-	/*
 	* Compute distance given normalized parameter from the start of the curve.
 	* @param	float				Normalized parameter within curve [0.0f,1.0f]
 	* @details						Performs binary search in LUT to find
@@ -919,7 +897,7 @@ namespace Component
 		else
 		{
 			// Binary search to find bracketing indices whose values contain given parameters.
-			auto bracket_pair = float_binary_search(&m_normalized_parameters.front() + idx_min, (idx_max - idx_min) + 1, _normalized_param);
+			auto bracket_pair = Engine::Utils::float_binary_search(&m_normalized_parameters.front() + idx_min, (idx_max - idx_min) + 1, _normalized_param);
 			idx_min = bracket_pair.first;
 			idx_max = bracket_pair.second;
 		}
@@ -954,7 +932,7 @@ namespace Component
 		else
 		{
 			// Binary search to find bracketing indices whose values contain given arclength.
-			auto bracket_pair = float_binary_search(&m_arclengths.front() + idx_min, (idx_max - idx_min) + 1, _arclength);
+			auto bracket_pair = Engine::Utils::float_binary_search(&m_arclengths.front() + idx_min, (idx_max - idx_min) + 1, _arclength);
 			idx_min = bracket_pair.first;
 			idx_max = bracket_pair.second;
 		}

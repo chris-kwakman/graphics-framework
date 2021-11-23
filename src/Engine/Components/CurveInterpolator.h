@@ -78,7 +78,6 @@ namespace Component
 		DECLARE_COMPONENT(CurveInterpolator);
 
 		piecewise_curve const & GetPiecewiseCurve() const;
-		// TODO: Separate into two different methods.
 		void SetPiecewiseCurve(piecewise_curve _curve, unsigned int _resolution);
 		void SetPiecewiseCurve(piecewise_curve _curve, float _tolerance, unsigned int _max_subdivisions);
 

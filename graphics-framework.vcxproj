@@ -201,6 +201,7 @@
     <ClCompile Include="src\Engine\Serialisation\common.cpp" />
     <ClCompile Include="src\Engine\Serialisation\scene.cpp" />
     <ClCompile Include="src\Engine\Serialisation\serialise_gltf.cpp" />
+    <ClCompile Include="src\Engine\Utils\algorithm.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\Sandbox\graphics_pipeline.cpp" />
     <ClCompile Include="src\Sandbox\GraphicsPipeline\lighting_pass.cpp" />
@@ -524,6 +525,7 @@
     <ClInclude Include="src\Engine\Serialisation\common.h" />
     <ClInclude Include="src\Engine\Serialisation\scene.h" />
     <ClInclude Include="src\Engine\Serialisation\serialise_gltf.h" />
+    <ClInclude Include="src\Engine\Utils\algorithm.h" />
     <ClInclude Include="src\Engine\Utils\logging.h" />
     <ClInclude Include="src\Engine\Utils\singleton.h" />
     <ClInclude Include="src\Sandbox\graphics_pipeline.h" />
