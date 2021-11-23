@@ -419,9 +419,10 @@ namespace Graphics {
 			created_skins.push_back(new_skin_handle);
 
 			// Register nodes corresponding to current skin in tinygltf_skin_data struct and register in map
+			unsigned int root_node = (skin.skeleton != -1) ? (int)skin.skeleton : skin.joints[0];
 			jointnode_idx_to_tinygltf_skin_data_idx_map.emplace(skin.skeleton, skin_counter);
 			current_tinygltf_skin_data.m_skin_node_skeleton_joint_index.emplace(
-				skin.skeleton,
+				root_node,
 				current_tinygltf_skin_data.m_skin_node_skeleton_joint_index.size()
 			);
 			for (unsigned int i = 0; i < skin.joints.size(); ++i)

@@ -335,7 +335,7 @@ namespace Sandbox
 					Component::Skin skin_component = Component::Create<Skin>(node_entity);
 					skin_component.SetSkin(model_data.m_skins[*skin_iter]);
 					skin_component.SetSkeletonInstanceNodes(skin_joints);
-					skin_component.SetSkeletonRootNode(node_entities[json_skin_node.at("skeleton").get<unsigned int>()]);
+					skin_component.SetSkeletonRootNode(node_entities[json_skin_node.value("skeleton", json_skin_node.at("joints").front())]);
 					//TODO: Set to true for the sake of the animation assignment
 					skin_component.SetShouldRenderJoints(true);
 
