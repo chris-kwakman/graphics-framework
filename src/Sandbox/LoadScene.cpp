@@ -332,15 +332,28 @@ namespace Sandbox
 					for (unsigned int skin_joint : json_joints)
 						skin_joints.emplace_back(node_entities[skin_joint]);
 
+					Entity const skeleton_root_entity = node_entities[
+						json_skin_node.value("skeleton", json_joints.front())
+					];
+
 					Component::Skin skin_component = Component::Create<Skin>(node_entity);
 					skin_component.SetSkin(model_data.m_skins[*skin_iter]);
 					skin_component.SetSkeletonInstanceNodes(skin_joints);
-					skin_component.SetSkeletonRootNode(node_entities[json_skin_node.value("skeleton", json_skin_node.at("joints").front())]);
-					//TODO: Set to true for the sake of the animation assignment
-					skin_component.SetShouldRenderJoints(true);
+					skin_component.SetSkeletonRootNode(skeleton_root_entity);
+					skin_component.SetShouldRenderJoints(false);
 
+					if (!skeleton_root_entity.HasComponent<Component::Skin>())
+					{
+						Component::Skin root_skin_component = Component::Create<Skin>(skeleton_root_entity);
+						root_skin_component.SetSkin(model_data.m_skins[*skin_iter]);
+						root_skin_component.SetSkeletonInstanceNodes(skin_joints);
+						root_skin_component.SetSkeletonRootNode(skeleton_root_entity);
+						root_skin_component.SetShouldRenderJoints(false);
+					}
+
+					// Add skeleton animator component only to skeleton root node.
 					auto animations_iter = _scene.find("animations");
-					if (animations_iter != _scene.end())
+					if (animations_iter != _scene.end() && !skeleton_root_entity.HasComponent<Component::SkeletonAnimator>())
 					{
 						char int_buffer[3];
 						std::string animation_name;
@@ -351,13 +364,11 @@ namespace Sandbox
 								? _itoa(0, int_buffer, 10)
 								: anim_name_iter->get<std::string>());
 
-						Component::SkeletonAnimator skeleton_animator_component = Component::Create<SkeletonAnimator>(node_entity);
+						Component::SkeletonAnimator skeleton_animator_component = Component::Create<SkeletonAnimator>(skeleton_root_entity);
 						skeleton_animator_component.SetAnimation(animation_name);
 						//TODO: Setting it to be unpaused for the sake of the animation assignment. Otherwise this should be false.
 						skeleton_animator_component.SetPaused(false);
 					}
-
-
 				}
 			}
 			// Set weights

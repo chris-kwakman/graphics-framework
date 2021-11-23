@@ -46,7 +46,7 @@ namespace Sandbox
 	unsigned int	s_bloom_blur_count = 5;
 
 	// Editor Data
-	bool			s_render_infinite_grid = false;
+	bool			s_render_infinite_grid = true;
 
 
 	GfxAmbientOcclusion s_ambient_occlusion;

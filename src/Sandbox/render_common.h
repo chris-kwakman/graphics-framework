@@ -57,7 +57,7 @@ namespace Sandbox
 	struct GfxAmbientOcclusion
 	{
 		// AO Rendering Settings
-		bool disable = false;
+		bool disable = true;
 
 		// AO Configuration
 		float radius_scale = 7.0f;
