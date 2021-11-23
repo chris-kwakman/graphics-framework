@@ -338,7 +338,7 @@ namespace Sandbox
 			if (argc >= 2)
 				s_scene_loaded = argv[1];
 			else
-				s_scene_loaded = "data/scenes/sceneAO.json";
+				s_scene_loaded = "data/scenes/scenePoseBlending.json";
 		}
 
 		if (argc >= 3)
