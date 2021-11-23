@@ -179,18 +179,17 @@ namespace Graphics {
 		std::vector<GLuint> new_gl_buffer_arr;
 		unsigned int const new_gpu_buffer_bufferview_count = (unsigned int)gpu_buffer_bufferview_set.size();
 		new_gl_buffer_arr.resize(new_gpu_buffer_bufferview_count);
-		glCreateBuffers(new_gpu_buffer_bufferview_count, &new_gl_buffer_arr[0]);
+		GfxCall(glCreateBuffers(new_gpu_buffer_bufferview_count, &new_gl_buffer_arr[0]));
 		// Assert that all generated buffers are valid
 		for (unsigned int i = 0; i < new_gl_buffer_arr.size(); ++i)
 			assert(
-				new_gl_buffer_arr[i] != GL_INVALID_VALUE &&
+				new_gl_buffer_arr[i] != 0 &&
 				"OpenGL could not generate all requested buffers."
 			);
 
 		// Map bufferview tinyGLTF indices to application bufferview_info
 		std::unordered_map<unsigned int, buffer_handle> map_tinygltf_buffview_index;
 		unsigned int gpu_buffer_count = 0;
-		//for (unsigned int i = 0; i < new_gpu_buffer_bufferview_count; ++i)
 		for(unsigned int bufferview_idx : gpu_buffer_bufferview_set)
 		{
 			buffer_handle const curr_new_handle = m_buffer_handle_counter + gpu_buffer_count;	
@@ -199,7 +198,7 @@ namespace Graphics {
 
 
 			buffer_info new_buffer_info;
-			new_buffer_info.m_gl_id = new_gl_buffer_arr[bufferview_idx];
+			new_buffer_info.m_gl_id = new_gl_buffer_arr[gpu_buffer_count];
 			new_buffer_info.m_target = read_bufferview.target;
 			if (read_bufferview.target == 0)
 			{
@@ -210,6 +209,7 @@ namespace Graphics {
 			// Create buffer memory block & upload data
 			glBindBuffer(new_buffer_info.m_target, new_buffer_info.m_gl_id);
 			// glTF buffers do not interleave binary blobs, so we can upload directly.
+			Engine::Utils::print_debug("ID: %u, Target: %u, Length: %u", new_buffer_info.m_gl_id, new_buffer_info.m_target, read_bufferview.byteLength);
 			GfxCall(glBufferData(
 				new_buffer_info.m_target, read_bufferview.byteLength, 
 				static_cast<GLvoid const*>(&read_buffer.data[read_bufferview.byteOffset]), 
