@@ -48,6 +48,8 @@ namespace Graphics {
 		std::vector<animation_channel_data>		m_animation_channels;
 		float									m_duration; // Determined by input interpolation data in channels.
 		std::string								m_name;
+
+		uint8_t get_skeleton_joint_index_channel_count(uint8_t _joint_index) const;
 	};
 
 	// This struct is used to store either animation sampler input or output data.

@@ -41,10 +41,7 @@ namespace AnimationUtil
         Engine::Math::transform3D* modify_joint_transform = _joint_transforms;
         while (curr_joint_idx < _joint_transform_count)
         {
-            unsigned int curr_joint_channel_count = 0;
-            auto iter = _animation_data->m_skeleton_jointnode_channel_count.find(curr_joint_idx);
-            if (iter != _animation_data->m_skeleton_jointnode_channel_count.end())
-                curr_joint_channel_count = iter->second;
+            uint8_t const curr_joint_channel_count = _animation_data->get_skeleton_joint_index_channel_count(curr_joint_idx);
             for (unsigned int i = 0; i < curr_joint_channel_count; ++i)
             {
                 switch (_animation_data->m_animation_channels[joint_channels_offset + i].m_target_path)
@@ -263,14 +260,12 @@ void SkeletonAnimatorManager::UpdateAnimatorInstances(float _dt)
             edit_transform.SetLocalTransform(local_joint_transforms[i]);
         }
 
+        // 
         animation_inst.m_global_time += _dt * animation_inst.m_anim_speed;
-        if (animation_inst.m_global_time > animation_data.m_duration)
-        {
-            if (animation_inst.m_loop)
-                animation_inst.m_global_time -= animation_data.m_duration;
-            else
-                animation_inst.m_paused = true;
-        }
+        float mod_time = fmodf(animation_inst.m_global_time, animation_data.m_duration);
+        float new_time = mod_time + (mod_time < 0 ? animation_data.m_duration : 0);
+        animation_inst.m_paused = (!animation_inst.m_loop && new_time != animation_inst.m_global_time);
+        animation_inst.m_global_time = (float)(!animation_inst.m_paused) * new_time + (float)(animation_inst.m_paused) * animation_inst.m_global_time;
     }
 }
 
@@ -341,19 +336,17 @@ void SkeletonAnimatorManager::impl_edit_component(Entity _entity)
             instance.m_paused = is_paused;
         if (ImGui::Checkbox("Loop", &is_looping))
             instance.m_loop = is_looping;
-        if (ImGui::InputFloat("Time", &timer, 0.01f, 0.1f, "%.2f"))
+
+        auto& anim_data = res_mgr.m_anim_data_map.at(instance.m_animation_handle);
+        char format_buffer[64];
+        snprintf(format_buffer, sizeof(format_buffer), "%s / %.2f", "%.2f", anim_data.m_duration);
+        if (ImGui::SliderFloat("Time", &timer, 0.0f, anim_data.m_duration, format_buffer))
             instance.m_global_time = timer;
         float anim_speed = instance.m_anim_speed;
         if (ImGui::SliderFloat("Animation Speed", &anim_speed, 0.001f, 10.0f, "%.2f"))
             instance.m_anim_speed = anim_speed;
 
         ImGui::Checkbox("Use SLERP", &m_use_slerp);
-
-        ImGui::Separator();
-
-        auto& anim_data = res_mgr.m_anim_data_map.at(instance.m_animation_handle);
-
-        ImGui::Text("Animation Duration: %.2f", anim_data.m_duration);
     }
 }
 

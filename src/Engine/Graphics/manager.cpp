@@ -44,6 +44,12 @@ namespace Graphics {
 		return bNoErrors;
 	}
 
+	uint8_t animation_data::get_skeleton_joint_index_channel_count(uint8_t _joint_index) const
+	{
+		auto iter = m_skeleton_jointnode_channel_count.find(_joint_index);
+		return iter == m_skeleton_jointnode_channel_count.end() ? 0 : iter->second;
+	}
+
 	unsigned int ResourceManager::get_gl_component_size(GLuint _componentType)
 	{
 		switch (_componentType)
