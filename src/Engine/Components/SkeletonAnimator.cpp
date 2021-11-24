@@ -147,9 +147,7 @@ namespace AnimationUtil
             // Set up next joint channel batch to process
             if (joint_channels_offset >= new_joint_channel_idx)
             {
-                auto iter = _animation_data->m_skeleton_jointnode_channel_count.find(skeleton_joint_idx);
-                if (iter != _animation_data->m_skeleton_jointnode_channel_count.end())
-                    new_joint_channel_idx += iter->second;
+                new_joint_channel_idx += _animation_data->get_skeleton_joint_index_channel_count(skeleton_joint_idx);
                 ++skeleton_joint_idx;
             }
         }

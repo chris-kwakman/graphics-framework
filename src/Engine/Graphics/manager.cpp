@@ -44,10 +44,23 @@ namespace Graphics {
 		return bNoErrors;
 	}
 
+	void animation_data::set_joint_node_channel_counts(std::unordered_map<uint8_t, uint8_t> const& _map)
+	{
+		int max_joint_node_index = -1;
+		// First pass to determine maximal index in map
+		for(auto pair : _map)
+			max_joint_node_index = std::max(max_joint_node_index, (int)pair.first);
+		Engine::Utils::print_error("[animation_data] Maximum of 256 joints are supported.");
+
+		// Create direct LUT that maps joint indices within skeleton to the number of channels that they have.
+		m_skeleton_jointnode_channel_count.resize(max_joint_node_index + 1, 0);
+		for (auto pair : _map)
+			m_skeleton_jointnode_channel_count[pair.first] = pair.second;
+	}
+
 	uint8_t animation_data::get_skeleton_joint_index_channel_count(uint8_t _joint_index) const
 	{
-		auto iter = m_skeleton_jointnode_channel_count.find(_joint_index);
-		return iter == m_skeleton_jointnode_channel_count.end() ? 0 : iter->second;
+		return m_skeleton_jointnode_channel_count[_joint_index];
 	}
 
 	unsigned int ResourceManager::get_gl_component_size(GLuint _componentType)
@@ -570,8 +583,10 @@ namespace Graphics {
 				}
 			);
 
+			std::unordered_map<uint8_t, uint8_t> joint_index_channel_count_map;
 			for (auto const& anim_channel : new_anim_data.m_animation_channels)
-				new_anim_data.m_skeleton_jointnode_channel_count[anim_channel.m_skeleton_relative_jointnode_index]++;
+				joint_index_channel_count_map[anim_channel.m_skeleton_relative_jointnode_index]++;
+			new_anim_data.set_joint_node_channel_counts(joint_index_channel_count_map);
 
 			auto get_channel_for_duration = new_anim_data.m_animation_channels.front();
 			auto get_sampler_for_duration = new_anim_sampler_data_map.at(get_channel_for_duration.m_anim_sampler_handle);

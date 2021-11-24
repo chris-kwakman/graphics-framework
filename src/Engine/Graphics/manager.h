@@ -44,11 +44,13 @@ namespace Graphics {
 	struct animation_data
 	{
 		// # of animation channels for a given joint node index relative to current skeleton.
-		std::unordered_map<uint8_t, uint8_t>	m_skeleton_jointnode_channel_count;
+		// std::unordered_map<uint8_t, uint8_t>	m_skeleton_jointnode_channel_count;
+		std::vector<uint8_t>					m_skeleton_jointnode_channel_count;
 		std::vector<animation_channel_data>		m_animation_channels;
 		float									m_duration; // Determined by input interpolation data in channels.
 		std::string								m_name;
 
+		void set_joint_node_channel_counts(std::unordered_map<uint8_t, uint8_t> const& _map);
 		uint8_t get_skeleton_joint_index_channel_count(uint8_t _joint_index) const;
 	};
 
