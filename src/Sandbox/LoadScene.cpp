@@ -30,6 +30,24 @@ namespace Sandbox
 		return json::parse(in_file);
 	}
 
+	Entity find_first_entity_with_animator_comp(Entity _e)
+	{
+		auto transform = _e.GetComponent<Component::Transform>();
+		auto children = transform.GetChildren();
+		for (auto child : children)
+		{
+			if (child.HasComponent<Component::SkeletonAnimator>())
+				return child;
+		}
+		for (auto child : children)
+		{
+			Entity value = find_first_entity_with_animator_comp(child);
+			if (value != Entity::InvalidEntity)
+				return value;
+		}
+		return Entity::InvalidEntity;
+	}
+
 	void LoadScene(nlohmann::json const& _scene, const char* _scene_path)
 	{
 		using namespace Component;
@@ -103,6 +121,7 @@ namespace Sandbox
 
 			auto name_iter = object_json.find("name");
 			auto mesh_iter = object_json.find("mesh");
+			auto blendtree_iter = object_json.find("blend_tree");
 			auto curve_interp_iter = object_json.find("curve_interpolator");
 			auto curve_follower_iter = object_json.find("curve_follower");
 			if (mesh_iter != object_json.end())
@@ -174,6 +193,15 @@ namespace Sandbox
 						seg_front_param, 
 						seg_back_param
 					);
+				}
+			}
+			if (blendtree_iter != object_json.end())
+			{
+				Entity animator_entity = find_first_entity_with_animator_comp(current_entity);
+				if (animator_entity != Entity::InvalidEntity)
+				{
+					animator_entity.GetComponent<Component::SkeletonAnimator>()
+						.LoadAnimation(blendtree_iter->get<std::string>());
 				}
 			}
 			if (name_iter != object_json.end())

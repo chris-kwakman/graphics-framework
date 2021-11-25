@@ -18,6 +18,11 @@
 namespace Component
 {
 
+    static std::filesystem::path const s_blendtree_dir = std::filesystem::path("data\\blend_trees");
+    static char blend_tree_file_name_buffer[128];
+    static bool s_open_blendmask_edit_popup = false;
+    static animation_blend_mask* s_p_edit_blend_mask = nullptr;
+
 ///////////////////////////////////////////////////////////////////////////////
 //                      Animation Data Methods
 ///////////////////////////////////////////////////////////////////////////////
@@ -32,6 +37,12 @@ namespace Component
         m_joint_transforms.resize(_skeleton_joint_count);
     }
 
+    /*
+    * Applies given blend mask to this pose.
+    * @param    animation_blend_mask        Mask to apply
+    * @details  TODO: My understanding is probably wrong and should instead perhaps be
+    * interpolating between the desired joint transform and the bind pose joint transform.
+    */
     void animation_pose::apply_blend_mask(animation_blend_mask const & _mask)
     {
         using interp_type = Engine::Graphics::animation_sampler_data::E_interpolation_type;
@@ -212,6 +223,7 @@ namespace Component
             &_out_pose->m_joint_transforms.front(),
             _out_pose->m_joint_transforms.size()
         );
+        _out_pose->apply_blend_mask(m_blend_mask);
     }
 
     /*
@@ -492,7 +504,7 @@ namespace Component
 
 
 
-    static void gui_dragdrop_animation_handle(animation_handle* _anim)
+    static bool gui_dragdrop_animation_handle(animation_handle* _anim)
     {
         auto& res_mgr = Singleton<ResourceManager>();
 
@@ -514,7 +526,9 @@ namespace Component
             if (ImGuiPayload const* payload = ImGui::AcceptDragDropPayload("RESOURCE_ANIMATION"))
                 *_anim = *reinterpret_cast<animation_handle*>(payload->Data);
             ImGui::EndDragDropTarget();
+            return *_anim != 0 && Singleton<ResourceManager>().FindAnimationData(*_anim) != nullptr;
         }
+        return false;
     }
 
     enum ECreatableNodeFlags { eNone = 0, eLeafNode = 1, eBlendNode1D = 2, eBlendNode2D = 4 };
@@ -580,7 +594,13 @@ namespace Component
 
     void animation_leaf_node::gui_edit()
     {
-        gui_dragdrop_animation_handle(&m_animation);
+        if (ImGui::Button("Edit Blend Mask"))
+        {
+            s_p_edit_blend_mask = &m_blend_mask;
+            s_open_blendmask_edit_popup = true;
+        }
+        if (gui_dragdrop_animation_handle(&m_animation))
+            m_name = Singleton<ResourceManager>().FindAnimationData(m_animation)->m_name;
     }
 
 
@@ -643,15 +663,32 @@ namespace Component
             slider_left = m_blendspace_points.front();
             slider_right = m_blendspace_points.back();
         }
-
         ImGui::SliderFloat("Blend Parameter", &m_blend_parameter, slider_left, slider_right, "%.2f", ImGuiSliderFlags_AlwaysClamp);
-        if (ImGui::BeginTable("Nodes", 5, ImGuiTableFlags_Borders))
+
+        if (ImGui::Button("Edit Blend Mask"))
+        {
+            s_p_edit_blend_mask = &m_blend_mask;
+            s_open_blendmask_edit_popup = true;
+        }
+
+        //if (ImGui::Button("Scale Time Warp to Least Common Multiple of durations"))
+        //{
+        //    std::vector<float> child_durations(m_child_blend_nodes.size());
+        //    for (unsigned int i = 0; i < child_durations.size(); ++i)
+        //        child_durations[i] = m_child_blend_nodes[i]->duration();
+        //    float const lcm_duration = AnimationUtil::find_array_lcm(&child_durations.front(), child_durations.size());
+        //    for (unsigned int i = 0; i < m_child_blend_nodes.size(); ++i)
+        //    {
+        //        m_time_warps[i] = lcm_duration / child_durations[i];
+        //    }
+        //}
+
+        if (ImGui::BeginTable("Nodes", 4, ImGuiTableFlags_Borders))
         {
             ImGui::TableSetupColumn("Index", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_DefaultHide);
             ImGui::TableSetupColumn("Blend Point", ImGuiTableColumnFlags_WidthFixed );
             ImGui::TableSetupColumn("Time Warp", ImGuiTableColumnFlags_WidthFixed);
             ImGui::TableSetupColumn("Duration", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("Blend Mask", ImGuiTableColumnFlags_WidthFixed);
             ImGui::TableHeadersRow();
 
             for (unsigned int i = 0; i < m_child_blend_nodes.size(); ++i)
@@ -669,12 +706,9 @@ namespace Component
                 ImGui::DragFloat("###Time Warp", &m_time_warps[i], 0.1f, 0.0f, FLT_MAX, "%.2f");
                 ImGui::TableNextColumn();
                 ImGui::Text("(W) %.2f / (A) %.2f", node_warped_duration(i), m_child_blend_nodes[i]->duration());
-                ImGui::TableNextColumn();
-                bool edit_blend_mask = ImGui::Button("Edit");
 
                 if (edit_blend_point)
                     edit_node_blendspace_point(i, new_blendspace_point);
-
 ImGui::PopID();
             }
         }
@@ -842,14 +876,30 @@ ImGui::PopID();
         }
         ImGui::EndChild();
 
-        ImGui::Text("Blend Parameter");
-        if (ImGui::BeginTable("Nodes", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_Hideable | ImGuiTableFlags_Resizable))
+        if (ImGui::Button("Edit Blend Mask"))
+        {
+            s_p_edit_blend_mask = &m_blend_mask;
+            s_open_blendmask_edit_popup = true;
+        }
+
+        //if (ImGui::Button("Scale Time Warp to Least Common Multiple of durations"))
+        //{
+        //    std::vector<float> child_durations(m_child_blend_nodes.size());
+        //    for (unsigned int i = 0; i < child_durations.size(); ++i)
+        //        child_durations[i] = m_child_blend_nodes[i]->duration();
+        //    float const lcm_duration = AnimationUtil::find_array_lcm(&child_durations.front(), child_durations.size());
+        //    for (unsigned int i = 0; i < m_child_blend_nodes.size(); ++i)
+        //    {
+        //        m_time_warps[i] = lcm_duration / child_durations[i];
+        //    }
+        //}
+
+        if (ImGui::BeginTable("Nodes", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_Hideable | ImGuiTableFlags_Resizable))
         {
             ImGui::TableSetupColumn("Index", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_DefaultHide);
             ImGui::TableSetupColumn("Blend Point", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableSetupColumn("Time Warp", ImGuiTableColumnFlags_WidthFixed);
             ImGui::TableSetupColumn("Duration", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("Blend Mask", ImGuiTableColumnFlags_WidthFixed);
             ImGui::TableHeadersRow();
 
             for (unsigned int i = 0; i < m_child_blend_nodes.size(); ++i)
@@ -867,9 +917,7 @@ ImGui::PopID();
                 ImGui::DragFloat("###Time Warp", &m_time_warps[i], 0.1f, 0.0f, FLT_MAX, "%.2f");
                 ImGui::TableNextColumn();
                 ImGui::Text("(W) %.2f / (A) %.2f", node_warped_duration(i), m_child_blend_nodes[i]->duration());
-                ImGui::TableNextColumn();
-                bool edit_blend_mask = ImGui::Button("Edit");
-
+                
                 if (edit_blend_point)
                     edit_node_blendspace_point(i, new_blendspace_point);
 
@@ -1019,6 +1067,42 @@ namespace AnimationUtil
     {
         float mod_time = fmodf(_value, _maximum);
         return mod_time + (mod_time < 0 ? _maximum : 0);
+    }
+
+    float fgcd(float l, float r)
+    {
+        return r > 0.01f ? fgcd(r, fmod(l, r)) : l;
+    }
+
+    float find_array_fgcd(float const* _values, unsigned int _count)
+    {
+        if (!(_values && _count > 0))
+            return 1.0f;
+        if (_count == 1)
+            return _values[0];
+        float gcd = _values[0];
+        for (unsigned int i = 1; i < _count; ++i)
+        {
+            gcd = fgcd(gcd, _values[i]);
+        }
+        return gcd;
+    }
+
+    float find_array_lcm(float const* _values, unsigned int _count)
+    {
+        if (_count > 2)
+        {
+            float sub_lcm = find_array_lcm(_values + 1, _count - 1);
+            return _values[0] * sub_lcm / fgcd(_values[0], find_array_fgcd(_values+1, _count-1));
+        }
+        else if (_count == 2)
+        {
+            return abs(_values[0] * _values[1]) / fgcd(_values[0], _values[1]);
+        }
+        else if (_count == 1)
+            return _values[0];
+        else
+            return 0.0f;
     }
 
     void convert_joint_channels_to_transforms(
@@ -1342,17 +1426,18 @@ void SkeletonAnimatorManager::update_joint_transform_components(
     }
 }
 
-static std::filesystem::path const s_blendtree_dir = std::filesystem::path("data\\blend_trees");
-
-static char blend_tree_file_name_buffer[128];
 void SkeletonAnimatorManager::window_edit_blendtree(std::unique_ptr<animation_tree_node>& _tree_root)
 {
     animator_data& animator = get_entity_animator(m_edit_tree);
     if (ImGui::IsWindowAppearing())
+    {
+        s_p_edit_blend_mask = nullptr;
         m_editing_tree_node = animator.m_blendtree_root_node.get();
+    }
 
     bool open_savefile_popup = false;
     bool open_loadfile_popup = false;
+    bool open_blendmask_edit_popup = false;
     if (ImGui::BeginMenuBar())
     {
         if (ImGui::BeginMenu("Files"))
@@ -1370,10 +1455,19 @@ void SkeletonAnimatorManager::window_edit_blendtree(std::unique_ptr<animation_tr
         ImGui::OpenPopup("Save Blend Tree File");
     if(open_loadfile_popup)
         ImGui::OpenPopup("Load Blend Tree File");
+    if (s_open_blendmask_edit_popup)
+    {
+        ImGui::OpenPopup("Blend Mask Editor");
+        s_open_blendmask_edit_popup = false;
+    }
+        
 
     glm::uvec2 const window_size = Singleton<Engine::sdl_manager>().get_window_size();
     ImVec2 const center = ImVec2(window_size.x / 2,  window_size.y / 2);
-    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5, 0.5));
+    if (open_savefile_popup | open_loadfile_popup | open_blendmask_edit_popup)
+    {
+        ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5, 0.5));
+    }
     if (ImGui::BeginPopupModal("Save Blend Tree File", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
     {
         bool enter_pressed = ImGui::InputText(
@@ -1444,6 +1538,59 @@ void SkeletonAnimatorManager::window_edit_blendtree(std::unique_ptr<animation_tr
         }
         ImGui::EndPopup();
     }
+    if (ImGui::BeginPopup("Blend Mask Editor"))
+    {
+        Component::Skin const skin_comp = m_edit_tree.GetComponent<Component::Skin>();
+
+        static float new_factor = 1.0f;
+        if (ImGui::IsWindowAppearing())
+            new_factor = 1.0f;
+
+        bool apply_global_mask = ImGui::Button("Apply");
+        ImGui::SameLine();
+        ImGui::InputFloat("Factor for all joints", &new_factor, 0.0f, 2.0f, "%.3f");
+        if (ImGui::Button("Reset all factors to Default"))
+            s_p_edit_blend_mask->m_joint_blend_masks.clear();
+
+        if (apply_global_mask)
+        {
+            apply_global_mask = false;
+            if (s_p_edit_blend_mask->m_joint_blend_masks.empty())
+                s_p_edit_blend_mask->m_joint_blend_masks.resize(skin_comp.GetSkeletonInstanceNodes().size());
+            for (unsigned int i = 0; i < s_p_edit_blend_mask->m_joint_blend_masks.size(); ++i)
+                s_p_edit_blend_mask->m_joint_blend_masks[i] = new_factor;
+        }
+
+        bool table_began = ImGui::BeginTable("Skin Joints", 2, ImGuiTableFlags_BordersH);
+        if (table_began)
+        {
+            ImGui::TableSetupColumn("Joint", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("Mask Factor");
+            ImGui::TableHeadersRow();
+
+            auto const & skeleton_joints = skin_comp.GetSkeletonInstanceNodes();
+            for (unsigned int i = 0; i < skeleton_joints.size(); ++i)
+            {
+                ImGui::PushID(i);
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::Text(skeleton_joints[i].Owner().GetName());
+                ImGui::TableNextColumn();
+                float value = (*s_p_edit_blend_mask)[i];
+                if (ImGui::InputFloat("", &value, 0.0f, 2.0f, "%.3f"))
+                {
+                    if (s_p_edit_blend_mask->m_joint_blend_masks.empty())
+                        s_p_edit_blend_mask->m_joint_blend_masks.resize(skeleton_joints.size(), 1.0f);
+                    s_p_edit_blend_mask->m_joint_blend_masks[i] = value;
+                }
+                ImGui::PopID();
+            }
+        }
+        ImGui::EndTable();
+        ImGui::EndPopup();
+    }
+    else
+        s_p_edit_blend_mask = nullptr;
 
     float window_width = ImGui::GetWindowContentRegionWidth();
     if(ImGui::BeginChild("Tree Viewer", ImVec2(window_width * 0.3f, -1.0f), true))
@@ -1506,6 +1653,20 @@ void SkeletonAnimator::SetPaused(bool _paused)
 void SkeletonAnimator::SetAnimation(animation_leaf_node _animation)
 {
     GetManager().get_entity_animator(Owner()).m_blendtree_root_node = std::make_unique<animation_leaf_node>(_animation);
+}
+
+void SkeletonAnimator::LoadAnimation(std::string _filename)
+{
+    auto& root_node = GetManager().get_entity_animator(Owner()).m_blendtree_root_node;
+    std::filesystem::path path = s_blendtree_dir / _filename;
+    if (std::filesystem::exists(path) && path.extension() == ".blent")
+    {
+        std::ifstream in(path);
+        nlohmann::json j;
+        in >> j;
+        root_node = animation_tree_node::create(j);
+    }
+
 }
 
 

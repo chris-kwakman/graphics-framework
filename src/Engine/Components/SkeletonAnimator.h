@@ -186,6 +186,11 @@ namespace Component
 
 		float rollover_modulus(float _value, float _maximum);
 
+		float fgcd(float l, float r);
+
+		float find_array_fgcd(float const* _values, unsigned int _count);
+		float find_array_lcm(float const* _values, unsigned int _count);
+
 		void convert_joint_channels_to_transforms(
 			animation_data const * _animation_data,
 			float const* _in_anim_channel_data,
@@ -220,6 +225,7 @@ namespace Component
 		void				SetPaused(bool _paused);
 
 		void SetAnimation(animation_leaf_node _animation);
+		void LoadAnimation(std::string _filename);
 	};
 
 	class SkeletonAnimatorManager : public TCompManager<SkeletonAnimator>
