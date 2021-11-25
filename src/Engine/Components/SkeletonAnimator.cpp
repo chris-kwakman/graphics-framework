@@ -187,7 +187,7 @@ namespace Component
         if (m_animation && anim_data)
         {
             if (_blend_mask_arr)
-                memcpy(&m_anim_blend_mask.m_joint_blend_masks.front(), _blend_mask_arr, anim_data->m_skeleton_jointnode_channel_count.size());
+                memcpy(&m_blend_mask.m_joint_blend_masks.front(), _blend_mask_arr, anim_data->m_skeleton_jointnode_channel_count.size());
         }
     }
 
@@ -233,7 +233,6 @@ namespace Component
     {
         m_child_blend_nodes.emplace_back(std::move(_node));
         m_blendspace_points.emplace_back(_range_start);
-        m_anim_blend_masks.emplace_back(_blend_mask);
         m_time_warps.emplace_back(1.0f);
 
         edit_node_blendspace_point(m_child_blend_nodes.size() - 1, _range_start);
@@ -248,9 +247,8 @@ namespace Component
     {
         auto swap_indices = [&](unsigned int idx1, unsigned int idx2)
         {
-            std::swap(m_blendspace_points[idx1], m_blendspace_points[idx2]);
-            std::swap(m_anim_blend_masks[idx1], m_anim_blend_masks[idx2]);
             std::swap(m_child_blend_nodes[idx1], m_child_blend_nodes[idx2]);
+            std::swap(m_blendspace_points[idx1], m_blendspace_points[idx2]);
             std::swap(m_time_warps[idx1], m_time_warps[idx2]);
         };
 
@@ -280,7 +278,6 @@ namespace Component
     {
         m_child_blend_nodes.erase(m_child_blend_nodes.begin() + _index);
         m_blendspace_points.erase(m_blendspace_points.begin() + _index);
-        m_anim_blend_masks.erase(m_anim_blend_masks.begin() + _index);
         m_time_warps.erase(m_time_warps.begin() + _index);
     }
 
@@ -327,12 +324,11 @@ namespace Component
         // Return early if we are not able to find two valid poses to interpolate between.
         if (bound_poses[0].m_joint_transforms.empty() || bound_poses[1].m_joint_transforms.empty())
             return;
-        for (unsigned int i = 0; i < 2; ++i)
-            bound_poses[i].apply_blend_mask(m_anim_blend_masks[bounds[i]]);
 
         float clamped_blend_param = glm::clamp(m_blend_parameter, m_blendspace_points.front(), m_blendspace_points.back());
         float segment_blend_parameter = (clamped_blend_param - m_blendspace_points[bound_left]) / (m_blendspace_points[bound_right] - m_blendspace_points[bound_left]);
         _out_pose->mix(bound_poses[0], bound_poses[1], segment_blend_parameter);
+        _out_pose->apply_blend_mask(m_blend_mask);
     }
 
     float animation_blend_1D::duration() const
@@ -347,7 +343,6 @@ namespace Component
     {
         m_child_blend_nodes.emplace_back(std::move(_node));
         m_blendspace_points.emplace_back(_new_point);
-        m_anim_blend_masks.emplace_back(std::move(_blend_mask));
         m_time_warps.emplace_back(1.0f);
         triangulate_blendspace_points();
     }
@@ -362,7 +357,6 @@ namespace Component
     {
         m_child_blend_nodes.erase(m_child_blend_nodes.begin() + _index);
         m_blendspace_points.erase(m_blendspace_points.begin() + _index);
-        m_anim_blend_masks.erase(m_anim_blend_masks.begin() + _index);
         triangulate_blendspace_points();
     }
 
@@ -478,8 +472,6 @@ namespace Component
             if (bound_poses[i].m_joint_transforms.empty())
                 return;
         }
-        for (unsigned int i = 0; i < 3; ++i)
-            bound_poses[i].apply_blend_mask(m_anim_blend_masks[tri_node_indices[i]]);
 
         
         float const blend_v = find_tri_result.second.x;
@@ -487,6 +479,7 @@ namespace Component
         float const blend_u = 1.0f - blend_v - blend_w;
         float const blend_values[3] = { blend_u, blend_v, blend_w };
         _out_pose->mix(bound_poses, blend_values);
+        _out_pose->apply_blend_mask(m_blend_mask);
     }
 
     float animation_blend_2D::duration() const
@@ -908,29 +901,45 @@ ImGui::PopID();
     }
 
 
-    nlohmann::json animation_leaf_node::serialize() const
+
+    nlohmann::json animation_tree_node::serialize() const
+    {
+        nlohmann::json j;
+        j["blend_mask"] = m_blend_mask;
+        j["name"] = m_name;
+        j.update(impl_serialize());
+        return j;
+    }
+
+    void animation_tree_node::deserialize(nlohmann::json const& _json)
+    {
+        m_blend_mask = _json.value("blend_mask", decltype(m_blend_mask){});
+        m_name = _json.value("name", default_name());
+
+        impl_deserialize(_json);
+    }
+
+
+    nlohmann::json animation_leaf_node::impl_serialize() const
     {
         nlohmann::json j;
         j["type"] = "leaf";
         Engine::Graphics::to_json(j["animation"], m_animation);
-        j["blend_mask"] = m_anim_blend_mask.m_joint_blend_masks;
         return j;
     }
 
-    void animation_leaf_node::deserialize(nlohmann::json const& _json)
+    void animation_leaf_node::impl_deserialize(nlohmann::json const& _json)
     {
         Engine::Graphics::from_json(_json["animation"], m_animation);
-        m_anim_blend_mask = _json.value("blend_mask", decltype(m_anim_blend_mask){});
     }
 
 
-    nlohmann::json animation_blend_1D::serialize() const
+    nlohmann::json animation_blend_1D::impl_serialize() const
     {
         nlohmann::json j;
         j["type"] = "1D";
         j["blend_parameter"] = m_blend_parameter;
         j["child_blendspace_points"] = m_blendspace_points;
-        j["child_blend_masks"] = m_anim_blend_masks;
         j["child_time_warps"] = m_time_warps;
         if (!m_child_blend_nodes.empty())
         {
@@ -941,11 +950,10 @@ ImGui::PopID();
         return j;
     }
 
-    void animation_blend_1D::deserialize(nlohmann::json const& _json)
+    void animation_blend_1D::impl_deserialize(nlohmann::json const& _json)
     {
         m_blend_parameter = _json["blend_parameter"];
         m_blendspace_points = _json["child_blendspace_points"].get<decltype(m_blendspace_points)>();
-        m_anim_blend_masks = _json["child_blend_masks"].get<decltype(m_anim_blend_masks)>();
         m_time_warps = _json.value("child_time_warps", decltype(m_time_warps)(m_blendspace_points.size(), 1.0f));
         auto child_node_arr_iter = _json.find("child_nodes");
         if (child_node_arr_iter != _json.end())
@@ -959,13 +967,12 @@ ImGui::PopID();
         }
     }
 
-    nlohmann::json animation_blend_2D::serialize() const
+    nlohmann::json animation_blend_2D::impl_serialize() const
     {
         nlohmann::json j;
         j["type"] = "2D";
         j["blend_parameter"] = m_blend_parameter;
         j["child_blendspace_points"] = m_blendspace_points;
-        j["child_blend_masks"] = m_anim_blend_masks;
         j["child_time_warps"] = m_time_warps;
         if (!m_child_blend_nodes.empty())
         {
@@ -976,11 +983,10 @@ ImGui::PopID();
         return j;
     }
 
-    void animation_blend_2D::deserialize(nlohmann::json const& _json)
+    void animation_blend_2D::impl_deserialize(nlohmann::json const& _json)
     {
         m_blend_parameter = _json["blend_parameter"];
         m_blendspace_points = _json["child_blendspace_points"].get<decltype(m_blendspace_points)>();
-        m_anim_blend_masks = _json["child_blend_masks"].get<decltype(m_anim_blend_masks)>();
         m_time_warps = _json.value("child_time_warps", decltype(m_time_warps)(m_blendspace_points.size(), 1.0f));
         auto child_node_arr_iter = _json.find("child_nodes");
         if (child_node_arr_iter != _json.end())

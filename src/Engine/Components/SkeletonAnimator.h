@@ -58,39 +58,52 @@ namespace Component
 
 	struct animation_tree_node
 	{
+		static std::unique_ptr<animation_tree_node> create(nlohmann::json const& _j);
+
+
 		virtual void compute_pose(float _time, animation_pose * _out_pose) const = 0;
 		virtual float duration() const = 0;
 
 		int gui_node(gui_node_context& _context);
 
-		virtual int impl_gui_node(gui_node_context & _context) = 0;
 		virtual void gui_edit() = 0;
 
-		virtual nlohmann::json serialize() const = 0;
-		virtual void deserialize(nlohmann::json const& _json) = 0;
-
-		static std::unique_ptr<animation_tree_node> create(nlohmann::json const& _j);
+		nlohmann::json serialize() const;
+		void deserialize(nlohmann::json const& _json);
 
 		std::string m_name;
+
+	protected:
+
+		virtual int impl_gui_node(gui_node_context & _context) = 0;
+		virtual nlohmann::json impl_serialize() const = 0;
+		virtual void impl_deserialize(nlohmann::json const& _json) = 0;
+		virtual const char* default_name() const = 0;
+
+
+		animation_blend_mask	m_blend_mask{};
 	};
 
 	struct animation_leaf_node final : public animation_tree_node
 	{
 		animation_handle		m_animation = 0;
-		animation_blend_mask	m_anim_blend_mask{};
 
-		animation_leaf_node() { m_name = "Leaf Blend Node"; }
+		animation_leaf_node() { m_name = default_name(); }
 
 		void set_animation(animation_handle _animation, float* _blend_mask_arr = nullptr);
 
 		// Inherited via animation_tree_node
 		virtual void compute_pose(float _time, animation_pose* _out_pose) const override;
 		virtual float duration() const override;
-		virtual int impl_gui_node(gui_node_context& _context) override;
 		virtual void gui_edit() override;
 
-		virtual nlohmann::json serialize() const override;
-		virtual void deserialize(nlohmann::json const& _json) override;
+	private:
+
+		virtual int impl_gui_node(gui_node_context& _context) override;
+		virtual nlohmann::json impl_serialize() const override;
+		virtual void impl_deserialize(nlohmann::json const& _json) override;
+
+		virtual const char* default_name() const override { return "Leaf Blend Node"; }
 	};
 
 	struct animation_blend_1D final : public animation_tree_node
@@ -98,11 +111,10 @@ namespace Component
 		std::vector<std::unique_ptr<animation_tree_node>> m_child_blend_nodes;
 		std::vector<float> m_blendspace_points;
 		std::vector<float> m_time_warps;
-		std::vector<animation_blend_mask> m_anim_blend_masks;
 
 		float m_blend_parameter;
 
-		animation_blend_1D() { m_name = "1D Blend Node"; }
+		animation_blend_1D() { m_name = default_name(); }
 
 		void add_node(std::unique_ptr<animation_tree_node> && _node, float _range_start, animation_blend_mask _blend_mask);
 		void edit_node_blendspace_point(unsigned int _index, float _point);
@@ -113,11 +125,15 @@ namespace Component
 		// Inherited via animation_tree_node
 		virtual void compute_pose(float _time, animation_pose* _out_pose) const override;
 		virtual float duration() const override;
-		virtual int impl_gui_node(gui_node_context& _context) override;
 		virtual void gui_edit() override;
 
-		virtual nlohmann::json serialize() const override;
-		virtual void deserialize(nlohmann::json const& _json) override;
+	private:
+
+		virtual int impl_gui_node(gui_node_context& _context) override;
+		virtual nlohmann::json impl_serialize() const override;
+		virtual void impl_deserialize(nlohmann::json const& _json) override;
+
+		virtual const char* default_name() const override { return "1D Blend Node"; }
 
 	};
 
@@ -128,7 +144,6 @@ namespace Component
 		std::vector<std::unique_ptr<animation_tree_node>> m_child_blend_nodes;
 		std::vector<glm::vec2> m_blendspace_points;
 		std::vector<float> m_time_warps;
-		std::vector<animation_blend_mask> m_anim_blend_masks;
 
 	private:
 
@@ -144,7 +159,7 @@ namespace Component
 
 	public:
 
-		animation_blend_2D() { m_name = "2D Blend Node"; }
+		animation_blend_2D() { m_name = default_name(); }
 
 		void add_node(std::unique_ptr<animation_tree_node>&& _node, glm::vec2 _new_point, animation_blend_mask _blend_mask);
 		void edit_node_blendspace_point(unsigned int _index, glm::vec2 _new_point);
@@ -155,11 +170,15 @@ namespace Component
 		// Inherited via animation_tree_node
 		virtual void compute_pose(float _time, animation_pose* _out_pose) const override;
 		virtual float duration() const override;
-		virtual int impl_gui_node(gui_node_context& _context) override;
 		virtual void gui_edit() override;
 
-		virtual nlohmann::json serialize() const override;
-		virtual void deserialize(nlohmann::json const& _json) override;
+	private:
+
+		virtual int impl_gui_node(gui_node_context& _context) override;
+		virtual nlohmann::json impl_serialize() const override;
+		virtual void impl_deserialize(nlohmann::json const& _json) override;
+
+		virtual const char* default_name() const override { return "2D Blend Node"; }
 	};
 
 	namespace AnimationUtil
