@@ -135,6 +135,9 @@
     <ClCompile Include="src\Engine\Utils\algorithm.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="include\delaunator\delaunator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Sandbox\sandbox.h">
@@ -1104,6 +1107,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\Engine\Utils\algorithm.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\delaunator\delaunator.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

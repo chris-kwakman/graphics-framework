@@ -166,6 +166,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="include\delaunator\delaunator.cpp" />
     <ClCompile Include="include\glm\detail\glm.cpp" />
     <ClCompile Include="include\ImGuizmo\ImGuizmo.cpp" />
     <ClCompile Include="include\ImGui\imgui.cpp" />
@@ -210,6 +211,7 @@
     <ClCompile Include="src\Sandbox\sandbox.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\delaunator\delaunator.hpp" />
     <ClInclude Include="include\glm\common.hpp" />
     <ClInclude Include="include\glm\detail\compute_common.hpp" />
     <ClInclude Include="include\glm\detail\compute_vector_relational.hpp" />

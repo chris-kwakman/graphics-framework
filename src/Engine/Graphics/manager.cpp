@@ -19,6 +19,8 @@
 #include <ImGui/imgui.h>
 #include <ImGui/imgui_stdlib.h>
 
+#include <Engine/Utils/singleton.h>
+
 namespace Engine {
 namespace Graphics {
 
@@ -50,7 +52,7 @@ namespace Graphics {
 		// First pass to determine maximal index in map
 		for(auto pair : _map)
 			max_joint_node_index = std::max(max_joint_node_index, (int)pair.first);
-		Engine::Utils::print_error("[animation_data] Maximum of 256 joints are supported.");
+		Engine::Utils::assert_print_error(max_joint_node_index <= 255, "[animation_data] Maximum of 256 joints are supported.");
 
 		// Create direct LUT that maps joint indices within skeleton to the number of channels that they have.
 		m_skeleton_jointnode_channel_count.resize(max_joint_node_index + 1, 0);
@@ -60,6 +62,8 @@ namespace Graphics {
 
 	uint8_t animation_data::get_skeleton_joint_index_channel_count(uint8_t _joint_index) const
 	{
+		if (_joint_index >= m_skeleton_jointnode_channel_count.size())
+			return 0;
 		return m_skeleton_jointnode_channel_count[_joint_index];
 	}
 
@@ -1144,6 +1148,18 @@ namespace Graphics {
 		return 0;
 	}
 
+	/*
+	* Find animation data by given handle
+	* @param	animation_handle
+	* @returns	animation_data const *		Temporary pointer to animation data.
+	*										Nullptr if animation could not be found.
+	*/
+	animation_data const * ResourceManager::FindAnimationData(animation_handle _handle) const
+	{
+		auto iter = m_anim_data_map.find(_handle);
+		return iter == m_anim_data_map.end() ? nullptr : &iter->second;
+	}
+
 	//////////////////////////////////////////////////////////////////
 	//						Framebuffer Methods
 	//////////////////////////////////////////////////////////////////
@@ -2004,6 +2020,30 @@ namespace Graphics {
 			m_uniform_cache.emplace(uniform_name_buffer, glGetUniformLocation(_gl_program_object, uniform_name_buffer));
 		}
 	}
+
+
+
+
+
+
+	void to_json(nlohmann::json& _j, animation_handle const& _a)
+	{
+		animation_data const * data = Singleton<ResourceManager>().FindAnimationData(_a);
+		if (data)
+			_j = data->m_name;
+		else
+			_j = "";
+	}
+
+	void from_json(nlohmann::json const& j, animation_handle& _a)
+	{
+		_a = 0;
+		std::string const json_string = j.get<std::string>();
+		if (!json_string.empty())
+			_a = Singleton<ResourceManager>().FindNamedAnimation(json_string);
+	}
+
+
 
 }
 }

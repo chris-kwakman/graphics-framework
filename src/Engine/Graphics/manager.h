@@ -386,6 +386,7 @@ namespace Graphics {
 	public:
 
 		animation_handle	FindNamedAnimation(std::string const& _name) const;
+		animation_data const * FindAnimationData(animation_handle _handle) const;
 
 		/*
 		* Framebuffer Methods
@@ -478,6 +479,9 @@ namespace Graphics {
 		void delete_animation_samplers(std::vector<animation_sampler_handle> _animation_samplers);
 		void delete_animation_interpolations(std::vector<animation_interpolation_handle> _animation_interpolations);
 	};
+
+	void to_json(nlohmann::json& _j, animation_handle const& _a);
+	void from_json(nlohmann::json const& j, animation_handle& _a);
 
 }
 }

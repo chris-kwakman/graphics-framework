@@ -252,6 +252,7 @@ namespace Sandbox
 	std::vector<Engine::ECS::Entity> LoadGLTFScene(nlohmann::json const& _scene, const char * _model_path, const char * _scene_path)
 	{
 		assert(_model_path);
+		auto& resource_manager = Singleton<Engine::Graphics::ResourceManager>();
 
 		using namespace Component;
 		using namespace Engine::Graphics;
@@ -365,7 +366,9 @@ namespace Sandbox
 								: anim_name_iter->get<std::string>());
 
 						Component::SkeletonAnimator skeleton_animator_component = Component::Create<SkeletonAnimator>(skeleton_root_entity);
-						skeleton_animator_component.SetAnimation(animation_name);
+						animation_leaf_node new_animation;
+						new_animation.set_animation(resource_manager.FindNamedAnimation(animation_name));
+						skeleton_animator_component.SetAnimation(new_animation);
 						//TODO: Setting it to be unpaused for the sake of the animation assignment. Otherwise this should be false.
 						skeleton_animator_component.SetPaused(false);
 					}
