@@ -91,7 +91,7 @@ namespace Sandbox
 		}
 		else
 		{
-			GfxCall(glDrawArrays(_primitive.m_render_mode, 0, _primitive.m_vertex_count));
+			GfxCall(glDrawArrays(_primitive.m_render_mode, 0, (GLsizei)_primitive.m_vertex_count));
 		}
 		glBindVertexArray(0);
 	}

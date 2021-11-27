@@ -574,7 +574,7 @@ namespace Component
 		_lut->m_normalized_parameters.clear();
 
 		if (_curve->m_type == piecewise_curve::EType::Linear)
-			generate_curve_lut(_curve, _lut, _curve->m_nodes.size());
+			generate_curve_lut(_curve, _lut, (unsigned int)_curve->m_nodes.size());
 		else
 		{
 			_lut->m_arclengths.resize(1);
@@ -767,6 +767,7 @@ namespace Component
 		case EType::Hermite: return numerical_sample_hermite(_param);
 		case EType::Bezier: return numerical_sample_bezier(_param);
 		}
+		return glm::vec3(0.0f);
 	}
 
 	struct setup_sample_output
@@ -790,14 +791,14 @@ namespace Component
 
 	glm::vec3 piecewise_curve::numerical_sample_linear(float _param) const
 	{
-		auto result = setup_sample_contiguous_curve(_param, m_nodes.size());
+		auto result = setup_sample_contiguous_curve(_param, (unsigned int)m_nodes.size());
 		return	(1.0f - result.local_segment_param) * m_nodes[result.left] +
 			result.local_segment_param * m_nodes[result.right];
 	}
 
 	glm::vec3 piecewise_curve::numerical_sample_catmull(float _param) const
 	{
-		auto result = setup_sample_contiguous_curve(_param, m_nodes.size());
+		auto result = setup_sample_contiguous_curve(_param, (unsigned int)m_nodes.size());
 
 		float const s_u = result.local_segment_param;
 		float const s_u2 = s_u * s_u;
@@ -847,7 +848,7 @@ namespace Component
 		unsigned int const POINT_COUNT = 1 + (m_nodes.size() - 1) / 3;
 		auto result = setup_sample_contiguous_curve(_param, POINT_COUNT);
 
-		unsigned int const segment = _param * (float)(POINT_COUNT - 1);
+		unsigned int const segment = (unsigned int)(_param * (float)(POINT_COUNT - 1));
 		float const s_u = result.local_segment_param;
 		float const s_u2 = s_u * s_u;
 		float const s_u3 = s_u * s_u2;

@@ -204,6 +204,8 @@
     <ClCompile Include="src\Engine\Serialisation\serialise_gltf.cpp" />
     <ClCompile Include="src\Engine\Utils\algorithm.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\Sandbox\Components\PlayerController.cpp" />
+    <ClCompile Include="src\Sandbox\Components\SandboxCompManager.cpp" />
     <ClCompile Include="src\Sandbox\graphics_pipeline.cpp" />
     <ClCompile Include="src\Sandbox\GraphicsPipeline\lighting_pass.cpp" />
     <ClCompile Include="src\Sandbox\LoadScene.cpp" />
@@ -530,6 +532,8 @@
     <ClInclude Include="src\Engine\Utils\algorithm.h" />
     <ClInclude Include="src\Engine\Utils\logging.h" />
     <ClInclude Include="src\Engine\Utils\singleton.h" />
+    <ClInclude Include="src\Sandbox\Components\PlayerController.h" />
+    <ClInclude Include="src\Sandbox\Components\SandboxCompManager.h" />
     <ClInclude Include="src\Sandbox\graphics_pipeline.h" />
     <ClInclude Include="src\Sandbox\GraphicsPipeline\lighting_pass.h" />
     <ClInclude Include="src\Sandbox\render_common.h" />
@@ -708,6 +712,7 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="src\Engine\Components\EngineComponents.txt" />
+    <Text Include="src\Sandbox\Components\SandboxComponents.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

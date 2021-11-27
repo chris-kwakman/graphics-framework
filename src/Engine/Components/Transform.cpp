@@ -421,7 +421,7 @@ namespace Component
 					more_children_to_delete.begin(), more_children_to_delete.end()
 				);
 			}
-			Singleton<EntityManager>().EntityDelayedDeletion(&entities_to_delete.front(), entities_to_delete.size());
+			Singleton<EntityManager>().EntityDelayedDeletion(&entities_to_delete.front(), (unsigned int)entities_to_delete.size());
 		}
 
 		ImGui::Text("Entity ID: %d", _e.ID());

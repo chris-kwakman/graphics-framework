@@ -263,11 +263,11 @@ namespace Sandbox {
 					if (primitive.m_index_buffer_handle != 0)
 					{
 						auto ibo_info = res_mgr.GetIndexBufferInfo(primitive.m_index_buffer_handle);
-						glDrawElements(primitive.m_render_mode, primitive.m_index_count, ibo_info.m_type, (void*)primitive.m_index_byte_offset);
+						glDrawElements(primitive.m_render_mode, (GLsizei)primitive.m_index_count, ibo_info.m_type, (void*)primitive.m_index_byte_offset);
 					}
 					else
 					{
-						glDrawArrays(primitive.m_render_mode, 0, primitive.m_vertex_count);
+						glDrawArrays(primitive.m_render_mode, 0, (GLsizei)primitive.m_vertex_count);
 					}
 				}
 			}

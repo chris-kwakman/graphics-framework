@@ -44,7 +44,21 @@ namespace Sandbox
 		using index_buffer_handle = Engine::Graphics::buffer_handle;
 		using namespace Engine::Graphics;
 
-		Entity const& camera_entity = Singleton<Engine::Editor::Editor>().EditorCameraEntity;
+		auto cameras = Singleton<Component::CameraManager>().AllCameras();
+		Entity camera_entity = Entity::InvalidEntity; 
+		Entity const editor_cam_entity = Singleton<Engine::Editor::Editor>().EditorCameraEntity;
+		if (cameras.size() > 1)
+		{
+			for (auto const & pair : cameras)
+			{
+				if (pair.first != editor_cam_entity)
+				{
+					camera_entity = pair.first;
+				}
+			}
+		}
+		else
+			camera_entity = editor_cam_entity;
 
 		auto const cam_transform = camera_entity.GetComponent<Component::Transform>().ComputeWorldTransform();
 		glm::vec3 const camera_forward = cam_transform.quaternion * glm::vec3(0.0f, 0.0f, -1.0f);
@@ -451,7 +465,7 @@ namespace Sandbox
 			activate_texture(s_fb_texture_depth, LOC_SAMPLER_DEPTH, 0);
 			activate_texture(s_fb_texture_ao_pingpong, LOC_SAMPLER_AO_INPUT, 1);
 
-			for (unsigned int i = 0; i < s_ambient_occlusion.blur_passes; ++i)
+			for (unsigned int i = 0; i < (unsigned int)s_ambient_occlusion.blur_passes; ++i)
 			{
 				res_mgr.SetBoundProgramUniform(LOC_BLUR_HORIZONTAL, (i%2) == 0);
 				glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -586,10 +600,10 @@ namespace Sandbox
 					res_mgr.SetBoundProgramUniform(LOC_MAT_MV_T_INV, matrix_t_inv_mv);
 
 					auto curve = curve_comp.GetPiecewiseCurve();
-					set_line_mesh(&curve.m_lut.m_points.front(), curve.m_lut.m_points.size());
+					set_line_mesh(&curve.m_lut.m_points.front(), (unsigned int)curve.m_lut.m_points.size());
 					GfxCall(glDrawElements(
 						GL_LINE_STRIP,
-						curve.m_lut.m_points.size(),
+						(GLsizei)curve.m_lut.m_points.size(),
 						GL_UNSIGNED_INT,
 						(void*)0
 					));
@@ -672,7 +686,7 @@ namespace Sandbox
 						auto ibo_comp_type = res_mgr.GetIndexBufferInfo(primitive.m_index_buffer_handle).m_type;
 						render_primitive(primitive);
 					}
-					set_line_mesh(&line_mesh[0], line_mesh.size());
+					set_line_mesh(&line_mesh[0], (unsigned int)line_mesh.size());
 
 					Component::Transform curve_transform = curve_comp.Owner().GetComponent<Component::Transform>();
 					// TODO: Use cached world matrix in transform manager (once implemented)
@@ -694,7 +708,7 @@ namespace Sandbox
 					glBindVertexArray(s_gl_line_vao);
 					GfxCall(glDrawElements(
 						GL_LINES,
-						line_mesh.size(),
+						(GLsizei)line_mesh.size(),
 						GL_UNSIGNED_INT,
 						(void*)0
 					));

@@ -258,6 +258,7 @@ namespace Component
 			return true;
 
 		m_decal_data_map.emplace(_e, decal_textures{});
+		return true;
 	}
 
 	void DecalManager::impl_destroy(Entity const* _entities, unsigned int _count)

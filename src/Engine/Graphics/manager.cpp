@@ -455,7 +455,7 @@ namespace Graphics {
 					current_tinygltf_skin_data.m_skin_node_skeleton_joint_index.size()
 				);
 			}
-			current_tinygltf_skin_data.m_joint_count = skin.joints.size();
+			current_tinygltf_skin_data.m_joint_count = (unsigned int)skin.joints.size();
 			current_tinygltf_skin_data.m_joint_index_channel_count.resize(skin.joints.size(), 0);
 			tinygltf_skin_data_arr.push_back(std::move(current_tinygltf_skin_data));
 
@@ -755,7 +755,7 @@ namespace Graphics {
 			pbr_metallic_roughness_data new_pbr_mrd;
 			for (unsigned int i = 0; i < 4; i++)
 			{
-				new_pbr_mrd.m_base_color_factor[i] = read_material.pbrMetallicRoughness.baseColorFactor[i];
+				new_pbr_mrd.m_base_color_factor[i] = (float)read_material.pbrMetallicRoughness.baseColorFactor[i];
 			}
 
 			auto get_source_of_texture_index = [&](unsigned int _index)->unsigned int

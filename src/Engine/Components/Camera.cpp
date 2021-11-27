@@ -13,7 +13,7 @@ namespace Component
 
 		auto & sdl_manager = Singleton<Engine::sdl_manager>();
 
-		new_camera.m_aspect_ratio = sdl_manager.get_window_size().x / sdl_manager.get_window_size().y;
+		new_camera.m_aspect_ratio = (float)sdl_manager.get_window_size().x / (float)sdl_manager.get_window_size().y;
 		new_camera.set_vertical_fov(3.1415f * 0.4f);
 		new_camera.m_near = 0.5f;
 		new_camera.m_far = 5000.0f;

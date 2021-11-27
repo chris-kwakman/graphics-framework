@@ -9,6 +9,8 @@
 #include <Engine/Components/CurveInterpolator.h>
 #include <Engine/Components/CurveFollower.h>
 
+#include "Components/PlayerController.h"
+
 #include <glm/gtx/quaternion.hpp>
 #include <algorithm>
 #include <fstream>
@@ -66,13 +68,13 @@ namespace Sandbox
 		auto dirlight_iter = _scene.find("directional_light");
 		auto decal_iter = _scene.find("decals");
 		if (object_iter != _scene.end()) {
-			object_count += object_iter->size();
+			object_count += (int)object_iter->size();
 		}
 		if (camera_iter != _scene.end()) {
 			camera_count += 1;
 		}
 		if (light_iter != _scene.end()) {
-			pointlight_count += light_iter->size();
+			pointlight_count += (int)light_iter->size();
 		}
 		if (dirlight_iter != _scene.end()) {
 			dirlight_count += 1;
@@ -95,11 +97,11 @@ namespace Sandbox
 
 		unsigned int lights_offset, dirlight_offset, camera_offset, decal_offset;
 
-		lights_offset = object_iter->size();
-		dirlight_offset = lights_offset + light_iter->size();
+		lights_offset = (unsigned int)object_iter->size();
+		dirlight_offset = lights_offset + (unsigned int)light_iter->size();
 		camera_offset = (dirlight_iter != _scene.end()) ? dirlight_offset + 1 : dirlight_offset;
 		decal_offset = (camera_iter != _scene.end()) ? camera_offset + 1 : camera_offset;
-		unsigned int const node_count = object_iter->size();
+		unsigned int const node_count = (unsigned int)object_iter->size();
 
 		Singleton<SceneEntityComponentManager>().RegisterScene(_scene_path);
 
@@ -112,7 +114,7 @@ namespace Sandbox
 		auto & resource_manager = Singleton<Engine::Graphics::ResourceManager>();
 
 		// Create root entities of scene
-		for (unsigned int i = 0; i < object_count; ++i)
+		for (unsigned int i = 0; i < (unsigned int)object_count; ++i)
 		{
 			Entity current_entity = created_entities[i];
 			auto current_transform = current_entity.GetComponent<Transform>();
@@ -121,7 +123,7 @@ namespace Sandbox
 
 			auto name_iter = object_json.find("name");
 			auto mesh_iter = object_json.find("mesh");
-			auto blendtree_iter = object_json.find("blend_tree");
+			auto animator_iter = object_json.find("skeleton_animator");
 			auto curve_interp_iter = object_json.find("curve_interpolator");
 			auto curve_follower_iter = object_json.find("curve_follower");
 			if (mesh_iter != object_json.end())
@@ -195,18 +197,55 @@ namespace Sandbox
 					);
 				}
 			}
-			if (blendtree_iter != object_json.end())
+			Component::SkeletonAnimator skeleton_animator = Entity::InvalidEntity;
+			if (animator_iter != object_json.end())
 			{
 				Entity animator_entity = find_first_entity_with_animator_comp(current_entity);
 				if (animator_entity != Entity::InvalidEntity)
 				{
-					animator_entity.GetComponent<Component::SkeletonAnimator>()
-						.LoadAnimation(blendtree_iter->get<std::string>());
+					skeleton_animator = animator_entity.GetComponent<Component::SkeletonAnimator>();
+					// Due to how GLTF object is loaded, animator is guaranteed to have Skin Component.
+					auto skin_joints = animator_entity.GetComponent<Component::Skin>().GetSkeletonInstanceNodes();
+					animation_pose new_pose;
+					new_pose.m_joint_transforms.resize(skin_joints.size());
+					for (unsigned int i = 0; i < skin_joints.size(); ++i)
+						new_pose.m_joint_transforms[i] = skin_joints[i].GetLocalTransform();
+
+					skeleton_animator.Deserialize(*animator_iter);
+					skeleton_animator.SetBindPose(std::move(new_pose));
+
+					auto blendtree_file = animator_iter->find("blendtree_file");
+					if (blendtree_file != animator_iter->end())
+					{
+						skeleton_animator.LoadBlendTree(blendtree_file->get<std::string>());
+					}
 				}
 			}
 			if (name_iter != object_json.end())
 				current_entity.SetName(name_iter->get<std::string>().c_str());
 
+			auto player_controller_iter = object_json.find("has_player_controller");
+			if (player_controller_iter != object_json.end())
+			{
+				auto player_controller = Component::Create<Component::PlayerController>(current_entity);
+				if (skeleton_animator.IsValid())
+				{
+					auto & root = skeleton_animator.GetBlendTreeRootNode();
+					animation_tree_node * root_ptr = root.get();
+					animation_blend_1D* cast_root_ptr = dynamic_cast<animation_blend_1D*>(root_ptr);
+					if (cast_root_ptr)
+					{
+						animation_blend_1D* move_ptr = dynamic_cast<animation_blend_1D *>(
+							cast_root_ptr->m_child_blend_nodes[0].get()
+						);
+						player_controller.BindMoveBlendParameter(&move_ptr->m_blend_parameter);
+						animation_blend_2D* look_ptr = dynamic_cast<animation_blend_2D*>(
+							cast_root_ptr->m_child_blend_nodes[1].get()
+						);
+						player_controller.BindLookBlendParameter(&look_ptr->m_blend_parameter);
+					}
+				}
+			}
 		}
 
 		for (unsigned int i = lights_offset; i < lights_offset + pointlight_count; ++i)
@@ -298,7 +337,7 @@ namespace Sandbox
 		// Create all entities and their transforms in scene simultaneously
 		std::vector<Entity> node_entities;
 		node_entities.resize(_scene.at("nodes").size());
-		Singleton<Engine::ECS::EntityManager>().EntityCreationRequest(&node_entities.front(), node_entities.size());
+		Singleton<Engine::ECS::EntityManager>().EntityCreationRequest(&node_entities.front(), (unsigned int)node_entities.size());
 		for (Entity e : node_entities)
 		{
 			Component::Create<Transform>(e);
@@ -528,7 +567,7 @@ namespace Component
 
 		Singleton<Engine::ECS::EntityManager>().EntityDelayedDeletion(
 			&scene_entity_list.front(),
-			scene_entity_list.size()
+			(unsigned int)scene_entity_list.size()
 		);
 		scene_entity_list.clear();
 	}
@@ -546,7 +585,7 @@ namespace Component
 			std::remove(scene_id_entities.begin(), scene_id_entities.end(), _e);
 		}
 		// Add to new scene (if valid one is set)
-		if (_id != INVALID_SCENE_ID);
+		if (_id != INVALID_SCENE_ID)
 		{
 			auto& scene_id_entities = m_scene_id_entities.at(_id);
 			scene_id_entities.push_back(_e);

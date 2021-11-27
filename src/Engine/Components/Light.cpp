@@ -129,7 +129,7 @@ namespace Component
 		{
 			m_cascade_shadow_map_textures[i] = res_mgr.CreateTexture("CSM Texture");
 			res_mgr.AllocateTextureStorage2D(
-				m_cascade_shadow_map_textures[i], GL_DEPTH_COMPONENT32F, glm::uvec2(1 << m_pow2_csm_resolution - i),
+				m_cascade_shadow_map_textures[i], GL_DEPTH_COMPONENT32F, glm::uvec2(1 << (m_pow2_csm_resolution - i)),
 				csm_params, CSM_PARTITION_COUNT
 			);
 

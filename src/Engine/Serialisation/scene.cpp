@@ -19,7 +19,7 @@ namespace Serialisation {
 		SceneContext scene_context;
 		scene_context.m_index_entities.resize(entities.size());
 		bool entity_creation_result = Singleton<EntityManager>().EntityCreationRequest(
-			&scene_context.m_index_entities[0], scene_context.m_index_entities.size()
+			&scene_context.m_index_entities[0], (unsigned int)scene_context.m_index_entities.size()
 		);
 		assert(entity_creation_result);
 

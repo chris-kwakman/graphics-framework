@@ -16,6 +16,8 @@
 #include <Engine/Components/Transform.h>
 #include <Engine/Components/Camera.h>
 
+#include <Sandbox/Components/PlayerController.h>
+
 #include <STB/stb_image_write.h>
 
 #include "LoadScene.h"
@@ -433,12 +435,16 @@ namespace Sandbox
 		move_up = input_manager.GetKeyboardButtonState(SDL_SCANCODE_Q);
 		move_down = input_manager.GetKeyboardButtonState(SDL_SCANCODE_E);
 
-		accum_move_left_right += 1.0f * (move_right == button_state::eDown);
-		accum_move_left_right -= 1.0f * (move_left == button_state::eDown);
-		accum_move_forward_backward += 1.0f * (move_forward == button_state::eDown);
-		accum_move_forward_backward -= 1.0f * (move_backward == button_state::eDown);
-		accum_move_up_down += 1.0f * (move_up == button_state::eDown);
-		accum_move_up_down -= 1.0f * (move_down == button_state::eDown);
+
+		if (input_manager.GetKeyboardButtonState(SDL_SCANCODE_LCTRL) == button_state::eUp)
+		{
+			accum_move_left_right += 1.0f * (move_right == button_state::eDown);
+			accum_move_left_right -= 1.0f * (move_left == button_state::eDown);
+			accum_move_forward_backward += 1.0f * (move_forward == button_state::eDown);
+			accum_move_forward_backward -= 1.0f * (move_backward == button_state::eDown);
+			accum_move_up_down += 1.0f * (move_up == button_state::eDown);
+			accum_move_up_down -= 1.0f * (move_down == button_state::eDown);
+		}
 
 		float const move_speed_mult = input_manager.GetKeyboardButtonState(SDL_SCANCODE_LSHIFT) == button_state::eDown ?
 			CAM_MOV_SHIFT_MULT : 1.0f;
@@ -644,6 +650,11 @@ namespace Sandbox
 
 	}
 
+	void GameplayLogic()
+	{
+		Singleton<Component::PlayerControllerManager>().Update(1.0f / 60.0f);
+	}
+
 	void Update()
 	{
 		if(s_scene_reset)
@@ -694,8 +705,9 @@ namespace Sandbox
 		control_camera();
 		frame_counter++;
 
+		GameplayLogic();
+
 		GraphicsPipelineRender();
-		
 
 		if (s_bool_save_screenshot)
 			SaveScreenShot(s_saved_screenshot_name.c_str());

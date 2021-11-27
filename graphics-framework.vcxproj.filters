@@ -138,6 +138,12 @@
     <ClCompile Include="include\delaunator\delaunator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\Sandbox\Components\SandboxCompManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Sandbox\Components\PlayerController.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Sandbox\sandbox.h">
@@ -1112,6 +1118,12 @@
     <ClInclude Include="include\delaunator\delaunator.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\Sandbox\Components\SandboxCompManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Sandbox\Components\PlayerController.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="working_dir\data\shaders\deferred.frag" />
@@ -1557,5 +1569,6 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="src\Engine\Components\EngineComponents.txt" />
+    <Text Include="src\Sandbox\Components\SandboxComponents.txt" />
   </ItemGroup>
 </Project>

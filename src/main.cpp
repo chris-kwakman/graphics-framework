@@ -12,6 +12,7 @@
 #include <Engine/Components/CurveFollower.h>
 
 #include "Sandbox/sandbox.h"
+#include "Sandbox/Components/SandboxCompManager.h"
 
 #include <thread>
 #include <chrono>
@@ -99,6 +100,7 @@ int main(int argc, char* argv[])
 		while (sdl_manager.m_want_restart)
 		{
 			Component::InitializeEngineComponentManagers();
+			Component::InitializeSandboxComponentManagers();
 
 			sdl_manager.m_want_restart = false;
 			Singleton<Engine::Editor::Editor>().Initialise();
@@ -116,6 +118,7 @@ int main(int argc, char* argv[])
 
 			Singleton<Engine::Editor::Editor>().Shutdown();
 			Component::ShutdownEngineComponentManagers();
+			Component::ShutdownSandboxComponentManagers();
 			Singleton<Engine::Graphics::ResourceManager>().DeleteAllGraphicsResources();
 		}
 	}
