@@ -21,6 +21,7 @@ namespace Component
 				bool				m_loop : 1;
 				bool				m_paused : 1;
 			};
+			unsigned int			m_data;
 		};
 		float						m_global_time;
 
@@ -39,11 +40,10 @@ namespace Component
 
 	struct animation_pose
 	{
-		animation_pose(unsigned int _skeleton_joint_count);
 		std::vector<Engine::Math::transform3D> m_joint_transforms;
 
-		void apply_blend_mask(animation_blend_mask const & _mask);
-		animation_pose & apply_blend_factor(float _factor);
+		void apply_blend_mask(animation_blend_mask const & _mask, animation_pose const & _other);
+		animation_pose & apply_blend_factor(float _factor, animation_pose const& _bind_pose);
 		animation_pose& mix(animation_pose const& _left, animation_pose const& _right, float _blend_param);
 		animation_pose& mix(animation_pose const _poses[3], float const _blend_params[3]);
 	};
@@ -56,12 +56,17 @@ namespace Component
 		animation_tree_node** selected_node_ptr;
 	};
 
+	struct compute_pose_context
+	{
+		animation_pose const * m_bind_pose;
+	};
+
 	struct animation_tree_node
 	{
 		static std::unique_ptr<animation_tree_node> create(nlohmann::json const& _j);
 
 
-		virtual void compute_pose(float _time, animation_pose * _out_pose) const = 0;
+		virtual void compute_pose(float _time, animation_pose * _out_pose, compute_pose_context const& _context) const = 0;
 		virtual float duration() const = 0;
 
 		int gui_node(gui_node_context& _context);
@@ -80,20 +85,19 @@ namespace Component
 		virtual void impl_deserialize(nlohmann::json const& _json) = 0;
 		virtual const char* default_name() const = 0;
 
-
-		animation_blend_mask	m_blend_mask{};
 	};
 
 	struct animation_leaf_node final : public animation_tree_node
 	{
+
 		animation_handle		m_animation = 0;
 
 		animation_leaf_node() { m_name = default_name(); }
 
-		void set_animation(animation_handle _animation, float* _blend_mask_arr = nullptr);
+		void set_animation(animation_handle _animation);
 
 		// Inherited via animation_tree_node
-		virtual void compute_pose(float _time, animation_pose* _out_pose) const override;
+		virtual void compute_pose(float _time, animation_pose* _out_pose, compute_pose_context const & _context) const override;
 		virtual float duration() const override;
 		virtual void gui_edit() override;
 
@@ -111,7 +115,7 @@ namespace Component
 		std::vector<std::unique_ptr<animation_tree_node>> m_child_blend_nodes;
 		std::vector<float> m_blendspace_points;
 		std::vector<float> m_time_warps;
-
+		animation_blend_mask m_blend_mask;
 		float m_blend_parameter;
 
 		animation_blend_1D() { m_name = default_name(); }
@@ -123,7 +127,7 @@ namespace Component
 		float node_warped_duration(unsigned int _index) const;
 
 		// Inherited via animation_tree_node
-		virtual void compute_pose(float _time, animation_pose* _out_pose) const override;
+		virtual void compute_pose(float _time, animation_pose* _out_pose, compute_pose_context const& _context) const override;
 		virtual float duration() const override;
 		virtual void gui_edit() override;
 
@@ -168,7 +172,7 @@ namespace Component
 		float node_warped_duration(unsigned int _index) const;
 
 		// Inherited via animation_tree_node
-		virtual void compute_pose(float _time, animation_pose* _out_pose) const override;
+		virtual void compute_pose(float _time, animation_pose* _out_pose, compute_pose_context const& _context) const override;
 		virtual float duration() const override;
 		virtual void gui_edit() override;
 
@@ -185,11 +189,6 @@ namespace Component
 	{
 
 		float rollover_modulus(float _value, float _maximum);
-
-		float fgcd(float l, float r);
-
-		float find_array_fgcd(float const* _values, unsigned int _count);
-		float find_array_lcm(float const* _values, unsigned int _count);
 
 		void convert_joint_channels_to_transforms(
 			animation_data const * _animation_data,
@@ -225,7 +224,11 @@ namespace Component
 		void				SetPaused(bool _paused);
 
 		void SetAnimation(animation_leaf_node _animation);
-		void LoadAnimation(std::string _filename);
+		void LoadBlendTree(std::string _filename);
+		void Deserialize(nlohmann::json const& _j);
+		void SetBindPose(animation_pose _bind_pose);
+
+		std::unique_ptr<animation_tree_node> & GetBlendTreeRootNode();
 	};
 
 	class SkeletonAnimatorManager : public TCompManager<SkeletonAnimator>
@@ -234,9 +237,13 @@ namespace Component
 
 		struct animator_data
 		{
-			animation_instance							m_instance;
-			std::unique_ptr<animation_tree_node> m_blendtree_root_node;
+			animation_instance						m_instance;
+			animation_pose							m_bind_pose;
+			std::unique_ptr<animation_tree_node>	m_blendtree_root_node;
 		};
+
+		friend void to_json(nlohmann::json& _j, animator_data const& _animator);
+		friend void from_json(nlohmann::json const & _j, animator_data & _animator);
 
 		// TODO: Existential processing, split instances by whether they should be animated or not.
 		// I.e. sort by playing / paused / invalid.
@@ -271,4 +278,13 @@ namespace Component
 
 	void to_json(nlohmann::json& _j, animation_blend_mask const& _mask);
 	void from_json(nlohmann::json const& _j, animation_blend_mask& _mask);
+
+	void to_json(nlohmann::json& _j, animation_instance const& _instance);
+	void from_json(nlohmann::json const & _j, animation_instance & _instance);
+
+	void to_json(nlohmann::json& _j, animation_pose const& _instance);
+	void from_json(nlohmann::json const& _j, animation_pose & _instance);
+
+	void to_json(nlohmann::json& _j, SkeletonAnimatorManager::animator_data const& _animator);
+	void from_json(nlohmann::json const & _j, SkeletonAnimatorManager::animator_data & _animator);
 }

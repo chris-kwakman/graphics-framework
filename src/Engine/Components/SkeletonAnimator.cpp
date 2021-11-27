@@ -32,54 +32,26 @@ namespace Component
         m_anim_speed = _speed && ((~0) << 2);
     }
 
-    animation_pose::animation_pose(unsigned int _skeleton_joint_count = 0)
-    {
-        m_joint_transforms.resize(_skeleton_joint_count);
-    }
-
     /*
     * Applies given blend mask to this pose.
     * @param    animation_blend_mask        Mask to apply
     * @details  TODO: My understanding is probably wrong and should instead perhaps be
     * interpolating between the desired joint transform and the bind pose joint transform.
     */
-    void animation_pose::apply_blend_mask(animation_blend_mask const & _mask)
+    void animation_pose::apply_blend_mask(animation_blend_mask const & _mask, animation_pose const& _other)
     {
         using interp_type = Engine::Graphics::animation_sampler_data::E_interpolation_type;
 
-        glm::vec3 const zero_vec(0.0f);
-        glm::vec3 const one_vec(1.0f);
-        glm::quat const identity_quat(zero_vec);
         for (unsigned int i = 0; i < m_joint_transforms.size(); ++i)
         {
-            float const inv_mask = 1.0f - _mask[i];
-            Engine::Math::transform3D& current_transform = m_joint_transforms[i];
-            AnimationUtil::interpolate_vector(
-                &current_transform.position,
-                &current_transform.position,
-                &zero_vec,
-                inv_mask,
-                interp_type::LINEAR
-            );
-            AnimationUtil::interpolate_vector(
-                &current_transform.scale,
-                &current_transform.scale,
-                &one_vec,
-                inv_mask,
-                interp_type::LINEAR
-            );
-            AnimationUtil::interpolate_quaternion(
-                &current_transform.quaternion,
-                &current_transform.quaternion,
-                &identity_quat,
-                inv_mask,
-                interp_type::LINEAR,
-                false
-            );
+            bool use_left = _mask[i] >= 1.0f;
+            m_joint_transforms[i] = use_left ? 
+                m_joint_transforms[i] : 
+                _other.m_joint_transforms[i];
         }
     }
 
-    animation_pose& animation_pose::apply_blend_factor(float _factor)
+    animation_pose& animation_pose::apply_blend_factor(float _factor, animation_pose const & _bind_pose)
     {
         using interp_type = Engine::Graphics::animation_sampler_data::E_interpolation_type;
 
@@ -90,24 +62,25 @@ namespace Component
         for (unsigned int i = 0; i < m_joint_transforms.size(); ++i)
         {
             Engine::Math::transform3D& current_transform = m_joint_transforms[i];
+            Engine::Math::transform3D const & bind_transform = _bind_pose.m_joint_transforms[i];
             AnimationUtil::interpolate_vector(
                 &current_transform.position,
                 &current_transform.position,
-                &zero_vec,
+                &bind_transform.position,
                 inv_mask,
                 interp_type::LINEAR
             );
             AnimationUtil::interpolate_vector(
                 &current_transform.scale,
                 &current_transform.scale,
-                &one_vec,
+                &bind_transform.scale,
                 inv_mask,
                 interp_type::LINEAR
             );
             AnimationUtil::interpolate_quaternion(
                 &current_transform.quaternion,
                 &current_transform.quaternion,
-                &identity_quat,
+                &bind_transform.quaternion,
                 inv_mask,
                 interp_type::LINEAR,
                 false
@@ -191,39 +164,44 @@ namespace Component
         return *this;
     }
 
-    void animation_leaf_node::set_animation(animation_handle _animation, float* _blend_mask_arr)
+    void animation_leaf_node::set_animation(animation_handle _animation)
     {
         m_animation = _animation;
         animation_data const* anim_data = Singleton<ResourceManager>().FindAnimationData(m_animation);
-        if (m_animation && anim_data)
-        {
-            if (_blend_mask_arr)
-                memcpy(&m_blend_mask.m_joint_blend_masks.front(), _blend_mask_arr, anim_data->m_skeleton_jointnode_channel_count.size());
-        }
     }
 
-    void animation_leaf_node::compute_pose(float _time, animation_pose* _out_pose) const
+    void animation_leaf_node::compute_pose(
+        float _time, 
+        animation_pose* _out_pose, 
+        compute_pose_context const & _context
+    ) const
     {
         animation_data const * anim_data = Singleton<Engine::Graphics::ResourceManager>()
                                             .FindAnimationData(m_animation);
-        if (!anim_data)
-            return;
 
         float anim_channel_data[1024];
-        *_out_pose = animation_pose(anim_data->m_skeleton_jointnode_channel_count.size());
-        AnimationUtil::compute_animation_channel_data(
-            anim_data,
-            _time,
-            anim_channel_data,
-            true
-        );
-        AnimationUtil::convert_joint_channels_to_transforms(
-            anim_data,
-            anim_channel_data,
-            &_out_pose->m_joint_transforms.front(),
-            _out_pose->m_joint_transforms.size()
-        );
-        _out_pose->apply_blend_mask(m_blend_mask);
+        _out_pose->m_joint_transforms.resize(_context.m_bind_pose->m_joint_transforms.size());
+        // Use animation to compute new pose.
+        if (anim_data)
+        {
+            AnimationUtil::compute_animation_channel_data(
+                anim_data,
+                _time,
+                anim_channel_data,
+                true
+            );
+            AnimationUtil::convert_joint_channels_to_transforms(
+                anim_data,
+                anim_channel_data,
+                &_out_pose->m_joint_transforms.front(),
+                (unsigned int)_out_pose->m_joint_transforms.size()
+            );
+        }
+        // Use bind pose as fallback pose.
+        else
+        {
+            *_out_pose = *_context.m_bind_pose;
+        }
     }
 
     /*
@@ -247,7 +225,7 @@ namespace Component
         m_blendspace_points.emplace_back(_range_start);
         m_time_warps.emplace_back(1.0f);
 
-        edit_node_blendspace_point(m_child_blend_nodes.size() - 1, _range_start);
+        edit_node_blendspace_point((unsigned int)m_child_blend_nodes.size() - 1, _range_start);
     }
 
     /*
@@ -302,11 +280,14 @@ namespace Component
     * @param    float               Time at which to blend contained poses.
     * @param    animation_pose *    Pointer to output pose.
     */
-    void animation_blend_1D::compute_pose(float _time, animation_pose* _out_pose) const
+    void animation_blend_1D::compute_pose(float _time, animation_pose* _out_pose, compute_pose_context const& _context) const
     {
         // Return early if we have no valid nodes to interpolate between
         if (m_child_blend_nodes.empty())
+        {
+            *_out_pose = *_context.m_bind_pose;
             return;
+        }
 
         auto & res_mgr = Singleton<ResourceManager>();
         auto [bound_left, bound_right] = Engine::Utils::float_binary_search(
@@ -316,31 +297,51 @@ namespace Component
 
         if (bound_left == bound_right)
         {
-            m_child_blend_nodes[bound_left]->compute_pose(_time, _out_pose);
+            m_child_blend_nodes[bound_left]->compute_pose(_time, _out_pose, _context);
             return;
         }
+
+        bool apply_mask = !m_blend_mask.m_joint_blend_masks.empty();
 
         animation_pose bound_poses[2]{
             animation_pose(),
             animation_pose()
         };
-
         m_child_blend_nodes[bound_left]->compute_pose(
             AnimationUtil::rollover_modulus(_time * m_time_warps[bound_left], node_warped_duration(bound_left)),
-            &bound_poses[0]
+            &bound_poses[0],
+            _context
         );
         m_child_blend_nodes[bound_right]->compute_pose(
             AnimationUtil::rollover_modulus(_time * m_time_warps[bound_right], node_warped_duration(bound_right)),
-            &bound_poses[1]
+            &bound_poses[1],
+            _context
         );
-        // Return early if we are not able to find two valid poses to interpolate between.
-        if (bound_poses[0].m_joint_transforms.empty() || bound_poses[1].m_joint_transforms.empty())
-            return;
+        // Blend smoothly between bounding nodes.
+        if (!apply_mask)
+        {
 
-        float clamped_blend_param = glm::clamp(m_blend_parameter, m_blendspace_points.front(), m_blendspace_points.back());
-        float segment_blend_parameter = (clamped_blend_param - m_blendspace_points[bound_left]) / (m_blendspace_points[bound_right] - m_blendspace_points[bound_left]);
-        _out_pose->mix(bound_poses[0], bound_poses[1], segment_blend_parameter);
-        _out_pose->apply_blend_mask(m_blend_mask);
+            // Return early if we are not able to find two valid poses to interpolate between.
+            if (bound_poses[0].m_joint_transforms.empty() || bound_poses[1].m_joint_transforms.empty())
+            {
+                *_out_pose = *_context.m_bind_pose;
+                return;
+            }
+
+            float clamped_blend_param = glm::clamp(m_blend_parameter, m_blendspace_points.front(), m_blendspace_points.back());
+            float segment_blend_parameter = (clamped_blend_param - m_blendspace_points[bound_left]) / (m_blendspace_points[bound_right] - m_blendspace_points[bound_left]);
+            _out_pose->mix(bound_poses[0], bound_poses[1], segment_blend_parameter);
+        }
+        // No blending, pick and choose nodes to use for animation.
+        else
+        {
+            *_out_pose = bound_poses[0];
+            _out_pose->apply_blend_mask(
+                m_blend_mask,
+                bound_poses[1]
+            );
+        }
+
     }
 
     float animation_blend_1D::duration() const
@@ -448,11 +449,14 @@ namespace Component
         return { triangle(255,255,255), glm::vec2(-1.0f, -1.0f) };
     }
 
-    void animation_blend_2D::compute_pose(float _time, animation_pose* _out_pose) const
+    void animation_blend_2D::compute_pose(float _time, animation_pose* _out_pose, compute_pose_context const& _context) const
     {
         // Return early if we have no valid nodes to interpolate between
         if (m_child_blend_nodes.empty())
+        {
+            *_out_pose = *_context.m_bind_pose;
             return;
+        }
 
         auto& res_mgr = Singleton<ResourceManager>();
         
@@ -470,19 +474,25 @@ namespace Component
             tri_node_indices[0] == tri_node_indices[1] &&
             tri_node_indices[1] == tri_node_indices[2] &&
             tri_node_indices[0] == std::numeric_limits<uint8_t>::max()
-        )
+            )
+        {
+            *_out_pose = *_context.m_bind_pose;
             return;
+        }
 
         for (unsigned int i = 0; i < 3; ++i)
         {
             m_child_blend_nodes[tri_node_indices[i]]->compute_pose(
                 AnimationUtil::rollover_modulus(_time * m_time_warps[i], node_warped_duration(tri_node_indices[i])),
-                &bound_poses[i]
+                &bound_poses[i],
+                _context
             );
             // Early return if we failed to animate pose.
             // This happens when the node does not have a valid animation.
             if (bound_poses[i].m_joint_transforms.empty())
-                return;
+            {
+                *_out_pose = *_context.m_bind_pose;
+            }
         }
 
         
@@ -491,7 +501,6 @@ namespace Component
         float const blend_u = 1.0f - blend_v - blend_w;
         float const blend_values[3] = { blend_u, blend_v, blend_w };
         _out_pose->mix(bound_poses, blend_values);
-        _out_pose->apply_blend_mask(m_blend_mask);
     }
 
     float animation_blend_2D::duration() const
@@ -508,7 +517,7 @@ namespace Component
     {
         auto& res_mgr = Singleton<ResourceManager>();
 
-        std::string anim_handle_label = "No Animation";
+        std::string anim_handle_label = "Bind Pose";
         if (_anim && *_anim)
         {
             animation_data const * data = res_mgr.FindAnimationData(*_anim);
@@ -519,6 +528,22 @@ namespace Component
                 anim_handle_label = data->m_name;
             }
         }
+
+        ImGui::PushStyleColor(ImGuiCol_Button, glm::vec4(0.8f, 0.0f, 0.0f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+        if (ImGui::SmallButton("X"))
+            *_anim = 0;
+        ImGui::PopStyleColor(2);
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::BeginTooltip();
+            const char* display_button_str = "Reset to bind pose";
+            ImGui::Text(display_button_str);
+            anim_handle_label = "Bind Pose";
+            ImGui::EndTooltip();
+            return true;
+        }
+        ImGui::SameLine();
 
         ImGui::InputText("Animation", &anim_handle_label, ImGuiInputTextFlags_ReadOnly);
         if (ImGui::BeginDragDropTarget())
@@ -594,13 +619,13 @@ namespace Component
 
     void animation_leaf_node::gui_edit()
     {
-        if (ImGui::Button("Edit Blend Mask"))
-        {
-            s_p_edit_blend_mask = &m_blend_mask;
-            s_open_blendmask_edit_popup = true;
-        }
         if (gui_dragdrop_animation_handle(&m_animation))
-            m_name = Singleton<ResourceManager>().FindAnimationData(m_animation)->m_name;
+        {
+            if (m_animation != 0)
+                m_name = Singleton<ResourceManager>().FindAnimationData(m_animation)->m_name;
+            else
+                m_name = "Bind Pose";
+        }
     }
 
 
@@ -665,6 +690,9 @@ namespace Component
         }
         ImGui::SliderFloat("Blend Parameter", &m_blend_parameter, slider_left, slider_right, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 
+        float avail_width = ImGui::GetContentRegionAvailWidth();
+        ImGui::SetNextItemWidth(avail_width * 0.9f);
+        ImGui::Indent(avail_width * 0.05f);
         if (ImGui::Button("Edit Blend Mask"))
         {
             s_p_edit_blend_mask = &m_blend_mask;
@@ -709,10 +737,10 @@ namespace Component
 
                 if (edit_blend_point)
                     edit_node_blendspace_point(i, new_blendspace_point);
-ImGui::PopID();
+                ImGui::PopID();
             }
+            ImGui::EndTable();
         }
-        ImGui::EndTable();
     }
 
 
@@ -791,7 +819,7 @@ ImGui::PopID();
         {
             blend_parameter_edited |= ImGui::VSliderFloat(
                 "###BlendParam_Y",
-                ImVec2(child_size.x * 0.05, child_size.y - 2.0f * ImGui::GetTextLineHeightWithSpacing()),
+                ImVec2(child_size.x * 0.05f, child_size.y - 2.0f * ImGui::GetTextLineHeightWithSpacing()),
                 &m_blend_parameter.y, range_min.y, range_max.y, "%.2f",
                 ImGuiSliderFlags_AlwaysClamp
             );
@@ -876,12 +904,6 @@ ImGui::PopID();
         }
         ImGui::EndChild();
 
-        if (ImGui::Button("Edit Blend Mask"))
-        {
-            s_p_edit_blend_mask = &m_blend_mask;
-            s_open_blendmask_edit_popup = true;
-        }
-
         //if (ImGui::Button("Scale Time Warp to Least Common Multiple of durations"))
         //{
         //    std::vector<float> child_durations(m_child_blend_nodes.size());
@@ -953,7 +975,6 @@ ImGui::PopID();
     nlohmann::json animation_tree_node::serialize() const
     {
         nlohmann::json j;
-        j["blend_mask"] = m_blend_mask;
         j["name"] = m_name;
         j.update(impl_serialize());
         return j;
@@ -961,7 +982,6 @@ ImGui::PopID();
 
     void animation_tree_node::deserialize(nlohmann::json const& _json)
     {
-        m_blend_mask = _json.value("blend_mask", decltype(m_blend_mask){});
         m_name = _json.value("name", default_name());
 
         impl_deserialize(_json);
@@ -989,6 +1009,7 @@ ImGui::PopID();
         j["blend_parameter"] = m_blend_parameter;
         j["child_blendspace_points"] = m_blendspace_points;
         j["child_time_warps"] = m_time_warps;
+        j["blend_mask"] = m_blend_mask;
         if (!m_child_blend_nodes.empty())
         {
             nlohmann::json & child_nodes = j["child_nodes"];
@@ -1003,6 +1024,7 @@ ImGui::PopID();
         m_blend_parameter = _json["blend_parameter"];
         m_blendspace_points = _json["child_blendspace_points"].get<decltype(m_blendspace_points)>();
         m_time_warps = _json.value("child_time_warps", decltype(m_time_warps)(m_blendspace_points.size(), 1.0f));
+        m_blend_mask = _json.value("blend_mask", animation_blend_mask());
         auto child_node_arr_iter = _json.find("child_nodes");
         if (child_node_arr_iter != _json.end())
         {
@@ -1306,8 +1328,15 @@ void SkeletonAnimatorManager::UpdateAnimatorInstances(float _dt)
         if (skeleton_joint_transforms.empty())
             continue;
 
+        compute_pose_context context;
+        context.m_bind_pose = &animator.m_bind_pose;
+
         animation_pose new_pose;
-        animator.m_blendtree_root_node->compute_pose(animator.m_instance.m_global_time, &new_pose);
+        animator.m_blendtree_root_node->compute_pose(
+            animator.m_instance.m_global_time, 
+            &new_pose,
+            context
+        );
 
         // Check if we were able to compute new pose.
         if (!new_pose.m_joint_transforms.empty())
@@ -1316,7 +1345,7 @@ void SkeletonAnimatorManager::UpdateAnimatorInstances(float _dt)
             update_joint_transform_components(
                 &skeleton_joint_transforms.front(), 
                 &new_pose.m_joint_transforms.front(),
-                new_pose.m_joint_transforms.size()
+                (unsigned int)new_pose.m_joint_transforms.size()
             );
         }
 
@@ -1456,15 +1485,12 @@ void SkeletonAnimatorManager::window_edit_blendtree(std::unique_ptr<animation_tr
     if(open_loadfile_popup)
         ImGui::OpenPopup("Load Blend Tree File");
     if (s_open_blendmask_edit_popup)
-    {
         ImGui::OpenPopup("Blend Mask Editor");
-        s_open_blendmask_edit_popup = false;
-    }
         
 
     glm::uvec2 const window_size = Singleton<Engine::sdl_manager>().get_window_size();
-    ImVec2 const center = ImVec2(window_size.x / 2,  window_size.y / 2);
-    if (open_savefile_popup | open_loadfile_popup | open_blendmask_edit_popup)
+    ImVec2 const center = ImVec2((float)window_size.x / 2.0f,  (float)window_size.y / 2.0f);
+    if (open_savefile_popup | open_loadfile_popup | s_open_blendmask_edit_popup)
     {
         ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5, 0.5));
     }
@@ -1502,7 +1528,7 @@ void SkeletonAnimatorManager::window_edit_blendtree(std::unique_ptr<animation_tr
     }
     if (ImGui::BeginPopupModal("Load Blend Tree File", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove))
     {
-        if (ImGui::BeginListBox("###Files", ImVec2(window_size.x * 0.25, window_size.y * 0.75)))
+        if (ImGui::BeginListBox("###Files", ImVec2(window_size.x * 0.25f, window_size.y * 0.75f)))
         {
             using namespace std::filesystem;
             // TODO: Support recursive directory traversal.
@@ -1540,53 +1566,100 @@ void SkeletonAnimatorManager::window_edit_blendtree(std::unique_ptr<animation_tr
     }
     if (ImGui::BeginPopup("Blend Mask Editor"))
     {
+        s_open_blendmask_edit_popup = false;
+
         Component::Skin const skin_comp = m_edit_tree.GetComponent<Component::Skin>();
 
         static float new_factor = 1.0f;
         if (ImGui::IsWindowAppearing())
             new_factor = 1.0f;
 
-        bool apply_global_mask = ImGui::Button("Apply");
-        ImGui::SameLine();
-        ImGui::InputFloat("Factor for all joints", &new_factor, 0.0f, 2.0f, "%.3f");
-        if (ImGui::Button("Reset all factors to Default"))
-            s_p_edit_blend_mask->m_joint_blend_masks.clear();
+        bool mask_enabled = !s_p_edit_blend_mask->m_joint_blend_masks.empty();
 
-        if (apply_global_mask)
+        if (ImGui::Checkbox("Blending Mask Enabled", &mask_enabled))
         {
-            apply_global_mask = false;
-            if (s_p_edit_blend_mask->m_joint_blend_masks.empty())
-                s_p_edit_blend_mask->m_joint_blend_masks.resize(skin_comp.GetSkeletonInstanceNodes().size());
-            for (unsigned int i = 0; i < s_p_edit_blend_mask->m_joint_blend_masks.size(); ++i)
-                s_p_edit_blend_mask->m_joint_blend_masks[i] = new_factor;
-        }
-
-        bool table_began = ImGui::BeginTable("Skin Joints", 2, ImGuiTableFlags_BordersH);
-        if (table_began)
-        {
-            ImGui::TableSetupColumn("Joint", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("Mask Factor");
-            ImGui::TableHeadersRow();
-
-            auto const & skeleton_joints = skin_comp.GetSkeletonInstanceNodes();
-            for (unsigned int i = 0; i < skeleton_joints.size(); ++i)
+            if (mask_enabled)
             {
-                ImGui::PushID(i);
-                ImGui::TableNextRow();
-                ImGui::TableNextColumn();
-                ImGui::Text(skeleton_joints[i].Owner().GetName());
-                ImGui::TableNextColumn();
-                float value = (*s_p_edit_blend_mask)[i];
-                if (ImGui::InputFloat("", &value, 0.0f, 2.0f, "%.3f"))
-                {
-                    if (s_p_edit_blend_mask->m_joint_blend_masks.empty())
-                        s_p_edit_blend_mask->m_joint_blend_masks.resize(skeleton_joints.size(), 1.0f);
-                    s_p_edit_blend_mask->m_joint_blend_masks[i] = value;
-                }
-                ImGui::PopID();
+                s_p_edit_blend_mask->m_joint_blend_masks.resize(
+                    get_entity_animator(m_edit_tree).m_bind_pose.m_joint_transforms.size(), 1.0f
+                );
+            }
+            else
+            {
+                s_p_edit_blend_mask->m_joint_blend_masks.clear();
             }
         }
-        ImGui::EndTable();
+
+        if (mask_enabled)
+        {
+            bool apply_global_mask = ImGui::Button("Apply");
+            ImGui::SameLine();
+            ImGui::InputFloat("Factor for all joints", &new_factor, 0.0f, 2.0f, "%.3f");
+            if (ImGui::Button("Reset all factors to Default"))
+                s_p_edit_blend_mask->m_joint_blend_masks.clear();
+
+            if (apply_global_mask)
+            {
+                apply_global_mask = false;
+                if (s_p_edit_blend_mask->m_joint_blend_masks.empty())
+                    s_p_edit_blend_mask->m_joint_blend_masks.resize(skin_comp.GetSkeletonInstanceNodes().size());
+                for (unsigned int i = 0; i < s_p_edit_blend_mask->m_joint_blend_masks.size(); ++i)
+                    s_p_edit_blend_mask->m_joint_blend_masks[i] = new_factor;
+            }
+
+            bool table_began = ImGui::BeginTable(
+                "Skin Joints", 2, 
+                ImGuiTableFlags_BordersH | ImGuiTableFlags_ScrollY, 
+                glm::vec2(ImGui::GetContentRegionAvailWidth(), window_size.y * 0.3f)
+            );
+            if (table_began)
+            {
+                ImGui::TableSetupColumn("Joint", ImGuiTableColumnFlags_WidthStretch);
+                ImGui::TableSetupColumn("Mask Factor");
+                ImGui::TableHeadersRow();
+
+                float imgui_alpha = ImGui::GetStyleColorVec4(ImGuiCol_Button).w;
+                auto const & skeleton_joints = skin_comp.GetSkeletonInstanceNodes();
+                for (unsigned int i = 0; i < skeleton_joints.size(); ++i)
+                {
+                    ImGui::PushID(i);
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::Text(skeleton_joints[i].Owner().GetName());
+                    ImGui::TableNextColumn();
+                    
+                    float value = (*s_p_edit_blend_mask)[i];
+                    bool use_left = (value >= 0.5f);
+                    const char* mask_side;
+                    if (use_left)
+                    {
+                        ImGui::PushStyleColor(ImGuiCol_Button, glm::vec4(0.0f, 1.0f, 0.0f, imgui_alpha));
+                        mask_side = "Use Left";
+                    }
+                    else
+                    {
+                        ImGui::PushStyleColor(ImGuiCol_Button, glm::vec4(1.0f, 0.0f, 0.0f, imgui_alpha));
+                        mask_side = "Use Right";
+                    }
+
+                    if (ImGui::Button(mask_side))
+                    {
+                        s_p_edit_blend_mask->m_joint_blend_masks[i] = use_left ? 0.0f : 1.0f;
+                    }
+                    ImGui::PopStyleColor();
+
+                    //if (ImGui::InputFloat("", &value, 0.0f, 2.0f, "%.3f"))
+                    //{
+                    //    if (s_p_edit_blend_mask->m_joint_blend_masks.empty())
+                    //        s_p_edit_blend_mask->m_joint_blend_masks.resize(skeleton_joints.size(), 1.0f);
+                    //    s_p_edit_blend_mask->m_joint_blend_masks[i] = value;
+                    //}
+                    ImGui::PopID();
+                }
+                ImGui::EndTable();
+            }
+        }
+
         ImGui::EndPopup();
     }
     else
@@ -1655,7 +1728,7 @@ void SkeletonAnimator::SetAnimation(animation_leaf_node _animation)
     GetManager().get_entity_animator(Owner()).m_blendtree_root_node = std::make_unique<animation_leaf_node>(_animation);
 }
 
-void SkeletonAnimator::LoadAnimation(std::string _filename)
+void SkeletonAnimator::LoadBlendTree(std::string _filename)
 {
     auto& root_node = GetManager().get_entity_animator(Owner()).m_blendtree_root_node;
     std::filesystem::path path = s_blendtree_dir / _filename;
@@ -1669,6 +1742,20 @@ void SkeletonAnimator::LoadAnimation(std::string _filename)
 
 }
 
+void SkeletonAnimator::Deserialize(nlohmann::json const& _j)
+{
+    GetManager().get_entity_animator(Owner()) = _j;
+}
+
+void SkeletonAnimator::SetBindPose(animation_pose _bind_pose)
+{
+    GetManager().get_entity_animator(Owner()).m_bind_pose = _bind_pose;
+}
+
+std::unique_ptr<animation_tree_node>& SkeletonAnimator::GetBlendTreeRootNode()
+{
+    return GetManager().get_entity_animator(Owner()).m_blendtree_root_node;
+}
 
 void to_json(nlohmann::json& _j, animation_blend_mask const& _mask)
 {
@@ -1678,6 +1765,44 @@ void to_json(nlohmann::json& _j, animation_blend_mask const& _mask)
 void from_json(nlohmann::json const& _j, animation_blend_mask& _mask)
 {
     _mask.m_joint_blend_masks = _j.get<decltype(_mask.m_joint_blend_masks)>();
+}
+
+void to_json(nlohmann::json& _j, animation_instance const& _instance)
+{
+    _j["animation_speed"] = _instance.m_anim_speed;
+    _j["loop"] = _instance.m_loop;
+    _j["paused"] = _instance.m_paused;
+    _j["global_time"] = _instance.m_global_time;
+}
+
+void from_json(nlohmann::json const& _j, animation_instance& _instance)
+{
+    _instance.m_anim_speed = _j.value("animation_speed", 1.0f);
+    _instance.m_loop = _j.value("loop", true);
+    _instance.m_paused = _j.value("paused", false);
+    _instance.m_global_time = _j.value("global_time", 0.0f);
+}
+
+void to_json(nlohmann::json& _j, animation_pose const& _instance)
+{
+    _j["joint_transforms"] = _instance.m_joint_transforms;
+}
+
+void from_json(nlohmann::json const& _j, animation_pose& _instance)
+{
+    _instance.m_joint_transforms = _j["joint_transforms"].get<std::vector<Engine::Math::transform3D>>();
+}
+
+void to_json(nlohmann::json& _j, SkeletonAnimatorManager::animator_data const& _animator)
+{
+    _j["instance_data"] = _animator.m_instance;
+    _j["bind_pose"] = _animator.m_bind_pose;
+}
+
+void from_json(nlohmann::json const& _j, SkeletonAnimatorManager::animator_data& _animator)
+{
+    _animator.m_instance = _j.value("instance_data", animation_instance());
+    _animator.m_bind_pose = _j.value("bind_pose", animation_pose());
 }
 
 }
