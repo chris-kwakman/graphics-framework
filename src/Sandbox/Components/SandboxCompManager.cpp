@@ -15,5 +15,5 @@ void Component::ShutdownSandboxComponentManagers()
 {
 #define DECLARE_MANAGER(TCompManager) Singleton<TCompManager>().Clear();
 #include "SandboxComponents.txt"
-#undef DECLARE_MANAGER;
+#undef DECLARE_MANAGER
 }

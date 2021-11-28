@@ -139,7 +139,7 @@ namespace Component
 		if (m_local_transforms.empty() || _idx == m_local_transforms.size() - 1)
 			return;
 
-		unsigned int const back_entity_idx = m_transform_owners.size() - 1;
+		unsigned int const back_entity_idx = (unsigned int)m_transform_owners.size() - 1u;
 		Entity const index_entity = m_transform_owners[_idx];
 		Entity const back_entity = m_transform_owners[back_entity_idx];
 

@@ -10,7 +10,7 @@ namespace Component
 
 	bool PointLightManager::impl_create(Entity _e)
 	{
-		unsigned int const new_light_index = m_light_color_arr.size();
+		unsigned int const new_light_index = (unsigned int)m_light_color_arr.size();
 		m_entity_map.emplace(_e, new_light_index);
 		m_light_color_arr.emplace_back(1.0f, 1.0f, 1.0f);
 		m_light_radius_arr.emplace_back(10.0f);
@@ -217,14 +217,15 @@ namespace Component
 		if (s_view_csm)
 		{
 			auto const csm_tex_info = Singleton<Engine::Graphics::ResourceManager>().GetTextureInfo(m_cascade_shadow_map_textures[s_edit_csm_partition]);
-			float const ar = csm_tex_info.m_size.x / csm_tex_info.m_size.y;
+			float const ar = (float)csm_tex_info.m_size.x / (float)csm_tex_info.m_size.y;
 
 			ImVec2 const avail_size = ImGui::GetContentRegionAvail();
 			ImVec2 const display_size(avail_size.x, avail_size.x / ar);
 
 			ImGui::Text("Size: %d", csm_tex_info.m_size.x);
 			ImGui::Image(
-				(void*)csm_tex_info.m_gl_source_id, display_size, ImVec2(0, 1), ImVec2(1, 0)
+				reinterpret_cast<ImTextureID>((size_t)csm_tex_info.m_gl_source_id), 
+				display_size, ImVec2(0, 1), ImVec2(1, 0)
 			);
 		}
 

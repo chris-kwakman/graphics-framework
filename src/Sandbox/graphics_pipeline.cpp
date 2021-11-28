@@ -93,7 +93,7 @@ namespace Sandbox
 				return !pair.first.HasComponent<Component::Skin>();
 			}
 		);
-		unsigned int first_skinned_renderable_index = sorted_renderables.size();
+		unsigned int first_skinned_renderable_index = (unsigned int)sorted_renderables.size();
 		std::copy_if(
 			all_renderables.begin(), all_renderables.end(), std::back_inserter(sorted_renderables),
 			[](decltype(all_renderables)::value_type const& pair)->bool

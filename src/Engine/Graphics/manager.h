@@ -38,7 +38,7 @@ namespace Graphics {
 		enum E_target_path : uint8_t {TRANSLATION, SCALE, ROTATION};
 		animation_sampler_handle		m_anim_sampler_handle;
 		E_target_path					m_target_path; // Name of animated property.
-		uint16_t						m_skeleton_relative_jointnode_index; // Relative ID of node within skeleton.
+		uint8_t							m_skeleton_relative_jointnode_index; // Relative ID of node within skeleton.
 	};
 
 	struct animation_data
@@ -305,7 +305,7 @@ namespace Graphics {
 
 	public:
 
-		gltf_model_data const & ImportModel_GLTF(const char * _filepath);
+		gltf_model_data const * ImportModel_GLTF(const char * _filepath);
 		gltf_model_data const & GetImportedGLTFModelData(const char* _filepath) const;
 		bool					IsGLTFModelImported(const char* _filepath) const;
 

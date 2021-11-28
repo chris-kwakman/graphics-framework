@@ -22,5 +22,5 @@ void Component::ShutdownEngineComponentManagers()
 {
 #define DECLARE_MANAGER(TCompManager) Singleton<TCompManager>().Clear();
 #include "EngineComponents.txt"
-#undef DECLARE_MANAGER;
+#undef DECLARE_MANAGER
 }

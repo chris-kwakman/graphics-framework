@@ -820,7 +820,7 @@ namespace Component
 	glm::vec3 piecewise_curve::numerical_sample_hermite(float _param) const
 	{
 		// Number of points in the curve (NOT nodes)
-		unsigned int const POINT_COUNT = 1 + (m_nodes.size() - 1) / 3;
+		unsigned int const POINT_COUNT = 1 + ((unsigned int)m_nodes.size() - 1u) / 3u;
 		auto result = setup_sample_contiguous_curve(_param, POINT_COUNT);
 
 		unsigned int const segment = (unsigned int)floorf(_param * (float)(POINT_COUNT - 1));
@@ -845,10 +845,10 @@ namespace Component
 	glm::vec3 piecewise_curve::numerical_sample_bezier(float _param) const
 	{
 		// Number of points in the curve (NOT nodes)
-		unsigned int const POINT_COUNT = 1 + (m_nodes.size() - 1) / 3;
+		unsigned int const POINT_COUNT = 1u + ((unsigned int)m_nodes.size() - 1u) / 3u;
 		auto result = setup_sample_contiguous_curve(_param, POINT_COUNT);
 
-		unsigned int const segment = (unsigned int)(_param * (float)(POINT_COUNT - 1));
+		unsigned int const segment = (unsigned int)(_param * (float)(POINT_COUNT - 1u));
 		float const s_u = result.local_segment_param;
 		float const s_u2 = s_u * s_u;
 		float const s_u3 = s_u * s_u2;
@@ -858,9 +858,9 @@ namespace Component
 
 		unsigned int const segment_node_offset = 3 * segment;
 		glm::vec3 const s_p0 = m_nodes[segment_node_offset];
-		glm::vec3 const s_p1 = s_p0 + m_nodes[segment_node_offset + 1];
-		glm::vec3 const s_p3 = m_nodes[segment_node_offset + 3];
-		glm::vec3 const s_p2 = s_p3 + m_nodes[segment_node_offset + 2];
+		glm::vec3 const s_p1 = s_p0 + m_nodes[segment_node_offset + 1u];
+		glm::vec3 const s_p3 = m_nodes[segment_node_offset + 3u];
+		glm::vec3 const s_p2 = s_p3 + m_nodes[segment_node_offset + 2u];
 
 		return s_inv_u3 * s_p0 + 3 * s_u * s_inv_u2 * s_p1 + 3 * s_u2 * s_inv_u * s_p2 + s_u3 * s_p3;
 	}
@@ -887,7 +887,7 @@ namespace Component
 	float lookup_table::compute_arclength(float _normalized_param) const
 	{
 		int idx_min = 0;
-		int idx_max = m_points.size() - 1;
+		int idx_max = (int)m_points.size() - 1;
 		if (m_points.size() < 2)
 			return 0.0f;
 		else if (m_points.size() < 3)
@@ -921,7 +921,7 @@ namespace Component
 	float lookup_table::compute_normalized_parameter(float _arclength) const
 	{
 		int idx_min = 0;
-		int idx_max = m_points.size()-1;
+		int idx_max = (int)m_points.size()-1;
 
 		if (m_points.size() < 2)
 			return 0.0f;
@@ -948,7 +948,7 @@ namespace Component
 	glm::vec3 lookup_table::get_distance_position(float _arclength) const
 	{
 		int idx_min = 0;
-		int idx_max = m_points.size() - 1;
+		int idx_max = (int)m_points.size() - 1;
 
 		if (m_points.size() < 2)
 			return glm::vec3(0.0f);

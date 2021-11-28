@@ -29,7 +29,7 @@ namespace Component
 
 		std::unordered_map<std::string, uint8_t > m_scene_filepath_id;
 		std::unordered_map<Entity, uint8_t, Entity::hash> m_entity_scene_id;
-		std::unordered_map<uint8_t, std::vector<Entity>> m_scene_id_entities;
+		std::unordered_map<uint8_t, std::unordered_set<Entity, Entity::hash>> m_scene_id_entities;
 
 		virtual void impl_clear() override;
 		virtual bool impl_create(Entity _e) override;

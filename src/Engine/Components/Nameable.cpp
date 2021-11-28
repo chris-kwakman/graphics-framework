@@ -79,7 +79,7 @@ namespace Component
 
 	void NameableManager::set_index_name(unsigned int _index, const char* _name)
 	{
-		unsigned int input_name_string_length = strlen(_name);
+		unsigned int input_name_string_length = (unsigned int)strlen(_name);
 		memset(&m_index_names[_index].front(), 0, MAX_STRING_SIZE-1);
 		memcpy(
 			&m_index_names[_index].front(), _name, 

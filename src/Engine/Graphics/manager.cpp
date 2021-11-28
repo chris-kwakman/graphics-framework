@@ -129,7 +129,7 @@ namespace Graphics {
 		return success;
 	}*/
 
-	ResourceManager::gltf_model_data const & ResourceManager::ImportModel_GLTF(const char* _filepath)
+	ResourceManager::gltf_model_data const * ResourceManager::ImportModel_GLTF(const char* _filepath)
 	{
 		using namespace tinygltf;
 
@@ -148,17 +148,17 @@ namespace Graphics {
 
 		if (!warning.empty()) {
 			Engine::Utils::print_base("TinyGLTF", "Warning: %s", warning.c_str());
-			return gltf_model_data{};
+			return nullptr;
 		}
 
 		if (!error.empty()) {
 			Engine::Utils::print_base("TinyGLTF", "Error: %s", error.c_str());
-			return gltf_model_data{};
+			return nullptr;
 		}
 
 		if (!success) {
 			Engine::Utils::print_base("TinyGLTF", "Failed to parse glTF.");
-			return gltf_model_data{};
+			return nullptr;
 		}
 
 		if (!tinygltf_model.animations.empty() && tinygltf_model.skins.empty())
@@ -445,14 +445,14 @@ namespace Graphics {
 			jointnode_idx_to_tinygltf_skin_data_idx_map.emplace(skin.skeleton, skin_counter);
 			current_tinygltf_skin_data.m_skin_node_skeleton_joint_index.emplace(
 				root_node,
-				current_tinygltf_skin_data.m_skin_node_skeleton_joint_index.size()
+				(unsigned int)current_tinygltf_skin_data.m_skin_node_skeleton_joint_index.size()
 			);
 			for (unsigned int i = 0; i < skin.joints.size(); ++i)
 			{
 				jointnode_idx_to_tinygltf_skin_data_idx_map.emplace(skin.joints[i], skin_counter);
 				current_tinygltf_skin_data.m_skin_node_skeleton_joint_index.emplace(
-					skin.joints[i], 
-					current_tinygltf_skin_data.m_skin_node_skeleton_joint_index.size()
+					(unsigned int)skin.joints[i], 
+					(unsigned int)current_tinygltf_skin_data.m_skin_node_skeleton_joint_index.size()
 				);
 			}
 			current_tinygltf_skin_data.m_joint_count = (unsigned int)skin.joints.size();
@@ -517,7 +517,7 @@ namespace Graphics {
 				new_anim_interp_data.m_data.size() * interp_component_type_size
 			);
 
-			animation_interpolation_handle const new_anim_interpolation_handle = m_anim_interpolation_handle_counter + new_anim_interpolation_data_map.size();
+			animation_interpolation_handle const new_anim_interpolation_handle = m_anim_interpolation_handle_counter + (unsigned int)new_anim_interpolation_data_map.size();
 			new_anim_interpolation_data_map.emplace(new_anim_interpolation_handle, std::move(new_anim_interp_data));
 			tinygltf_interp_accessor_idx_to_handle.emplace(interp_accessor_idx, new_anim_interpolation_handle);
 		}
@@ -834,7 +834,7 @@ namespace Graphics {
 
 		m_imported_gltf_models.emplace(_filepath, std::move(model_data));
 
-		return m_imported_gltf_models.at(_filepath);
+		return &m_imported_gltf_models.at(_filepath);
 	}
 
 	ResourceManager::gltf_model_data const& ResourceManager::GetImportedGLTFModelData(const char* _filepath) const

@@ -256,7 +256,6 @@ namespace Sandbox
 			light.SetColor(object_json.at("color"));
 			light.SetRadius(object_json.at("radius"));
 			current_object.GetComponent<Transform>().SetLocalPosition(object_json.at("position"));
-			char name_buffer[64];
 			current_object.SetName("Light");
 		}
 
@@ -274,7 +273,6 @@ namespace Sandbox
 				)
 			);
 
-			char name_buffer[64];
 			current_object.SetName("Directional Light");
 		}
 
@@ -479,9 +477,12 @@ namespace Component
 		auto scene_filepath_iter = m_scene_filepath_id.find(_scene_path);
 		if (scene_filepath_iter == m_scene_filepath_id.end())
 		{
-			uint8_t const new_scene_id = m_scene_filepath_id.size();
+			uint8_t const new_scene_id = static_cast<uint8_t>(m_scene_filepath_id.size());
 			m_scene_filepath_id.emplace(_scene_path, new_scene_id);
-			m_scene_id_entities.emplace(new_scene_id, std::vector<Engine::ECS::Entity>());
+			m_scene_id_entities.emplace(
+				new_scene_id, 
+				decltype(m_scene_id_entities)::value_type::second_type()
+			);
 		}
 	}
 
@@ -510,31 +511,6 @@ namespace Component
 		// After sorting entities by scene ID, remove from internal map
 		for (Entity const destroy_entity : existing_entities)
 			m_entity_scene_id.erase(destroy_entity);
-
-		// Remove entities from respective scene id lists using entity list sorted by scene ID.
-		unsigned int cached_scene_id = INVALID_SCENE_ID;
-		decltype(m_scene_id_entities)::mapped_type * scene_id_entities_ptr;
-		
-		for (auto& scene_map : m_scene_id_entities)
-		{
-			auto scene_entity_iter = scene_map.second.begin();
-			while(scene_entity_iter != scene_map.second.end())
-			{
-				auto iter = existing_entities.begin();
-				while (iter != existing_entities.end())
-				{
-					if (*scene_entity_iter == *iter)
-					{
-						scene_entity_iter = scene_map.second.erase(scene_entity_iter);
-						existing_entities.erase(iter);
-						goto next_iter;
-					}
-					iter++;
-				}
-				scene_entity_iter++;
-			next_iter:;
-			}
-		}
 	}
 
 	bool SceneEntityComponentManager::impl_component_owned_by_entity(Entity _entity) const
@@ -565,10 +541,8 @@ namespace Component
 	{
 		auto& scene_entity_list = m_scene_id_entities.at(_id);
 
-		Singleton<Engine::ECS::EntityManager>().EntityDelayedDeletion(
-			&scene_entity_list.front(),
-			(unsigned int)scene_entity_list.size()
-		);
+		for (Entity e : scene_entity_list)
+			Singleton<Engine::ECS::EntityManager>().EntityDelayedDeletion(&e, 1);
 		scene_entity_list.clear();
 	}
 
@@ -582,13 +556,13 @@ namespace Component
 		if (current_scene_id != INVALID_SCENE_ID)
 		{
 			auto& scene_id_entities = m_scene_id_entities.at(current_scene_id);
-			std::remove(scene_id_entities.begin(), scene_id_entities.end(), _e);
+			scene_id_entities.erase(_e);
 		}
 		// Add to new scene (if valid one is set)
 		if (_id != INVALID_SCENE_ID)
 		{
 			auto& scene_id_entities = m_scene_id_entities.at(_id);
-			scene_id_entities.push_back(_e);
+			scene_id_entities.insert(_e);
 		}
 		m_entity_scene_id.at(_e) = _id;
 	}
