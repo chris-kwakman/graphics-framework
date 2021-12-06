@@ -1,13 +1,35 @@
 #include "sdl_window.h"
+
 #include <GL/glew.h>
 #include <Engine/Utils/singleton.h>
 #include <Engine/Managers/input.h>
 
 #include <Engine/Editor/editor.h>
 
+#include <Windows.h>
+
+static void APIENTRY openglCallbackFunction(
+	GLenum source,
+	GLenum type,
+	GLuint id,
+	GLenum severity,
+	GLsizei length,
+	const GLchar* message,
+	const void* userParam
+) {
+	(void)source; (void)type; (void)id;
+	(void)severity; (void)length; (void)userParam;
+	fprintf(stderr, "%s\n", message);
+	if (severity == GL_DEBUG_SEVERITY_HIGH) {
+		fprintf(stderr, "Aborting...\n");
+		abort();
+	}
+}
+
 namespace Engine
 {
-	bool sdl_manager::setup(glm::uvec2 _window_size)
+
+	bool sdl_manager::setup_volumetric_fog(glm::uvec2 _window_size)
 	{
 		/*
 		* Initialize SDL
@@ -33,6 +55,14 @@ namespace Engine
 				SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 				SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);	// Enable double-buffering
 
+								// Enable the debug callback
+#ifdef _DEBUG
+				// Request a debug context.
+				SDL_GL_SetAttribute(
+					SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG
+				);
+#endif // _DEBUG
+
 				m_gl_context = SDL_GL_CreateContext(m_window);
 				if (!m_gl_context)
 				{
@@ -47,12 +77,21 @@ namespace Engine
 				SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, glMajorVersion);
 				SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, glMinorVersion);
 
+				printf("GL Version: %i.%i\n", glMajorVersion, glMinorVersion);
+
 				glewExperimental = true;
 				if (glewInit() != GLEW_OK)
 				{
 					printf("GLEW Error: Failed to initialize\n");
 					return false;
 				}
+
+				set_gl_debug_state(true);
+
+				glDebugMessageCallback(openglCallbackFunction, nullptr);
+				glDebugMessageControl(
+					GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, true
+				);
 
 				SDL_SetWindowResizable(m_window, SDL_TRUE);
 				SDL_GL_SetSwapInterval(-1);
@@ -94,7 +133,7 @@ namespace Engine
 		Singleton<Engine::Managers::InputManager>().UpdateMouseState(grab_input_mouse);
 	}
 
-	void sdl_manager::shutdown()
+	void sdl_manager::shutdown_volumetric_fog()
 	{
 		if (m_window)
 		{
@@ -114,5 +153,20 @@ namespace Engine
 	glm::uvec2 sdl_manager::get_window_size() const
 	{
 		return glm::uvec2(m_surface->w, m_surface->h);
+	}
+	void sdl_manager::set_gl_debug_state(bool _state)
+	{
+#ifdef _DEBUG
+		if (_state)
+		{
+			glEnable(GL_DEBUG_OUTPUT);
+			glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+		}
+		else
+		{
+			glDisable(GL_DEBUG_OUTPUT);
+			glDisable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+		}
+#endif // _DEBUG
 	}
 }

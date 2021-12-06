@@ -39,7 +39,7 @@ namespace Graphics {
 			if (error == GL_NO_ERROR)
 				break;
 
-			Utils::print_error("OpenGL Error (%X) in %s (%s, line %u)", error, _fn, _file, _line);
+			Utils::print_error("OpenGL Error (0x%4X) in %s (%s, line %u)", error, _fn, _file, _line);
 
 			bNoErrors = false;
 		}
@@ -933,17 +933,18 @@ namespace Graphics {
 	* Creates a new texture object in graphics manager.
 	* @return	texture_handle
 	*/
-	texture_handle ResourceManager::CreateTexture(const char* _debug_name)
+	texture_handle ResourceManager::CreateTexture(GLenum _texture_target, const char* _debug_name)
 	{
 		GLuint gl_texture_object = 0;
-		glGenTextures(1, &gl_texture_object);
+		glCreateTextures(_texture_target, 1, &gl_texture_object);
 		texture_info new_texture_info;
 		texture_handle const new_texture_handle = m_texture_handle_counter++;
 		new_texture_info.m_gl_source_id = gl_texture_object;
 		new_texture_info.m_target = GL_INVALID_ENUM;
 		new_texture_info.m_size = glm::vec3(0, 0, 0);
 		m_texture_info_map.emplace(new_texture_handle, new_texture_info);
-		glObjectLabel(GL_TEXTURE, new_texture_info.m_gl_source_id, (GLsizei)strlen(_debug_name), _debug_name);
+		if (_debug_name)
+			glObjectLabel(GL_TEXTURE, new_texture_info.m_gl_source_id, -1, _debug_name);
 		return new_texture_handle;
 	}
 
@@ -1002,6 +1003,25 @@ namespace Graphics {
 			(GLsizei)_size.x, (GLsizei)_size.y
 		));
 		tex_info.m_size = glm::uvec3(_size, 1);
+		SetTextureParameters(_texture_handle, _params);
+	}
+
+	/*
+	* Specify layout of texture object corresponding to given texture handle
+	* @param	texture_handle
+	* @param	GLint			Format that object will use internally (i.e. GL_R, GL_RGBA, etc...)
+	* @param	glm::uvec3		Size of object in terms of texels.
+	* @param	uint			Mipmap level of texture
+	*/
+	void ResourceManager::AllocateTextureStorage3D(texture_handle _texture_handle, GLenum _internal_format, glm::uvec3 _size, texture_parameters _params, unsigned int _texture_levels)
+	{
+		assert(_texture_levels >= 1);
+		texture_info& tex_info = set_texture_target_and_bind(_texture_handle, GL_TEXTURE_3D);
+		GfxCall(glTexStorage3D(
+			tex_info.m_target, _texture_levels, _internal_format,
+			(GLsizei)_size.x, (GLsizei)_size.y, (GLsizei)_size.z
+		));
+		tex_info.m_size = _size;
 		SetTextureParameters(_texture_handle, _params);
 	}
 
@@ -1103,7 +1123,7 @@ namespace Graphics {
 			case 3: internal_format = GL_RGB8;	input_format = GL_RGB;	break;
 			case 4: internal_format = GL_RGBA8;	input_format = GL_RGBA;	break;
 			}
-			texture_handle const new_texture = CreateTexture(_texture_filepath.c_str());
+			texture_handle const new_texture = CreateTexture(GL_TEXTURE_2D, _texture_filepath.c_str());
 			assert(new_texture != 0);
 			SpecifyAndUploadTexture2D(
 				new_texture, internal_format, glm::uvec2(size_x, size_y), 0, input_format, GL_UNSIGNED_BYTE, image_data
@@ -1454,6 +1474,11 @@ namespace Graphics {
 		GfxCall(glProgramUniform2ui(m_bound_gl_program_object, _uniform_location, _uniform_value.x, _uniform_value.y));
 	}
 
+	void ResourceManager::SetBoundProgramUniform(unsigned int _uniform_location, glm::uvec3 _uniform_value)
+	{
+		GfxCall(glProgramUniform3ui(m_bound_gl_program_object, _uniform_location, _uniform_value.x, _uniform_value.y, _uniform_value.z));
+	}
+
 	void ResourceManager::SetBoundProgramUniform(unsigned int _uniform_location, glm::vec2 _uniform_value)
 	{
 		GfxCall(glProgramUniform2f(m_bound_gl_program_object, _uniform_location, _uniform_value.x, _uniform_value.y));
@@ -1483,6 +1508,7 @@ namespace Graphics {
 	{
 		if		(_extension == ".vert")		return GL_VERTEX_SHADER;
 		else if (_extension == ".frag")		return GL_FRAGMENT_SHADER;
+		else if (_extension == ".comp")		return GL_COMPUTE_SHADER;
 		else								return GL_INVALID_ENUM;
 	}
 

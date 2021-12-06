@@ -17,6 +17,7 @@
 #include <Engine/Components/Camera.h>
 
 #include <Sandbox/Components/PlayerController.h>
+#include <Sandbox/GraphicsPipeline/volumetric_fog.h>
 
 #include <STB/stb_image_write.h>
 
@@ -155,19 +156,19 @@ namespace Sandbox
 		s_framebuffer_ao = resource_manager.CreateFramebuffer();
 		s_framebuffer_ao_pingpong = resource_manager.CreateFramebuffer();
 
-		s_fb_texture_depth = resource_manager.CreateTexture("FB Depth Texture");
-		s_fb_texture_base_color = resource_manager.CreateTexture("FB Base Color Texture");
-		s_fb_texture_normal = resource_manager.CreateTexture("FB Normal Texture");
-		s_fb_texture_metallic_roughness = resource_manager.CreateTexture("FB Metallic Roughness Texture");
-		s_fb_texture_light_color = resource_manager.CreateTexture("FB Light Color");
-		s_fb_texture_luminance = resource_manager.CreateTexture("FB Luminance");
-		s_fb_texture_shadow = resource_manager.CreateTexture("FB Shadow Map");
-		s_fb_texture_ao = resource_manager.CreateTexture("FB Ambient Occlusion");
+		s_fb_texture_depth = resource_manager.CreateTexture(GL_TEXTURE_2D, "FB Depth Texture");
+		s_fb_texture_base_color = resource_manager.CreateTexture(GL_TEXTURE_2D, "FB Base Color Texture");
+		s_fb_texture_normal = resource_manager.CreateTexture(GL_TEXTURE_2D, "FB Normal Texture");
+		s_fb_texture_metallic_roughness = resource_manager.CreateTexture(GL_TEXTURE_2D, "FB Metallic Roughness Texture");
+		s_fb_texture_light_color = resource_manager.CreateTexture(GL_TEXTURE_2D, "FB Light Color");
+		s_fb_texture_luminance = resource_manager.CreateTexture(GL_TEXTURE_2D, "FB Luminance");
+		s_fb_texture_shadow = resource_manager.CreateTexture(GL_TEXTURE_2D, "FB Shadow Map");
+		s_fb_texture_ao = resource_manager.CreateTexture(GL_TEXTURE_2D, "FB Ambient Occlusion");
 		for (unsigned int i = 0; i < 2; ++i)
-			s_fb_texture_bloom_pingpong[i] = resource_manager.CreateTexture("FB Bloom Pingpong");
+			s_fb_texture_bloom_pingpong[i] = resource_manager.CreateTexture(GL_TEXTURE_2D, "FB Bloom Pingpong");
 		for (unsigned int i = 0; i < 2; ++i)
-			s_fb_texture_ao_pingpong = resource_manager.CreateTexture("FB AO Pingpong");
-		s_texture_white = resource_manager.CreateTexture("White Texture");
+			s_fb_texture_ao_pingpong = resource_manager.CreateTexture(GL_TEXTURE_2D, "FB AO Pingpong");
+		s_texture_white = resource_manager.CreateTexture(GL_TEXTURE_2D, "White Texture");
 
 		s_display_gbuffer_texture = s_fb_texture_ao;
 
@@ -333,6 +334,8 @@ namespace Sandbox
 		create_framebuffer_triangle();
 		create_skeleton_bone_model();
 		create_line_mesh();
+
+		setup_volumetric_fog();
 
 		// Load glTF model Sponza by default, other if specified in commandline argument.
 		if (!s_scene_reset)
@@ -721,6 +724,8 @@ namespace Sandbox
 
 	void Shutdown()
 	{
+		shutdown_volumetric_fog();
+
 		ShutdownSandboxComponentManagers();
 	}
 }

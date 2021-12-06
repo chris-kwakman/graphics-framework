@@ -22,9 +22,9 @@ namespace Engine
 		bool m_want_quit = false;
 		bool m_want_restart = false;
 
-		bool setup(glm::uvec2 _window_size);
+		bool setup_volumetric_fog(glm::uvec2 _window_size);
 		void update();
-		void shutdown();
+		void shutdown_volumetric_fog();
 
 		glm::uvec2 get_window_size() const;
 
@@ -39,6 +39,8 @@ namespace Engine
 			}
 			return return_file;
 		}
+
+		void set_gl_debug_state(bool _state);
 	};
 
 }

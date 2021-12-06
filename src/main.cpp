@@ -69,8 +69,12 @@ void update_loop()
 		Singleton<Component::CurveFollowerManager>().UpdateFollowers(TEMP_DT);
 		Singleton<Component::SkeletonAnimatorManager>().UpdateAnimatorInstances(TEMP_DT);
 
+		sdl_manager.set_gl_debug_state(false);
+
 		Singleton<Engine::Editor::Editor>().Render();
 		Singleton<Engine::ECS::EntityManager>().FreeQueuedEntities();
+
+		sdl_manager.set_gl_debug_state(true);
 
 		SDL_GL_SwapWindow(Singleton<Engine::sdl_manager>().m_window);
 
@@ -94,7 +98,7 @@ int main(int argc, char* argv[])
 
 	
 	Engine::sdl_manager& sdl_manager = Singleton<Engine::sdl_manager>();
-	if (sdl_manager.setup(glm::uvec2(SCREEN_WIDTH, SCREEN_HEIGHT)))
+	if (sdl_manager.setup_volumetric_fog(glm::uvec2(SCREEN_WIDTH, SCREEN_HEIGHT)))
 	{
 		sdl_manager.m_want_restart = true;
 		while (sdl_manager.m_want_restart)
@@ -123,7 +127,7 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	sdl_manager.shutdown();
+	sdl_manager.shutdown_volumetric_fog();
 
 	return 0;
 }

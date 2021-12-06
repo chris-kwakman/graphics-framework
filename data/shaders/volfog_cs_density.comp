@@ -1,0 +1,78 @@
+#version 430
+
+layout(local_size_x = 10, local_size_y = 10, local_size_z = 8) in;
+const unsigned int MAX_VOLFOG_INSTANCES = 256;
+
+struct VolumetricFogInstance
+{
+    mat4    u_inv_m;
+};
+
+layout(std430) readonly buffer volfog_instance_data
+{
+    VolumetricFogInstance volfog_instances[];
+};
+
+uniform mat4 u_fog_cam_inv_vp;
+uniform uvec3 u_volfog_volume_texture_size = uvec3(160,90,64);
+uniform image3D writeonly out_density;
+
+shared VolumetricFogInstance shared_volfog_instances[MAX_VOLFOG_INSTANCES];
+
+void main(void)
+{
+    // Have the first local thread in a given workgroup copy
+    // copy volumetric fog instance data to shared array.
+
+    if(gl_LocalInvocationIndex == 0)
+    {
+        for(uint i = 0; i < volfog_instances.length(); ++i)
+        {
+            shared_volfog_instances[i] = volfog_instances[i];
+        }
+    }
+    memoryBarrier();
+
+    // Convert global invocation ID to position in NDC space.
+    const uvec3 global_id = gl_GlobalInvocationID;
+    const vec3 normalized_global_id = vec3(global_id) / vec3(u_volfog_volume_texture_size - 1);
+    const vec3 ndc_pos = normalized_global_id * 2 - 1;
+
+    // Outdated technique: Sampling linearly in NDC space, then transforming point into
+    // world space where points will be exponentially distributed.
+
+    // Bring NDC position of current thread to world position.
+    // vec4 world_pos = u_fog_cam_inv_vp * vec4(ndc_pos,1);
+    // world_pos /= world_pos.w;
+
+    // New technique: Sampling linearly in view space, then transforming point into
+    // world space where points will also be linearly distributed.
+
+    vec4 world_near = u_fog_cam_inv_vp * vec4(ndc_pos.xy, -1.0, 1.0);
+    world_near /= world_near.w;
+    vec4 world_far = u_fog_cam_inv_vp * vec4(ndc_pos.xy, 1.0, 1.0);
+    world_far /= world_far.w;
+    vec4 world_pos = world_far * normalized_global_id.z + world_near * (1.0 - normalized_global_id.z);
+
+    // Iterate through volumetric fog instances
+    // Bring world position of thread to local space of each instance, and test if it
+    // lies inside the boundaries of the model.
+    
+    // TODO: Chose type of boundary depending on type of shape of volumetric fog instance.
+    // Sphere: Test if distance from (0,0,0) in local space is lower than radius.
+    // Cuboid: Test if local space position is within [-1,1] boundary on all axes.
+
+    vec4 accum_fog_properties = vec4(0);
+    for(unsigned int i = 0; i < shared_volfog_instances.length(); ++i)
+    {
+        const vec4 fog_pos = shared_volfog_instances[i].u_inv_m * world_pos;
+        // Assume cuboid for now.
+        if(all(greaterThan(world_pos.xyz, vec3(-1)) && lessThan(world_pos.xyz, vec3(1))))
+        {
+            accum_fog_properties += vec4(1);
+        }
+    }
+
+    // Store accumulated data of fog instances into texture at texel corresponding to local thread's sampled texel.
+    imageStore(out_density, ivec3(gl_GlobalInvocationID), accum_fog_properties );
+}

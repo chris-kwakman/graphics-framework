@@ -206,6 +206,7 @@
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\Sandbox\Components\PlayerController.cpp" />
     <ClCompile Include="src\Sandbox\Components\SandboxCompManager.cpp" />
+    <ClCompile Include="src\Sandbox\GraphicsPipeline\volumetric_fog.cpp" />
     <ClCompile Include="src\Sandbox\graphics_pipeline.cpp" />
     <ClCompile Include="src\Sandbox\GraphicsPipeline\lighting_pass.cpp" />
     <ClCompile Include="src\Sandbox\LoadScene.cpp" />
@@ -534,6 +535,7 @@
     <ClInclude Include="src\Engine\Utils\singleton.h" />
     <ClInclude Include="src\Sandbox\Components\PlayerController.h" />
     <ClInclude Include="src\Sandbox\Components\SandboxCompManager.h" />
+    <ClInclude Include="src\Sandbox\GraphicsPipeline\volumetric_fog.h" />
     <ClInclude Include="src\Sandbox\graphics_pipeline.h" />
     <ClInclude Include="src\Sandbox\GraphicsPipeline\lighting_pass.h" />
     <ClInclude Include="src\Sandbox\render_common.h" />
@@ -561,6 +563,8 @@
     <None Include="data\shaders\postprocessing.frag" />
     <None Include="data\shaders\primitive.frag" />
     <None Include="data\shaders\skinned.vert" />
+    <None Include="data\shaders\volfog_cs_density.comp" />
+    <None Include="data\shaders\volfog_cs_inscattering.comp" />
     <None Include="data\shaders\write_csm.frag" />
     <None Include="data\shaders\write_csm.vert" />
     <None Include="include\glm\detail\func_common.inl" />

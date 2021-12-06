@@ -357,7 +357,7 @@ namespace Graphics {
 		};
 
 		std::vector<texture_handle> LoadTextures(std::vector<filepath_string> const& _texture_filepaths);
-		texture_handle	CreateTexture(const char * _debug_name = nullptr);
+		texture_handle	CreateTexture(GLenum _texture_target, const char * _debug_name = nullptr);
 		void			DeleteTexture(texture_handle _texture_handle);
 		void			BindTexture(texture_handle _texture_handle) const;
 		texture_info	GetTextureInfo(texture_handle _texture_handle) const;
@@ -365,6 +365,12 @@ namespace Graphics {
 			texture_handle _texture_handle, GLenum _internal_format, 
 			glm::uvec2 _size, 
 			texture_parameters _params, 
+			unsigned int _texture_levels = 1
+		);
+		void AllocateTextureStorage3D(
+			texture_handle _texture_handle, GLenum _internal_format,
+			glm::uvec3 _size,
+			texture_parameters _params,
 			unsigned int _texture_levels = 1
 		);
 		void SpecifyAndUploadTexture2D(
@@ -422,6 +428,7 @@ namespace Graphics {
 		void SetBoundProgramUniform(unsigned int _uniform_location, int _uniform_value);
 		void SetBoundProgramUniform(unsigned int _uniform_location, float _uniform_value);
 		void SetBoundProgramUniform(unsigned int _uniform_location, glm::uvec2 _uniform_value);
+		void SetBoundProgramUniform(unsigned int _uniform_location, glm::uvec3 _uniform_value);
 		void SetBoundProgramUniform(unsigned int _uniform_location, glm::vec2 _uniform_value);
 		void SetBoundProgramUniform(unsigned int _uniform_location, glm::vec3 _uniform_value);
 		void SetBoundProgramUniform(unsigned int _uniform_location, glm::vec4 _uniform_value);
@@ -487,14 +494,17 @@ namespace Graphics {
 }
 
 #define GfxAssert(x) if(!(x)) __debugbreak();
-#define GfxCall(x) \
-	Engine::Graphics::GLClearError();\
-	x;\
-	Engine::Graphics::GLLogCall(#x, __FILE__, __LINE__);
+//#define GfxCall(x) \
+//	Engine::Graphics::GLClearError();\
+//	x;\
+//	Engine::Graphics::GLLogCall(#x, __FILE__, __LINE__);
 
-#define GfxCallReturn(r, x) \
-	Engine::Graphics::GLClearError();\
-	r = x;\
-	Engine::Graphics::GLLogCall(#x, __FILE__, __LINE__);
+#define GfxCall(x) x;
+
+//#define GfxCallReturn(r, x) \
+//	Engine::Graphics::GLClearError();\
+//	r = x;\
+//	Engine::Graphics::GLLogCall(#x, __FILE__, __LINE__);
+#define GfxCallReturn(r,x) r = x;
 
 #endif // !ENGINE_GRAPHICS_MANAGER_H

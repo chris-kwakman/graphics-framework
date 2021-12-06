@@ -144,6 +144,9 @@
     <ClCompile Include="src\Sandbox\Components\PlayerController.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\Sandbox\GraphicsPipeline\volumetric_fog.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Sandbox\sandbox.h">
@@ -1124,6 +1127,9 @@
     <ClInclude Include="src\Sandbox\Components\PlayerController.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\Sandbox\GraphicsPipeline\volumetric_fog.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="working_dir\data\shaders\deferred.frag" />
@@ -1566,6 +1572,8 @@
     <None Include="data\shaders\display_framebuffer_ambient_occlusion.frag" />
     <None Include="data\shaders\blur_ambient_occlusion.frag" />
     <None Include="data\shaders\display_framebuffer_ao_monochrome.frag" />
+    <None Include="data\shaders\volfog_cs_density.comp" />
+    <None Include="data\shaders\volfog_cs_inscattering.comp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="src\Engine\Components\EngineComponents.txt" />

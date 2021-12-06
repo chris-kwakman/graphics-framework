@@ -2,6 +2,7 @@
 #include "render_common.h"
 #include "graphics_pipeline.h"
 #include "GraphicsPipeline/lighting_pass.h"
+#include "GraphicsPipeline/volumetric_fog.h"
 
 // Engine File Includes
 #include <Engine/Graphics/manager.h>
@@ -373,6 +374,11 @@ namespace Sandbox
 
 
 		}
+
+		//
+		//	Volumetric Fog
+		//
+		pipeline_volumetric_fog(cam_transform, camera_data);
 
 		//
 		//	Ambient Occlusion
