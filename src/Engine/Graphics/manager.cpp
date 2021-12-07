@@ -1885,7 +1885,7 @@ namespace Graphics {
 				m_bound_gl_program_object = 0;
 			}
 
-			GfxCall(glDeleteProgram(iter->second.m_gl_program_object));
+			glDeleteProgram(iter->second.m_gl_program_object);
 			m_shader_program_info_map.erase(iter);
 			m_shader_program_data_map.erase(program);
 		}

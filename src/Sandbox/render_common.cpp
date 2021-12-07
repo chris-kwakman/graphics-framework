@@ -51,7 +51,8 @@ namespace Sandbox
 
 	GfxAmbientOcclusion s_ambient_occlusion;
 
-
+	GLuint s_buffers[1];
+	GLuint s_ubo_camera = 0;
 
 	unsigned int s_gl_tri_ibo = 0, s_gl_tri_vao = 0, s_gl_tri_vbo = 0;
 	unsigned int s_gl_bone_vao, s_gl_bone_vbo, s_gl_bone_ibo, s_gl_joint_vao, s_gl_joint_vbo, s_gl_joint_ibo;
@@ -59,6 +60,32 @@ namespace Sandbox
 
 	unsigned int s_gl_line_vao, s_gl_line_vbo, s_gl_line_ibo;
 
+
+	void setup_render_common()
+	{
+		create_skeleton_bone_model();
+		create_line_mesh();
+
+		glGenBuffers(1, s_buffers);
+		s_ubo_camera = s_buffers[0];
+		glBindBuffer(GL_UNIFORM_BUFFER, s_ubo_camera);
+		glBufferData(GL_UNIFORM_BUFFER, sizeof(ubo_camera_data), nullptr, GL_DYNAMIC_DRAW);
+		glObjectLabel(GL_BUFFER, s_ubo_camera, -1, "UBO_CameraData");
+		glBindBufferBase(GL_UNIFORM_BUFFER, ubo_camera_data::BINDING_POINT_UBO_CAMERA_DATA, s_ubo_camera);
+		glBindBuffer(GL_UNIFORM_BUFFER, 0);
+	}
+
+	void shutdown_render_common()
+	{
+		glDeleteBuffers(sizeof(s_buffers) / sizeof(GLuint), s_buffers);
+	}
+
+	void update_camera_ubo(ubo_camera_data _camera_data)
+	{
+		glBindBuffer(GL_UNIFORM_BUFFER, s_ubo_camera);
+		glBufferData(GL_UNIFORM_BUFFER, sizeof(ubo_camera_data), &_camera_data, GL_DYNAMIC_DRAW);
+		glBindBuffer(GL_UNIFORM_BUFFER, 0);
+	}
 
 	void activate_texture(texture_handle _texture, unsigned int _program_uniform_index, unsigned int _texture_index)
 	{
@@ -267,5 +294,17 @@ namespace Sandbox
 			GL_ARRAY_BUFFER, 0, sizeof(glm::vec3) * _point_count, _points
 		);
 	}
+
+	ubo_camera_data::ubo_camera_data(
+		Engine::Math::transform3D _cam_transform, 
+		Engine::Graphics::camera_data _cam_data
+	) : 
+		m_near(_cam_data.m_near),
+		m_far(_cam_data.m_far),
+		m_view_dir(_cam_transform.quaternion * glm::vec3(0.0f,0.0f,-1.0f)),
+		m_v(_cam_transform.GetInvMatrix()),
+		m_p(_cam_data.get_perspective_matrix()),
+		m_inv_vp(glm::inverse(_cam_data.get_perspective_matrix() * _cam_transform.GetInvMatrix()))
+	{}
 
 }

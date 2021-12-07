@@ -3,6 +3,7 @@
 
 #include <Engine/Graphics/manager.h>
 #include <Engine/Math/Transform3D.h>
+#include <Engine/Graphics/camera_data.h>
 
 namespace Sandbox
 {
@@ -78,6 +79,20 @@ namespace Sandbox
 	// Editor Data
 	extern bool				s_render_infinite_grid;
 
+	struct ubo_camera_data
+	{
+		static GLuint const BINDING_POINT_UBO_CAMERA_DATA = 64;
+
+		ubo_camera_data(Engine::Math::transform3D _cam_transform, Engine::Graphics::camera_data _cam_data);
+		glm::mat4 m_inv_vp, m_v, m_p;
+		glm::vec2 m_viewport_size;
+		float m_near;
+		float m_far;
+		glm::vec3 m_view_dir;
+		float _padding;
+	};
+	extern GLuint s_ubo_camera;
+
 	// Miscellaneous Graphics Stuff
 
 	// TODO: Destroy these GL objects properly (at some point in the distant future, probably)
@@ -93,6 +108,11 @@ namespace Sandbox
 	extern unsigned int s_gl_joint_vao, s_gl_joint_vbo, s_gl_joint_ibo;
 
 	extern unsigned int joint_index_count, bone_index_count;
+
+	void setup_render_common();
+	void shutdown_render_common();
+
+	void update_camera_ubo(ubo_camera_data _camera_data);
 
 	// Activate texture on explicit program.
 	void activate_texture(texture_handle _texture, unsigned int _program_uniform_index, unsigned int _texture_index);

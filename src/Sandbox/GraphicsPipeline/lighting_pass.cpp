@@ -15,6 +15,27 @@ namespace Sandbox {
 
 	using mesh_handle = Engine::Graphics::mesh_handle;
 
+	static GLuint s_buffers[1];
+	lighting_pass_pipeline_data s_lighting_pass_pipeline_data;
+
+	void setup_lighting_pass_pipeline()
+	{
+		auto& pipeline_data = s_lighting_pass_pipeline_data;
+		glGenBuffers(sizeof(s_buffers) / sizeof(GLuint), s_buffers);
+		pipeline_data.ubo_csm = s_buffers[0];
+
+		glBindBuffer(GL_UNIFORM_BUFFER, pipeline_data.ubo_csm);
+		glBufferData(GL_UNIFORM_BUFFER, sizeof(ubo_cascading_shadow_map_data), nullptr, GL_DYNAMIC_DRAW);
+		glObjectLabel(GL_BUFFER, pipeline_data.ubo_csm, -1, "UBO_CascadingShadowMapData");
+		glBindBufferBase(GL_UNIFORM_BUFFER, ubo_cascading_shadow_map_data::BINDING_POINT_UBO_CSM_DATA, pipeline_data.ubo_csm);
+		glBindBuffer(GL_UNIFORM_BUFFER, 0);
+	}
+
+	void shutdown_lighting_pass_pipeline()
+	{
+		glDeleteBuffers(sizeof(s_buffers) / sizeof(GLuint), s_buffers);
+	}
+
 	void RenderPointLights(
 		mesh_handle _light_mesh,
 		Engine::Graphics::camera_data _camera,
@@ -101,7 +122,7 @@ namespace Sandbox {
 		glm::vec4(-1.0f,	1.0f,	1.0f,	1.0f),
 	};
 
-	cascading_shadow_map_data RenderDirectionalLightCSM(Engine::Graphics::camera_data _camera, Engine::Math::transform3D _camera_transform)
+	ubo_cascading_shadow_map_data RenderDirectionalLightCSM(Engine::Graphics::camera_data _camera, Engine::Math::transform3D _camera_transform)
 	{
 		using namespace Component;
 		using camera_data = Engine::Graphics::camera_data;
@@ -110,7 +131,7 @@ namespace Sandbox {
 		using shader_program = Engine::Graphics::shader_program_handle;
 
 		unsigned int constexpr CSM_PARTITION_COUNT = DirectionalLightManager::CSM_PARTITION_COUNT;
-		cascading_shadow_map_data csm_data;
+		ubo_cascading_shadow_map_data csm_data;
 
 		auto & res_mgr = Singleton<Engine::Graphics::ResourceManager>();
 
@@ -282,7 +303,7 @@ namespace Sandbox {
 	void RenderShadowMapToFrameBuffer(
 		Entity _camera_entity, 
 		glm::uvec2 _viewport_size, 
-		cascading_shadow_map_data const& _csm_data,
+		ubo_cascading_shadow_map_data _csm_data,
 		texture_handle _depth_texture,
 		texture_handle _normal_texture,
 		framebuffer_handle _shadow_frame_buffer
@@ -324,46 +345,49 @@ namespace Sandbox {
 		GfxCall(glCullFace(GL_BACK));
 		GfxCall(glDisable(GL_BLEND));
 
-		unsigned int const CAMDATA_UNIFORM_OFFSET = 5;
-		unsigned int const CSM_DATA_UNIFORM_OFFSET = 9;
+		int LOC_UBO_CAMERA_DATA = glGetUniformBlockIndex(res_mgr.m_bound_gl_program_object, "ubo_camera_data");
+		int LOC_UBO_CSM_DATA = glGetUniformBlockIndex(res_mgr.m_bound_gl_program_object, "ubo_csm_data");
 
-		glm::vec4 ndc_light_dir = glm::normalize(mat_world_to_perspective * glm::vec4(dl.GetLightDirection(), 0));
 
-		// Pass scene depth texture to shader
-		activate_texture(_depth_texture, 0, 0);
-		activate_texture(_normal_texture, 1, 1);
-		res_mgr.SetBoundProgramUniform(2, dl.GetShadowIntensity());
-		res_mgr.SetBoundProgramUniform(3, dl.GetPCFNeighbourCount());
-		res_mgr.SetBoundProgramUniform(4, glm::vec3(ndc_light_dir));
-		// Upload camera data
-		res_mgr.SetBoundProgramUniform(CAMDATA_UNIFORM_OFFSET + 0, shader_cam_data.m_inv_vp);
-		res_mgr.SetBoundProgramUniform(CAMDATA_UNIFORM_OFFSET + 1, shader_cam_data.m_viewport_size);
-		res_mgr.SetBoundProgramUniform(CAMDATA_UNIFORM_OFFSET + 2, shader_cam_data.m_near);
-		res_mgr.SetBoundProgramUniform(CAMDATA_UNIFORM_OFFSET + 3, shader_cam_data.m_far);
-		// Upload CSM data
+		int LOC_SAMPLER_DEPTH = res_mgr.GetBoundProgramUniformLocation("u_sampler_depth");
+		int LOC_SAMPLER_SHADOW_MAP_0 = res_mgr.GetBoundProgramUniformLocation("u_sampler_shadow_map[0]");
+
+
+		// Update CSM data shadow bias values.
 		for (unsigned int i = 0; i < CSM_PARTITION_COUNT; ++i)
 		{
-			res_mgr.SetBoundProgramUniform(
-				CSM_DATA_UNIFORM_OFFSET + i, _csm_data.m_light_transformations[i]
-			);
-			res_mgr.SetBoundProgramUniform(
-				CSM_DATA_UNIFORM_OFFSET + CSM_PARTITION_COUNT + i, dl.GetPartitionBias(i)
-			);
+			_csm_data.m_shadow_bias[i] = dl.GetPartitionBias(i);
+
+			// Activate shadow map textures.
 			activate_texture(
 				dl.GetPartitionShadowMapTexture(i), 
-				CSM_DATA_UNIFORM_OFFSET + 2*CSM_PARTITION_COUNT + i, 
-				2+i
-			);
-			res_mgr.SetBoundProgramUniform(
-				CSM_DATA_UNIFORM_OFFSET + 3*CSM_PARTITION_COUNT + i, 
-				_csm_data.m_cascade_clipspace_end[i]
+				LOC_SAMPLER_SHADOW_MAP_0+i,
+				1+i
 			);
 		}
-		for(unsigned int i = 0; i < CSM_PARTITION_COUNT-1; ++i)
-			res_mgr.SetBoundProgramUniform(
-				CSM_DATA_UNIFORM_OFFSET + 4 * CSM_PARTITION_COUNT + i, 
-				_csm_data.m_cascade_blend_clipspace_start[i]
-			);
+		_csm_data.m_shadow_intensity = dl.GetShadowIntensity();
+		_csm_data.m_pcf_neighbour_count = dl.GetPCFNeighbourCount();
+		glm::vec4 ndc_light_dir = glm::normalize(mat_world_to_perspective * glm::vec4(dl.GetLightDirection(), 0));
+		_csm_data.m_world_light_dir = dl.GetLightDirection();
+
+		glBindBuffer(GL_UNIFORM_BUFFER, s_lighting_pass_pipeline_data.ubo_csm);
+		glBufferData(GL_UNIFORM_BUFFER, sizeof(ubo_cascading_shadow_map_data), &_csm_data, GL_DYNAMIC_DRAW);
+
+		// Pass scene depth texture to shader
+		activate_texture(_depth_texture, LOC_SAMPLER_DEPTH, 0);
+
+		// Bind camera data UBO
+		glUniformBlockBinding(
+			res_mgr.m_bound_gl_program_object,
+			LOC_UBO_CAMERA_DATA,
+			ubo_camera_data::BINDING_POINT_UBO_CAMERA_DATA
+		);
+		// Bind CSM data UBO
+		glUniformBlockBinding(
+			res_mgr.m_bound_gl_program_object,
+			LOC_UBO_CSM_DATA,
+			ubo_cascading_shadow_map_data::BINDING_POINT_UBO_CSM_DATA
+		);
 
 		GfxCall(glBindVertexArray(s_gl_tri_vao));
 		GfxCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_gl_tri_ibo));

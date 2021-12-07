@@ -26,6 +26,17 @@
 
 namespace Sandbox
 {
+	void SetupGraphicsPipelineRender()
+	{
+		setup_lighting_pass_pipeline();
+		setup_volumetric_fog();
+	}
+	void ShutdownGraphicsPipelineRender()
+	{
+		shutdown_lighting_pass_pipeline();
+		shutdown_volumetric_fog();
+	}
+
 	void GraphicsPipelineRender()
 	{
 		///////////////////////////////////////////
@@ -79,6 +90,11 @@ namespace Sandbox
 		auto camera_component = camera_entity.GetComponent<Component::Camera>();
 		glm::mat4 const camera_view_matrix = cam_transform.GetInvMatrix();
 		auto camera_data = camera_component.GetCameraData();
+
+		ubo_camera_data new_cam_data_ubo(cam_transform, camera_data);
+		new_cam_data_ubo.m_viewport_size = Singleton<sdl_manager>().get_window_size();
+		update_camera_ubo(new_cam_data_ubo);
+
 		glm::mat4 const camera_perspective_matrix = camera_data.is_orthogonal_camera() ?
 			camera_data.get_orthogonal_matrix() : camera_data.get_perspective_matrix();
 		glm::mat4 const matrix_vp = camera_perspective_matrix * camera_view_matrix;
@@ -374,11 +390,6 @@ namespace Sandbox
 
 
 		}
-
-		//
-		//	Volumetric Fog
-		//
-		pipeline_volumetric_fog(cam_transform, camera_data);
 
 		//
 		//	Ambient Occlusion
@@ -770,7 +781,7 @@ namespace Sandbox
 		// # Cascading Shadow Map Rendering
 		// # 
 
-		cascading_shadow_map_data csm_data;
+		ubo_cascading_shadow_map_data csm_data;
 		if (Singleton<Component::DirectionalLightManager>().GetDirectionalLight().IsValid())
 		{
 			csm_data = Sandbox::RenderDirectionalLightCSM(camera_component.GetCameraData(), cam_transform);
@@ -807,6 +818,7 @@ namespace Sandbox
 		{
 			Sandbox::RenderPointLights(sphere_mesh, camera_component.GetCameraData(), cam_transform);
 		}
+
 
 		/////////// Global Lighting (Ambient, Directional Light) //////////////////
 
@@ -857,6 +869,12 @@ namespace Sandbox
 
 		GfxCall(glBindVertexArray(0));
 		GfxCall(glDrawArrays(GL_TRIANGLES, 0, 3));
+
+
+		//
+		//	Volumetric Fog
+		//
+		pipeline_volumetric_fog(cam_transform, camera_data);
 
 		/////////// Bloom //////////////
 

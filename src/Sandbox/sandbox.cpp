@@ -17,7 +17,6 @@
 #include <Engine/Components/Camera.h>
 
 #include <Sandbox/Components/PlayerController.h>
-#include <Sandbox/GraphicsPipeline/volumetric_fog.h>
 
 #include <STB/stb_image_write.h>
 
@@ -329,13 +328,12 @@ namespace Sandbox
 	{
 		InitializeSandboxComponentManagers();
 
+		setup_render_common();
+		create_framebuffer_triangle();
 		setup_shaders();
 		setup_framebuffer();
-		create_framebuffer_triangle();
-		create_skeleton_bone_model();
-		create_line_mesh();
 
-		setup_volumetric_fog();
+		SetupGraphicsPipelineRender();
 
 		// Load glTF model Sponza by default, other if specified in commandline argument.
 		if (!s_scene_reset)
@@ -724,7 +722,9 @@ namespace Sandbox
 
 	void Shutdown()
 	{
-		shutdown_volumetric_fog();
+		ShutdownGraphicsPipelineRender();
+
+		shutdown_render_common();
 
 		ShutdownSandboxComponentManagers();
 	}

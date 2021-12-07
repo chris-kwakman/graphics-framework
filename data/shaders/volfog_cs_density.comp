@@ -1,23 +1,56 @@
 #version 430
 
 layout(local_size_x = 10, local_size_y = 10, local_size_z = 8) in;
-const unsigned int MAX_VOLFOG_INSTANCES = 256;
+const uint MAX_VOLFOG_INSTANCES = 256;
 
 struct VolumetricFogInstance
 {
     mat4    u_inv_m;
+    float   u_density;
+    float   u_density_attenuation;  // How density attenuates over height (i.e. distance from bottom of boundary box)
 };
 
-layout(std430) readonly buffer volfog_instance_data
+layout(std430, binding = 0) readonly buffer ssbo_volfog_instance_data
 {
     VolumetricFogInstance volfog_instances[];
 };
 
-uniform mat4 u_fog_cam_inv_vp;
-uniform uvec3 u_volfog_volume_texture_size = uvec3(160,90,64);
+layout(binding = 0) uniform ubo_fogcam
+{
+    // Do not reorder
+    mat4 u_fog_cam_inv_vp;
+    vec3 u_fog_cam_view_dir;
+    float u_fog_cam_near;
+    vec3 u_world_pos;
+    float u_fog_cam_far;
+};
+
 uniform image3D writeonly out_density;
 
 shared VolumetricFogInstance shared_volfog_instances[MAX_VOLFOG_INSTANCES];
+shared uint shared_volfog_instance_count = 0;
+
+vec3 get_normalized_thread_global_id()
+{
+    return vec3(gl_GlobalInvocationID) / vec3(imageSize(out_density) - 1);
+}
+
+vec3 get_thread_ndc_pos()
+{
+    return get_normalized_thread_global_id() * 2 - 1;
+}
+
+// Uniformly distributes volumetric texel space into world space.
+vec4 compute_thread_world_pos()
+{
+    vec3 normalized_global_id = get_normalized_thread_global_id();
+    vec3 ndc_pos = get_thread_ndc_pos();
+    vec4 world_near = u_fog_cam_inv_vp * vec4(ndc_pos.xy, -1.0, 1.0);
+    world_near /= world_near.w;
+    vec4 world_far = u_fog_cam_inv_vp * vec4(ndc_pos.xy, 1.0, 1.0);
+    world_far /= world_far.w;
+    return world_far * normalized_global_id.z + world_near * (1.0 - normalized_global_id.z);
+}
 
 void main(void)
 {
@@ -26,17 +59,16 @@ void main(void)
 
     if(gl_LocalInvocationIndex == 0)
     {
-        for(uint i = 0; i < volfog_instances.length(); ++i)
+        shared_volfog_instance_count = volfog_instances.length();
+        for(uint i = 0; i < shared_volfog_instance_count; ++i)
         {
             shared_volfog_instances[i] = volfog_instances[i];
         }
     }
     memoryBarrier();
+    barrier();
 
     // Convert global invocation ID to position in NDC space.
-    const uvec3 global_id = gl_GlobalInvocationID;
-    const vec3 normalized_global_id = vec3(global_id) / vec3(u_volfog_volume_texture_size - 1);
-    const vec3 ndc_pos = normalized_global_id * 2 - 1;
 
     // Outdated technique: Sampling linearly in NDC space, then transforming point into
     // world space where points will be exponentially distributed.
@@ -48,11 +80,7 @@ void main(void)
     // New technique: Sampling linearly in view space, then transforming point into
     // world space where points will also be linearly distributed.
 
-    vec4 world_near = u_fog_cam_inv_vp * vec4(ndc_pos.xy, -1.0, 1.0);
-    world_near /= world_near.w;
-    vec4 world_far = u_fog_cam_inv_vp * vec4(ndc_pos.xy, 1.0, 1.0);
-    world_far /= world_far.w;
-    vec4 world_pos = world_far * normalized_global_id.z + world_near * (1.0 - normalized_global_id.z);
+    const vec4 world_pos = compute_thread_world_pos();
 
     // Iterate through volumetric fog instances
     // Bring world position of thread to local space of each instance, and test if it
@@ -62,17 +90,22 @@ void main(void)
     // Sphere: Test if distance from (0,0,0) in local space is lower than radius.
     // Cuboid: Test if local space position is within [-1,1] boundary on all axes.
 
-    vec4 accum_fog_properties = vec4(0);
-    for(unsigned int i = 0; i < shared_volfog_instances.length(); ++i)
+    float write_fog_density = 0.0;
+    for(unsigned int i = 0; i < 1; ++i)
     {
-        const vec4 fog_pos = shared_volfog_instances[i].u_inv_m * world_pos;
+        VolumetricFogInstance instance = shared_volfog_instances[i];
+        const vec4 fog_pos = instance.u_inv_m * world_pos;
         // Assume cuboid for now.
-        if(all(greaterThan(world_pos.xyz, vec3(-1)) && lessThan(world_pos.xyz, vec3(1))))
+        if(all(greaterThan(fog_pos.xyz, vec3(-1)) && lessThan(fog_pos.xyz, vec3(1))))
         {
-            accum_fog_properties += vec4(1);
+            float fog_bottom = (inverse(instance.u_inv_m) * vec4(fog_pos.x,-1,fog_pos.z,1)).y;
+            float height = fog_pos.y - fog_bottom;
+            float uniform_density = instance.u_density * exp(-height*instance.u_density_attenuation);
+            write_fog_density += uniform_density;
         }
     }
+    // TODO: Temporal variation using perlin noise varying over time.
 
     // Store accumulated data of fog instances into texture at texel corresponding to local thread's sampled texel.
-    imageStore(out_density, ivec3(gl_GlobalInvocationID), accum_fog_properties );
+    imageStore(out_density, ivec3(gl_GlobalInvocationID), vec4(write_fog_density,0,0,0));
 }

@@ -3,6 +3,8 @@
 
 namespace Sandbox
 {
+	void SetupGraphicsPipelineRender();
+	void ShutdownGraphicsPipelineRender();
 	void GraphicsPipelineRender();
 }
 
