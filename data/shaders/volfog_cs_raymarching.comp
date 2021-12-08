@@ -1,0 +1,35 @@
+#version 430
+layout(local_size_x = 10, local_size_y = 10, local_size_z = 1) in;
+
+layout(rgba16f) uniform image3D readonly u_in_inscattering;
+uniform image3D writeonly u_out_accumulation;
+
+vec4 accumulate_scattering(vec4 _col_and_density_front, vec4 _col_and_density_back)
+{
+    vec3 light = _col_and_density_front.rgb + clamp(exp(-_col_and_density_front.a), 0.0,1.0) * _col_and_density_back.rgb;
+    return vec4(light.rgb, _col_and_density_front.a * _col_and_density_back.a);
+}
+
+void write_output(ivec3 _pos, vec4 _col_and_density)
+{
+    vec4 final_value = vec4(_col_and_density.rgb, exp(-_col_and_density.a));
+    imageStore(u_out_accumulation, _pos, final_value);
+}
+
+void main()
+{
+    ivec2 texel_xy = ivec2(gl_GlobalInvocationID.xy);
+    ivec3 texel_pos = ivec3(texel_xy, 0);
+    vec4 current_slice_value = imageLoad(u_in_inscattering, texel_pos).rgba;
+
+    write_output(texel_pos, current_slice_value);
+
+    for(int z = 1; z < imageSize(u_in_inscattering).z; ++z)
+    {
+        texel_pos.z = z;
+        vec4 next_slice_value = imageLoad(u_in_inscattering, texel_pos).rgba;
+        current_slice_value = accumulate_scattering(current_slice_value, next_slice_value);
+        write_output(texel_pos, current_slice_value);
+    }
+
+}

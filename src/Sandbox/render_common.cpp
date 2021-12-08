@@ -71,7 +71,7 @@ namespace Sandbox
 		glBindBuffer(GL_UNIFORM_BUFFER, s_ubo_camera);
 		glBufferData(GL_UNIFORM_BUFFER, sizeof(ubo_camera_data), nullptr, GL_DYNAMIC_DRAW);
 		glObjectLabel(GL_BUFFER, s_ubo_camera, -1, "UBO_CameraData");
-		glBindBufferBase(GL_UNIFORM_BUFFER, ubo_camera_data::BINDING_POINT_UBO_CAMERA_DATA, s_ubo_camera);
+		glBindBufferBase(GL_UNIFORM_BUFFER, ubo_camera_data::BINDING_POINT, s_ubo_camera);
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
 	}
 

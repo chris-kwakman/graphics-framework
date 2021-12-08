@@ -14,11 +14,10 @@ namespace Sandbox
 	bool s_update_volfog_instance_data_buffer = false;
 
 	const GLuint BINDING_POINT_SSBO_VOLFOG_INSTANCES = 1;
-	const GLuint BINDING_POINT_UBO_FOGCAM = 0;
-	const GLuint BINDING_POINT_UBO_SHADER_PROPERTIES = 1;
 
 	const GLenum EFORMAT_TEXTURE_DENSITY = GL_R16F;
 	const GLenum EFORMAT_TEXTURE_INSCATTERING = GL_RGBA16F;
+	const GLenum EFORMAT_TEXTURE_ACCUMULATION = GL_RGBA16F;
 
 	void set_volfog_instances(ssbo_volfog_instance* _volfog_instance_data, size_t _volfog_instances)
 	{
@@ -39,7 +38,8 @@ namespace Sandbox
 		std::vector<std::filesystem::path> const compute_shader_paths
 		{
 			"data/shaders/volfog_cs_density.comp",
-			"data/shaders/volfog_cs_inscattering.comp"
+			"data/shaders/volfog_cs_inscattering.comp",
+			"data/shaders/volfog_cs_raymarching.comp"
 		};
 		res_mgr.LoadShaders(compute_shader_paths);
 
@@ -52,14 +52,18 @@ namespace Sandbox
 			"volfog_cs_inscattering", 
 			{ "data/shaders/volfog_cs_inscattering.comp" }
 		);
+		pipeline_data.m_raymarching_compute_shader = res_mgr.LoadShaderProgram(
+			"volfog_cs_raymarching",
+			{ "data/shaders/volfog_cs_raymarching.comp" }
+		);
 
 		ssbo_volfog_instance instance;
 		Engine::Math::transform3D volfog_instance_transform;
-		volfog_instance_transform.position = glm::vec3(0.0f);
-		volfog_instance_transform.scale = glm::vec3(4.0, 1.0f, 4.0f);
+		volfog_instance_transform.position = glm::vec3(0.0f, 3.0f, 0.0f);
+		volfog_instance_transform.scale = glm::vec3(20.0, 3.0f, 20.0f);
 		instance.m_inv_m = volfog_instance_transform.GetInvMatrix();
-		instance.m_density = 0.1f;
-		instance.m_density_height_attenuation = 0.0f;
+		instance.m_density = 0.05f;
+		instance.m_density_height_attenuation = 3.0f;
 
 		GLuint buffers[3];
 		glCreateBuffers(sizeof(buffers) / sizeof(GLuint), buffers);
@@ -77,7 +81,11 @@ namespace Sandbox
 		glBindBuffer(GL_UNIFORM_BUFFER, pipeline_data.m_fog_shader_properties_ubo);
 		glBufferData(GL_UNIFORM_BUFFER, sizeof(ubo_volfog_shader_properties), &s_volfog_shader_properties, GL_STATIC_DRAW);
 		glObjectLabel(GL_BUFFER, pipeline_data.m_fog_shader_properties_ubo, -1, "UBO_VOLFOG_ShaderProperties");
-		glBindBufferBase(GL_UNIFORM_BUFFER, BINDING_POINT_UBO_SHADER_PROPERTIES, pipeline_data.m_fog_shader_properties_ubo);
+		glBindBufferBase(
+			GL_UNIFORM_BUFFER, 
+			ubo_volfog_shader_properties::BINDING_POINT,
+			pipeline_data.m_fog_shader_properties_ubo
+		);
 
 		glBindBuffer(GL_UNIFORM_BUFFER, pipeline_data.m_fog_cam_ubo);
 		glBufferData(
@@ -87,7 +95,7 @@ namespace Sandbox
 			GL_DYNAMIC_DRAW
 		);
 		glObjectLabel(GL_BUFFER, pipeline_data.m_fog_cam_ubo, -1, "UBO_VOLFOG_FogCamera");
-		glBindBufferBase(GL_UNIFORM_BUFFER, BINDING_POINT_UBO_FOGCAM, pipeline_data.m_fog_cam_ubo);
+		glBindBufferBase(GL_UNIFORM_BUFFER, ubo_volfog_camera::BINDING_POINT, pipeline_data.m_fog_cam_ubo);
 
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
@@ -109,8 +117,8 @@ namespace Sandbox
 		using tex_params = Engine::Graphics::ResourceManager::texture_parameters;
 		tex_params volumetric_texture_params;
 		volumetric_texture_params.m_wrap_s = GL_CLAMP_TO_EDGE;
-		volumetric_texture_params.m_wrap_r = GL_CLAMP_TO_EDGE;
 		volumetric_texture_params.m_wrap_t = GL_CLAMP_TO_EDGE;
+		volumetric_texture_params.m_wrap_r = GL_CLAMP_TO_EDGE;
 		volumetric_texture_params.m_min_filter = GL_LINEAR;
 		volumetric_texture_params.m_mag_filter = GL_LINEAR;
 
@@ -123,6 +131,8 @@ namespace Sandbox
 			pipeline_data.m_volumetric_density_texture = res_mgr.CreateTexture(GL_TEXTURE_3D, "volumetric_fog/density");
 		if(pipeline_data.m_volumetric_inscattering_texture == 0)
 			pipeline_data.m_volumetric_inscattering_texture = res_mgr.CreateTexture(GL_TEXTURE_3D, "volumetric_fog/in_scattering");
+		if(pipeline_data.m_volumetric_accumulation_texture == 0)
+			pipeline_data.m_volumetric_accumulation_texture = res_mgr.CreateTexture(GL_TEXTURE_3D, "volumetric_fog/accumulation");
 
 		res_mgr.AllocateTextureStorage3D(
 			pipeline_data.m_volumetric_density_texture,
@@ -136,13 +146,21 @@ namespace Sandbox
 			pipeline_data.m_volumetric_texture_resolution,
 			volumetric_texture_params
 		);
+		res_mgr.AllocateTextureStorage3D(
+			pipeline_data.m_volumetric_accumulation_texture,
+			EFORMAT_TEXTURE_ACCUMULATION,
+			pipeline_data.m_volumetric_texture_resolution,
+			volumetric_texture_params
+		);
 	}
 
 	void pipeline_volumetric_fog(Engine::Math::transform3D _cam_transform, Engine::Graphics::camera_data _camera_data)
 	{
 		// Override camera near / far.
-		_camera_data.m_near = s_volfog_camera_ubo.m_near;;
-		_camera_data.m_far = s_volfog_camera_ubo.m_far;
+		s_volfog_camera_ubo.m_near = _camera_data.m_near;
+		s_volfog_camera_ubo.m_far = _camera_data.m_far;
+		//_camera_data.m_near = s_volfog_camera_ubo.m_near;
+		//_camera_data.m_far = s_volfog_camera_ubo.m_far;
 
 		auto& pipeline_data = s_volumetric_fog_pipeline_data;
 		if (s_update_volfog_instance_data_buffer)
@@ -177,11 +195,12 @@ namespace Sandbox
 			GL_DYNAMIC_DRAW
 		);
 
-		compute_density_pass(_cam_transform, _camera_data);
-		compute_inscattering_pass(_cam_transform, _camera_data);
+		compute_density_pass();
+		compute_inscattering_pass();
+		perform_raymarching_pass();
 	}
 
-	void compute_density_pass(Engine::Math::transform3D _cam_transform, Engine::Graphics::camera_data _camera_data)
+	void compute_density_pass()
 	{
 		auto& res_mgr = Singleton<ResourceManager>();
 		auto& pipeline_data = s_volumetric_fog_pipeline_data;
@@ -199,7 +218,7 @@ namespace Sandbox
 		glUniformBlockBinding(
 			res_mgr.m_bound_gl_program_object,
 			LOC_UBO_FOGCAM,
-			BINDING_POINT_UBO_FOGCAM
+			ubo_volfog_camera::BINDING_POINT
 		);
 		glShaderStorageBlockBinding(
 			res_mgr.m_bound_gl_program_object,
@@ -233,7 +252,7 @@ namespace Sandbox
 		);
 
 	}
-	void compute_inscattering_pass(Engine::Math::transform3D _cam_transform, Engine::Graphics::camera_data _camera_data)
+	void compute_inscattering_pass()
 	{
 		auto& res_mgr = Singleton<ResourceManager>();
 		auto& pipeline_data = s_volumetric_fog_pipeline_data;
@@ -265,29 +284,29 @@ namespace Sandbox
 		glUniformBlockBinding(
 			res_mgr.m_bound_gl_program_object,
 			LOC_UBO_FOGCAM,
-			BINDING_POINT_UBO_FOGCAM
+			ubo_volfog_camera::BINDING_POINT
 		);
 		glUniformBlockBinding(
 			res_mgr.m_bound_gl_program_object, 
 			LOC_UBO_SHADER_PROPERTIES, 
-			BINDING_POINT_UBO_SHADER_PROPERTIES
+			ubo_volfog_shader_properties::BINDING_POINT
 		);
 		// Bind camera data UBO
 		glUniformBlockBinding(
 			res_mgr.m_bound_gl_program_object,
 			LOC_UBO_CAMERA_DATA,
-			ubo_camera_data::BINDING_POINT_UBO_CAMERA_DATA
+			ubo_camera_data::BINDING_POINT
 		);
 		// Bind CSM data UBO
 		glUniformBlockBinding(
 			res_mgr.m_bound_gl_program_object,
 			LOC_UBO_CSM_DATA,
-			ubo_cascading_shadow_map_data::BINDING_POINT_UBO_CSM_DATA
+			ubo_cascading_shadow_map_data::BINDING_POINT
 		);
 		glShaderStorageBlockBinding(
 			res_mgr.m_bound_gl_program_object,
 			LOC_SSBO_VOLFOG_INSTANCES,
-			BINDING_POINT_SSBO_VOLFOG_INSTANCES
+			ssbo_volfog_instance::BINDING_POINT
 		);
 
 		GLuint const UNIT_IMAGE_DENSITY = 0;
@@ -337,6 +356,60 @@ namespace Sandbox
 			pipeline_data.m_volumetric_texture_resolution.x / 10,
 			pipeline_data.m_volumetric_texture_resolution.y / 10,
 			pipeline_data.m_volumetric_texture_resolution.z / 8
+		);
+
+	}
+
+	void perform_raymarching_pass()
+	{
+		auto& res_mgr = Singleton<ResourceManager>();
+		auto const& pipeline_data = s_volumetric_fog_pipeline_data;
+
+		GLuint const UNIT_IMAGE_INSCATTERING = 0;
+		GLuint const UNIT_IMAGE_ACCUMULATION = 1;
+
+		res_mgr.UseProgram(pipeline_data.m_raymarching_compute_shader);
+
+		ResourceManager::texture_info const inscattering_tex_info = res_mgr.GetTextureInfo(
+			pipeline_data.m_volumetric_inscattering_texture
+		);
+		ResourceManager::texture_info const accumulation_tex_info = res_mgr.GetTextureInfo(
+			pipeline_data.m_volumetric_accumulation_texture
+		);
+
+		// Bind input image (inscattering texture)
+		glBindImageTexture(
+			UNIT_IMAGE_INSCATTERING,
+			inscattering_tex_info.m_gl_source_id,
+			0,
+			GL_TRUE,
+			0,
+			GL_READ_ONLY,
+			EFORMAT_TEXTURE_INSCATTERING
+		);
+		// Bind output image (accumulation texture)
+		glBindImageTexture(
+			UNIT_IMAGE_ACCUMULATION,
+			accumulation_tex_info.m_gl_source_id,
+			0,
+			GL_TRUE,
+			0,
+			GL_WRITE_ONLY,
+			EFORMAT_TEXTURE_ACCUMULATION
+		);
+
+		GLuint const LOC_IMAGE_INSCATTERING = res_mgr.FindBoundProgramUniformLocation("u_in_inscattering");
+		GLuint const LOC_IMAGE_ACCUMULATION = res_mgr.FindBoundProgramUniformLocation("u_out_accumulation");
+		if (LOC_IMAGE_INSCATTERING != -1)
+			res_mgr.SetBoundProgramUniform(LOC_IMAGE_INSCATTERING, (GLint)UNIT_IMAGE_INSCATTERING);
+		if (LOC_IMAGE_ACCUMULATION != -1)
+			res_mgr.SetBoundProgramUniform(LOC_IMAGE_ACCUMULATION, (GLint)UNIT_IMAGE_ACCUMULATION);
+
+		// Only a single layer of groups that traverses the texture serially slice-by-slice.
+		glDispatchCompute(
+			pipeline_data.m_volumetric_texture_resolution.x / 10,
+			pipeline_data.m_volumetric_texture_resolution.y / 10,
+			1
 		);
 	}
 }

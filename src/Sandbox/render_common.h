@@ -81,7 +81,7 @@ namespace Sandbox
 
 	struct ubo_camera_data
 	{
-		static GLuint const BINDING_POINT_UBO_CAMERA_DATA = 64;
+		static GLuint const BINDING_POINT = 64;
 
 		ubo_camera_data(Engine::Math::transform3D _cam_transform, Engine::Graphics::camera_data _cam_data);
 		glm::mat4 m_inv_vp, m_v, m_p;

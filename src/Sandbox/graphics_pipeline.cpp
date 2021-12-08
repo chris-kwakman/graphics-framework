@@ -819,8 +819,12 @@ namespace Sandbox
 			Sandbox::RenderPointLights(sphere_mesh, camera_component.GetCameraData(), cam_transform);
 		}
 
+		//
+		//	Volumetric Fog
+		//
+		pipeline_volumetric_fog(cam_transform, camera_data);
 
-		/////////// Global Lighting (Ambient, Directional Light) //////////////////
+		/////////// Global Lighting (Ambient, Directional Light, apply Volumetric Fog) //////////////////
 
 		glEnable(GL_DEPTH_TEST);
 		glEnable(GL_CULL_FACE);
@@ -835,33 +839,48 @@ namespace Sandbox
 		Component::DirectionalLight const dl = Singleton<Component::DirectionalLightManager>().GetDirectionalLight();
 		res_mgr.UseProgram(program_draw_global_light);
 		set_bound_program_uniform_locations();
-		int LOC_SAMPLER_SHADOWMAP = res_mgr.GetBoundProgramUniformLocation("u_sampler_shadow");
-		int LOC_SAMPLER_AO = res_mgr.GetBoundProgramUniformLocation("u_sampler_ao");
-		int LOC_AMBIENT_COLOR = res_mgr.GetBoundProgramUniformLocation("u_ambient_color");
-		int LOC_SUNLIGHT_COLOR = res_mgr.GetBoundProgramUniformLocation("u_sunlight_color");
-		int LOC_CSM_RENDER_CASCADES = res_mgr.GetBoundProgramUniformLocation("u_csm_render_cascades");
-		int LOC_CSM_CASCADE_NDC_END_0 = res_mgr.GetBoundProgramUniformLocation("u_csm_cascade_ndc_end[0]");
-		res_mgr.SetBoundProgramUniform(LOC_AMBIENT_COLOR, s_ambient_color);
-		res_mgr.SetBoundProgramUniform(LOC_SUNLIGHT_COLOR,
-			dl.IsValid() ? dl.GetColor() : glm::vec3(0.0f)
+		int LOC_SAMPLER_SHADOWMAP = res_mgr.FindBoundProgramUniformLocation("u_sampler_shadow");
+		int LOC_SAMPLER_AO = res_mgr.FindBoundProgramUniformLocation("u_sampler_ao");
+		int LOC_SAMPLER_VOLFOG = res_mgr.FindBoundProgramUniformLocation("u_sampler_volumetric_fog");
+		int LOC_AMBIENT_COLOR = res_mgr.FindBoundProgramUniformLocation("u_ambient_color");
+		int LOC_CSM_RENDER_CASCADES = res_mgr.FindBoundProgramUniformLocation("u_csm_render_cascades");
+
+		int LOC_UBO_CSM_DATA = glGetUniformBlockIndex(
+			res_mgr.m_bound_gl_program_object, 
+			"ubo_csm_data"
 		);
+		GLuint const LOC_UBO_FOGCAM = glGetUniformBlockIndex(
+			res_mgr.m_bound_gl_program_object, "ubo_fogcam"
+		);
+		GLuint const LOC_UBO_CAMERA = glGetUniformBlockIndex(
+			res_mgr.m_bound_gl_program_object, "ubo_camera_data"
+		);
+		glUniformBlockBinding(
+			res_mgr.m_bound_gl_program_object,
+			LOC_UBO_FOGCAM,
+			ubo_volfog_camera::BINDING_POINT
+		);
+		glUniformBlockBinding(
+			res_mgr.m_bound_gl_program_object,
+			LOC_UBO_CAMERA,
+			ubo_camera_data::BINDING_POINT
+		);
+		// Bind CSM data UBO
+		glUniformBlockBinding(
+			res_mgr.m_bound_gl_program_object,
+			LOC_UBO_CSM_DATA,
+			ubo_cascading_shadow_map_data::BINDING_POINT
+		);
+
+		res_mgr.SetBoundProgramUniform(LOC_AMBIENT_COLOR, s_ambient_color);
 		res_mgr.SetBoundProgramUniform(LOC_CSM_RENDER_CASCADES, dl.IsValid() & dl.GetCascadeDebugRendering());
-		if (dl.IsValid())
-		{
-			for (unsigned int i = 0; i < dl.GetPartitionCount(); ++i)
-			{
-				res_mgr.SetBoundProgramUniform(
-					LOC_CSM_CASCADE_NDC_END_0 + i,
-					camera_data.get_clipping_depth(
-						dl.GetPartitionMinDepth(i + 1, camera_data.m_near, camera_data.m_far) - dl.GetBlendDistance()
-					)
-				);
-			}
-		}
-		activate_texture(s_fb_texture_depth, LOC_SAMPLER_DEPTH, 0);
+		if(LOC_SAMPLER_DEPTH != -1)
+			activate_texture(s_fb_texture_depth, LOC_SAMPLER_DEPTH, 0);
 		activate_texture(s_fb_texture_base_color, LOC_SAMPLER_BASE_COLOR, 1);
 		activate_texture(s_fb_texture_ao_pingpong, LOC_SAMPLER_AO, 2);
-		activate_texture(dl.IsValid() ? s_fb_texture_shadow : s_texture_white, LOC_SAMPLER_SHADOWMAP, 3);
+		activate_texture(s_volumetric_fog_pipeline_data.m_volumetric_accumulation_texture, LOC_SAMPLER_VOLFOG, 3);
+		if(LOC_SAMPLER_SHADOWMAP != -1)
+			activate_texture(dl.IsValid() ? s_fb_texture_shadow : s_texture_white, LOC_SAMPLER_SHADOWMAP, 4);
 
 		// Disable drawing to luminance buffer when computing ambient color.
 		GLenum const draw_fb_lighting_attachment_0[] = { GL_COLOR_ATTACHMENT0 };
@@ -870,11 +889,6 @@ namespace Sandbox
 		GfxCall(glBindVertexArray(0));
 		GfxCall(glDrawArrays(GL_TRIANGLES, 0, 3));
 
-
-		//
-		//	Volumetric Fog
-		//
-		pipeline_volumetric_fog(cam_transform, camera_data);
 
 		/////////// Bloom //////////////
 

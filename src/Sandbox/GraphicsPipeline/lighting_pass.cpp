@@ -27,7 +27,7 @@ namespace Sandbox {
 		glBindBuffer(GL_UNIFORM_BUFFER, pipeline_data.ubo_csm);
 		glBufferData(GL_UNIFORM_BUFFER, sizeof(ubo_cascading_shadow_map_data), nullptr, GL_DYNAMIC_DRAW);
 		glObjectLabel(GL_BUFFER, pipeline_data.ubo_csm, -1, "UBO_CascadingShadowMapData");
-		glBindBufferBase(GL_UNIFORM_BUFFER, ubo_cascading_shadow_map_data::BINDING_POINT_UBO_CSM_DATA, pipeline_data.ubo_csm);
+		glBindBufferBase(GL_UNIFORM_BUFFER, ubo_cascading_shadow_map_data::BINDING_POINT, pipeline_data.ubo_csm);
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
 	}
 
@@ -137,6 +137,7 @@ namespace Sandbox {
 
 		DirectionalLight const dl = Singleton<Component::DirectionalLightManager>().GetDirectionalLight();
 		shader_program const dl_program = res_mgr.FindShaderProgram("dirlight_shadowmap");
+
 
 		// Do not call if proper shader or directional light component does not exist.
 		assert(dl.IsValid());
@@ -372,6 +373,7 @@ namespace Sandbox {
 		_csm_data.m_pcf_neighbour_count = dl.GetPCFNeighbourCount();
 		glm::vec4 ndc_light_dir = glm::normalize(mat_world_to_perspective * glm::vec4(dl.GetLightDirection(), 0));
 		_csm_data.m_world_light_dir = dl.GetLightDirection();
+		_csm_data.m_light_color = dl.GetColor();
 
 		glBindBuffer(GL_UNIFORM_BUFFER, s_lighting_pass_pipeline_data.ubo_csm);
 		glBufferData(GL_UNIFORM_BUFFER, sizeof(ubo_cascading_shadow_map_data), &_csm_data, GL_DYNAMIC_DRAW);
@@ -383,13 +385,13 @@ namespace Sandbox {
 		glUniformBlockBinding(
 			res_mgr.m_bound_gl_program_object,
 			LOC_UBO_CAMERA_DATA,
-			ubo_camera_data::BINDING_POINT_UBO_CAMERA_DATA
+			ubo_camera_data::BINDING_POINT
 		);
 		// Bind CSM data UBO
 		glUniformBlockBinding(
 			res_mgr.m_bound_gl_program_object,
 			LOC_UBO_CSM_DATA,
-			ubo_cascading_shadow_map_data::BINDING_POINT_UBO_CSM_DATA
+			ubo_cascading_shadow_map_data::BINDING_POINT
 		);
 
 		GfxCall(glBindVertexArray(s_gl_tri_vao));

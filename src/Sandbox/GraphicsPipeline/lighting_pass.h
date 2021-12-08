@@ -14,7 +14,7 @@ namespace Sandbox {
 
 	struct ubo_cascading_shadow_map_data
 	{
-		static GLuint const BINDING_POINT_UBO_CSM_DATA = 8;
+		static GLuint const BINDING_POINT = 8;
 		glm::mat4x4 m_light_transformations[Component::DirectionalLightManager::CSM_PARTITION_COUNT];
 		glm::vec3	m_world_light_dir;
 		float		m_shadow_bias[Component::DirectionalLightManager::CSM_PARTITION_COUNT];
@@ -23,6 +23,7 @@ namespace Sandbox {
 		float		m_shadow_intensity = 0.5f;
 		glm::vec3	m_light_color{ 1.0f };
 		unsigned int m_pcf_neighbour_count = 2;
+		// TODO: Radiance variable
 	};
 
 	struct lighting_pass_pipeline_data

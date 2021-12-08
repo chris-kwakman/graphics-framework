@@ -1,20 +1,67 @@
 #version 420 core
 
-const unsigned int CSM_PARTITION_COUNT = 3;
+layout(binding = 0) uniform ubo_fogcam
+{
+    // Do not reorder
+    mat4 u_fog_cam_inv_vp;
+    vec3 u_fog_cam_view_dir;
+    float u_fog_cam_near;
+    vec3 u_fog_cam_world_pos;
+    float u_fog_cam_far;
+};
+layout(binding = 1) uniform ubo_camera_data
+{
+	mat4 u_cam_inv_vp;
+	mat4 u_cam_v;
+	mat4 u_cam_p;
+	vec2 u_cam_viewport_size;
+	float u_cam_near;
+	float u_cam_far;
+	vec3 u_cam_view_dir;
+};
+const int CSM_PARTITION_COUNT = 3;
+layout(binding = 2) uniform ubo_csm_data
+{
+	mat4	u_csm_vp[CSM_PARTITION_COUNT];
+	vec3	u_world_light_dir;
+	float	u_csm_shadow_bias[CSM_PARTITION_COUNT]; 
+	float	u_csm_clipspace_end[CSM_PARTITION_COUNT];
+	float	u_csm_clipspace_blend_start[CSM_PARTITION_COUNT-1];
+	float	u_csm_shadow_intensity;
+	vec3	u_csm_light_color;
+	uint	u_csm_pcf_neighbour_count;
+};
+uniform sampler2D u_sampler_shadow_map[CSM_PARTITION_COUNT];
 
+uniform vec3 u_ambient_color;
+uniform bool u_csm_render_cascades = false;
 uniform sampler2D u_sampler_depth;
 uniform sampler2D u_sampler_base_color;
 uniform sampler2D u_sampler_shadow;
 uniform sampler2D u_sampler_ao;
-
-uniform vec3 u_ambient_color;
-uniform vec3 u_sunlight_color = vec3(1);
-uniform bool u_csm_render_cascades = false;
-uniform float u_csm_cascade_ndc_end[3];
+uniform sampler3D u_sampler_volumetric_fog;
 
 in vec2 f_uv;
 
 layout(location = 0) out vec4 out_color;
+
+vec3 get_volfog_uv(vec3 ndc)
+{
+	vec4 world_pos = u_cam_inv_vp * vec4(ndc,1);
+	world_pos /= world_pos.w;
+	vec4 view_pos = u_cam_v * world_pos;
+	// NDC position in volfog camera NDC space.
+	// However, we want to distribute depth linearly along volfog camera.
+	vec3 volfog_ndc = ndc;
+	volfog_ndc.z = 2*((-view_pos.z - u_fog_cam_near) / (u_fog_cam_far - u_fog_cam_near)) - 1;
+	// Convert volfog ndc position to texel position linearly.
+	return (volfog_ndc.xyz + 1)*0.5;
+}
+
+vec4 get_volumetric_fog_value(vec3 ndc)
+{	
+	return texture(u_sampler_volumetric_fog, get_volfog_uv(ndc)).rgba;
+}
 
 void main()
 {
@@ -23,15 +70,24 @@ void main()
 
 	vec3 texture_color = texture(u_sampler_base_color, f_uv).rgb;
 
-	vec3 frag_color = vec3((u_ambient_color * ao_factor + sunlight_factor * u_sunlight_color) * texture_color);
+	vec3 frag_color = vec3((u_ambient_color * ao_factor + sunlight_factor * u_csm_light_color) * texture_color);
+
+	const float ndc_z = 2*texture2D(u_sampler_depth, f_uv).r - 1;
+	const vec3 ndc = vec3((f_uv * 2) - 1, ndc_z);
+
+	vec4 world_pos = u_cam_inv_vp * vec4(ndc,1);
+	world_pos /= world_pos.w;
+	
+	vec4 volfog_value = get_volumetric_fog_value(ndc);
+	vec3 fog_inscattering = volfog_value.rgb;
+	float fog_transmittance = volfog_value.a;
 
 	if(u_csm_render_cascades)
 	{
-		float ndc_z = 2*texture2D(u_sampler_depth, f_uv).r - 1;
 		vec3 frag_mult = vec3(0);
 		for(int i = 0; i < CSM_PARTITION_COUNT; ++i)
 		{
-			if(ndc_z <= u_csm_cascade_ndc_end[i])
+			if(ndc_z <= u_csm_clipspace_end[i])
 			{
 				frag_mult[i] = 1;
 				break;
@@ -40,10 +96,10 @@ void main()
 		frag_color *= frag_mult;
 	}
 
-	//frag_color *= texture2D(u_sampler_shadow, vec2(0)).r;
+	vec3 pixel_color = frag_color * fog_transmittance + fog_inscattering;
+	out_color += vec4(pixel_color,1);
 
-	//vec4 frag_color = vec4(texture(u_sampler_metallic_roughness, f_uv).rg, 0.0, 1.0);
-	//vec4 frag_color = vec4(texture(u_sampler_normal, f_uv).rgb, 1.0);
+	//out_color = vec4(world_pos.xyz,1);
 
-	out_color += vec4(frag_color,1);
+	//out_color += vec4(frag_color,1);
 }

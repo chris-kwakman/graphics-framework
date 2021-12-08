@@ -565,6 +565,7 @@
     <None Include="data\shaders\skinned.vert" />
     <None Include="data\shaders\volfog_cs_density.comp" />
     <None Include="data\shaders\volfog_cs_inscattering.comp" />
+    <None Include="data\shaders\volfog_cs_raymarching.comp" />
     <None Include="data\shaders\write_csm.frag" />
     <None Include="data\shaders\write_csm.vert" />
     <None Include="include\glm\detail\func_common.inl" />
