@@ -276,6 +276,9 @@ namespace Sandbox {
 				glm::mat4x4 const renderable_matrix = light_partition_matrices[csm_partition] * entity_world_matrices[e];
 				res_mgr.SetBoundProgramUniform(0, renderable_matrix);
 
+				if (entity_renderable_meshes[e] == 0)
+					continue;
+
 				auto const & primitives = res_mgr.GetMeshPrimitives(entity_renderable_meshes[e]);
 				for (unsigned int prim = 0; prim < primitives.size(); ++prim)
 				{
@@ -347,10 +350,10 @@ namespace Sandbox {
 
 		int LOC_UBO_CAMERA_DATA = glGetUniformBlockIndex(res_mgr.m_bound_gl_program_object, "ubo_camera_data");
 		int LOC_UBO_CSM_DATA = glGetUniformBlockIndex(res_mgr.m_bound_gl_program_object, "ubo_csm_data");
+		int LOC_SAMPLER_SHADOW_MAP_0 = res_mgr.GetBoundProgramUniformLocation("u_sampler_shadow_map[0]");
 
 
 		int LOC_SAMPLER_DEPTH = res_mgr.GetBoundProgramUniformLocation("u_sampler_depth");
-		int LOC_SAMPLER_SHADOW_MAP_0 = res_mgr.GetBoundProgramUniformLocation("u_sampler_shadow_map[0]");
 
 
 		// Update CSM data shadow bias values.

@@ -23,10 +23,10 @@ namespace Sandbox
 	{
 		// Fog rendering properties
 		glm::vec3	m_fog_albedo = glm::vec3(1.0f);
-		float		_padding;
-		float		m_scattering_coefficient;
-		float		m_absorption_coefficient;
-		float		m_phase_anisotropy;
+		float		m_scattering_coefficient = 10.0f;
+		float		m_absorption_coefficient = 10.0f;
+		float		m_phase_anisotropy = 0.5f; // [-1,1]
+		float _padding2[2];
 	};
 
 	struct ubo_volfog_camera

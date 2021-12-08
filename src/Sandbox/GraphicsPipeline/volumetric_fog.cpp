@@ -1,5 +1,6 @@
 #include "volumetric_fog.h"
 #include <Engine/Utils/singleton.h>
+#include <Sandbox/GraphicsPipeline/lighting_pass.h>
 
 namespace Sandbox
 {
@@ -248,7 +249,10 @@ namespace Sandbox
 
 		GLuint const LOC_IMAGE_DENSITY = res_mgr.FindBoundProgramUniformLocation("u_in_density");
 		GLuint const LOC_IMAGE_INSCATTERING = res_mgr.FindBoundProgramUniformLocation("u_out_inscattering");
+		int LOC_SAMPLER_SHADOW_MAP_0 = res_mgr.FindBoundProgramUniformLocation("u_sampler_shadow_map[0]");
 
+		int LOC_UBO_CAMERA_DATA = glGetUniformBlockIndex(res_mgr.m_bound_gl_program_object, "ubo_camera_data");
+		int LOC_UBO_CSM_DATA = glGetUniformBlockIndex(res_mgr.m_bound_gl_program_object, "ubo_csm_data");
 		GLuint const LOC_UBO_FOGCAM = glGetUniformBlockIndex(
 			res_mgr.m_bound_gl_program_object, "ubo_fogcam"
 		);
@@ -267,6 +271,18 @@ namespace Sandbox
 			res_mgr.m_bound_gl_program_object, 
 			LOC_UBO_SHADER_PROPERTIES, 
 			BINDING_POINT_UBO_SHADER_PROPERTIES
+		);
+		// Bind camera data UBO
+		glUniformBlockBinding(
+			res_mgr.m_bound_gl_program_object,
+			LOC_UBO_CAMERA_DATA,
+			ubo_camera_data::BINDING_POINT_UBO_CAMERA_DATA
+		);
+		// Bind CSM data UBO
+		glUniformBlockBinding(
+			res_mgr.m_bound_gl_program_object,
+			LOC_UBO_CSM_DATA,
+			ubo_cascading_shadow_map_data::BINDING_POINT_UBO_CSM_DATA
 		);
 		glShaderStorageBlockBinding(
 			res_mgr.m_bound_gl_program_object,
@@ -302,6 +318,18 @@ namespace Sandbox
 			res_mgr.SetBoundProgramUniform(LOC_IMAGE_DENSITY, (GLint)UNIT_IMAGE_DENSITY);
 		if(LOC_IMAGE_INSCATTERING != -1)
 			res_mgr.SetBoundProgramUniform(LOC_IMAGE_INSCATTERING, (GLint)UNIT_IMAGE_INSCATTERING);
+		if (LOC_SAMPLER_SHADOW_MAP_0 != -1)
+		{
+			auto const dir_light = Singleton<Component::DirectionalLightManager>().GetDirectionalLight();
+			for (unsigned int i = 0; i < Component::DirectionalLightManager::CSM_PARTITION_COUNT; ++i)
+			{
+				activate_texture(
+					dir_light.GetPartitionShadowMapTexture(i),
+					LOC_SAMPLER_SHADOW_MAP_0 + i,
+					i
+				);
+			}
+		}
 
 		// Brute force approach until we get things working.
 		// TODO: Less work groups of larger size.

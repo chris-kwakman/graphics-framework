@@ -1,8 +1,6 @@
 #version 420 core
-#extension GL_ARB_explicit_uniforu_cam_location : enable
 
 const int NUM_CASCADES = 3;
-
 layout(binding = 0) uniform ubo_camera_data
 {
 	mat4 u_cam_inv_vp;
@@ -13,7 +11,6 @@ layout(binding = 0) uniform ubo_camera_data
 	float u_cam_far;
 	vec3 u_cam_view_dir;
 };
-
 layout(binding = 1) uniform ubo_csm_data
 {
 	mat4	u_csm_vp[NUM_CASCADES];
@@ -22,25 +19,26 @@ layout(binding = 1) uniform ubo_csm_data
 	float	u_csm_clipspace_end[NUM_CASCADES];
 	float	u_csm_clipspace_blend_start[NUM_CASCADES-1];
 	float	u_csm_shadow_intensity;
+	vec3	u_csm_light_color;
 	uint	u_csm_pcf_neighbour_count;
 };
+uniform sampler2D u_sampler_shadow_map[NUM_CASCADES];
 
 uniform sampler2D u_sampler_depth;
 uniform sampler2D u_sampler_normal;
-uniform sampler2D u_sampler_shadow_map[NUM_CASCADES];
 
 in vec2 f_uv;
 out float out_color;
 
-float liu_near_depth_to_ndc_depth(float _liu_near_depth)
+float linear_depth_to_ndc_depth(float _linear_depth)
 {
-	return _liu_near_depth * 2.0 - 1.0;
+	return _linear_depth * 2.0 - 1.0;
 }
 
 float get_uv_ndc_depth()
 {
 	float lin_depth = texture(u_sampler_depth, f_uv).r;
-	return liu_near_depth_to_ndc_depth(lin_depth);
+	return linear_depth_to_ndc_depth(lin_depth);
 }
 
 vec4 get_uv_world_pos(float _ndc_depth)

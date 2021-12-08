@@ -26,6 +26,8 @@ static void APIENTRY openglCallbackFunction(
 	}
 }
 
+#define DEBUG_GL
+
 namespace Engine
 {
 
@@ -56,12 +58,12 @@ namespace Engine
 				SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);	// Enable double-buffering
 
 								// Enable the debug callback
-#ifdef _DEBUG
+#ifdef DEBUG_GL
 				// Request a debug context.
 				SDL_GL_SetAttribute(
 					SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG
 				);
-#endif // _DEBUG
+#endif // DEBUG_GL
 
 				m_gl_context = SDL_GL_CreateContext(m_window);
 				if (!m_gl_context)
@@ -156,7 +158,7 @@ namespace Engine
 	}
 	void sdl_manager::set_gl_debug_state(bool _state)
 	{
-#ifdef _DEBUG
+#ifdef DEBUG_GL
 		if (_state)
 		{
 			glEnable(GL_DEBUG_OUTPUT);
@@ -167,6 +169,6 @@ namespace Engine
 			glDisable(GL_DEBUG_OUTPUT);
 			glDisable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 		}
-#endif // _DEBUG
+#endif // DEBUG_GL
 	}
 }

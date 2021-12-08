@@ -21,6 +21,7 @@ namespace Sandbox {
 		float		m_cascade_clipspace_end[Component::DirectionalLightManager::CSM_PARTITION_COUNT];
 		float		m_cascade_blend_clipspace_start[Component::DirectionalLightManager::CSM_PARTITION_COUNT - 1];
 		float		m_shadow_intensity = 0.5f;
+		glm::vec3	m_light_color{ 1.0f };
 		unsigned int m_pcf_neighbour_count = 2;
 	};
 

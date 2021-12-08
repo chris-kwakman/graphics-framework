@@ -28,7 +28,30 @@ layout(binding = 1) uniform ubo_shader_properties
 	float	u_phase_anisotropy;
 };
 
-uniform vec3 u_sun_dir;
+const int NUM_CASCADES = 3;
+layout(binding = 2) uniform ubo_camera_data
+{
+	mat4 u_cam_inv_vp;
+	mat4 u_cam_v;
+	mat4 u_cam_p;
+	vec2 u_cam_viewport_size;
+	float u_cam_near;
+	float u_cam_far;
+	vec3 u_cam_view_dir;
+};
+layout(binding = 3) uniform ubo_csm_data
+{
+	mat4	u_csm_vp[NUM_CASCADES];
+	vec3	u_world_light_dir;
+	float	u_csm_shadow_bias[NUM_CASCADES]; 
+	float	u_csm_clipspace_end[NUM_CASCADES];
+	float	u_csm_clipspace_blend_start[NUM_CASCADES-1];
+	float	u_csm_shadow_intensity;
+	vec3	u_csm_light_color;
+	uint	u_csm_pcf_neighbour_count;
+};
+uniform sampler2D u_sampler_shadow_map[NUM_CASCADES];
+
 uniform uint u_pointlight_count;
 
 layout(r16f) uniform image3D readonly u_in_density;
@@ -38,6 +61,75 @@ layout(std430, binding = 0) readonly buffer ssbo_volfog_instance_data
 {
     VolumetricFogInstance volfog_instances[];
 };
+
+///////////////////////////////////////
+
+float calculate_shadow_factor(unsigned int cascade_index, vec4 light_space_pos)
+{
+	vec3 light_ndc = light_space_pos.xyz / light_space_pos.w;
+	float depth = light_ndc.z * 0.5 + 0.5; // Liu_near depth [0,1]
+	vec2 uv = light_ndc.xy * 0.5 + 0.5;
+	vec2 uv_step = 1.0 / textureSize(u_sampler_shadow_map[cascade_index], 0).xy;
+	float bias = u_csm_shadow_bias[cascade_index];
+
+	float shadow = 0.0;
+	uint texel_count = (2*u_csm_pcf_neighbour_count+1)*(2*u_csm_pcf_neighbour_count+1);
+	for(int i = -int(u_csm_pcf_neighbour_count); i <= int(u_csm_pcf_neighbour_count); ++i)
+	{
+		for(int j = -int(u_csm_pcf_neighbour_count); j <= int(u_csm_pcf_neighbour_count); ++j)
+		{
+			float depth_value = texture(u_sampler_shadow_map[cascade_index], uv + uv_step * vec2(i,j)).r;
+			shadow += (depth_value < (depth - bias)) 
+				? (1-u_csm_shadow_intensity) 
+				: 1;
+		}
+	}
+	return shadow / texel_count;
+}
+
+float get_world_pos_shadow_factor(vec4 world_pos)
+{
+	vec4 light_space_pos[NUM_CASCADES];
+	
+	// NDC position in space of regular camera (NOT fog camera with overwritten near / far).
+	// We need to use the normal camera for sampling the cascading shadow maps appropriately.
+	vec4 ndc_pos = u_cam_p * u_cam_v * world_pos;
+	ndc_pos /= ndc_pos.w;
+	const float ndc_z = ndc_pos.z;
+	for(unsigned int cascade = 0; cascade < NUM_CASCADES; ++cascade)
+	{
+		light_space_pos[cascade] = u_csm_vp[cascade] * world_pos;
+	}
+
+	if(ndc_z == 1.0)
+		return 0.0;
+
+	float shadow_factor = 1;
+
+	// Find cascade that texel belongs to
+	for(unsigned int cascade = 0; cascade < NUM_CASCADES; ++cascade)
+	{
+		if(ndc_z <= u_csm_clipspace_end[cascade])
+		{
+			shadow_factor = calculate_shadow_factor(cascade, light_space_pos[cascade]);
+			if((cascade < NUM_CASCADES-1) && ndc_z > u_csm_clipspace_blend_start[cascade])
+			{
+				float shadow_factor_next = calculate_shadow_factor(cascade+1, light_space_pos[cascade+1]);
+			
+				float blendspace_distance = u_csm_clipspace_end[cascade] - u_csm_clipspace_blend_start[cascade];
+				float frac = (ndc_z - u_csm_clipspace_blend_start[cascade]) / blendspace_distance;
+			
+				shadow_factor = frac * shadow_factor_next + (1-frac)*shadow_factor;
+			}
+			break;
+		}
+	}
+	return shadow_factor;
+}
+
+///////////////////////////////////////
+
+
 
 vec3 get_normalized_thread_global_id()
 {
@@ -61,14 +153,14 @@ vec4 compute_thread_world_pos()
     return world_far * normalized_global_id.z + world_near * (1.0 - normalized_global_id.z);
 }
 
-#define M_PI 3.1415926535897932384626433832795
+const float pi = 3.1415926535897932384626433832795;
 
 // Thickness of slice - non-constant due to exponential slice distrubtion.
 // TODO: Slice distribution IS constant, so the above is not actually true.
 float compute_layer_thickness(vec3 _world_pos)
 {
     // TODO: Convert to using exponential depth (if ever)
-    return imageSize(u_in_density).z;
+    return (u_fog_cam_far - u_fog_cam_near) / imageSize(u_in_density).z;
 }
 
 // Estimated density of participating medium at given point.
@@ -80,16 +172,17 @@ float calculate_density_function(vec3 _world_pos)
     ).r;
 }
 
-float get_sun_lighting_radiance(vec3 _world_pos)
+vec3 get_sun_lighting_radiance(vec3 _world_pos)
 {
-    return 0.0;
+	const float radiance = 1;
+    return u_csm_light_color * radiance * get_world_pos_shadow_factor(vec4(_world_pos,1));
 }
 
 float get_phase_function(vec3 _view_dir, vec3 _light_dir, float _fog_phase_anisotropy)
 {
-    float fpa_2 = _fog_phase_anisotropy * _fog_phase_anisotropy;
-    float cos_theta = dot(_view_dir, _light_dir);
-    return (1/4*M_PI) * (1 - fpa_2) / pow(1+fpa_2-2*_fog_phase_anisotropy*cos_theta, 1.5);
+	const float g = _fog_phase_anisotropy;
+    const float cos_theta = clamp(dot(_view_dir, _light_dir),-1,1);
+    return (1/(4*pi)) * ((1-(g*g))/pow(1+(g*g)-(2*g*cos_theta), 1.5));
 }
 
 float get_ambient_convolved_with_phase_function(vec3 _world_pos, vec3 _view_dir, float _fog_phase_anisotropy)
@@ -117,7 +210,7 @@ void main()
     // Absorption coefficient
     const float absorption = u_absorption_coefficient * dust_density * layer_thickness;
     
-    const vec3 view_dir = normalize(world_pos.xyz - u_fog_cam_world_pos);
+    const vec3 view_dir = normalize(u_fog_cam_world_pos - world_pos.xyz);
 
     vec3 accum_lighting = vec3(0.0);
 
@@ -127,15 +220,15 @@ void main()
 
     // All direction vectors should be normalized.
 
-    //accum_lighting += get_sun_lighting_radiance(world_pos) * get_phase_function(view_dir, u_sun_dir, u_phase_anisotropy);
-    accum_lighting += get_ambient_convolved_with_phase_function(world_pos, view_dir, u_phase_anisotropy);
+    accum_lighting += get_sun_lighting_radiance(world_pos) * get_phase_function(view_dir, u_world_light_dir, u_phase_anisotropy);
+    //accum_lighting += get_ambient_convolved_with_phase_function(world_pos, view_dir, u_phase_anisotropy);
     
-    for(uint light_idx = 0; light_idx < u_pointlight_count; ++light_idx)
-    {
-        vec3 local_light_dir = get_local_light_dir(light_idx, world_pos);
-        accum_lighting += get_local_light_radiance(light_idx, world_pos) * 
-            get_phase_function(view_dir, local_light_dir, u_phase_anisotropy);
-    }
+    //for(uint light_idx = 0; light_idx < u_pointlight_count; ++light_idx)
+    //{
+    //    vec3 local_light_dir = get_local_light_dir(light_idx, world_pos);
+    //    accum_lighting += get_local_light_radiance(light_idx, world_pos) * 
+    //        get_phase_function(view_dir, local_light_dir, u_phase_anisotropy);
+    //}
 
     // Apply fog scattering albedo.
     accum_lighting *= u_fog_albedo;
