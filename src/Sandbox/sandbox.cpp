@@ -531,28 +531,29 @@ namespace Sandbox
 			ImGui::ColorEdit3("Bloom Luminance Treshhold", &s_bloom_treshhold_color.x);
 			ImGui::EndDisabled();
 
-			if (ImGui::BeginCombo("Show GBuffer Texture", get_texture_name(s_display_gbuffer_texture)))
+			if (false)
 			{
-				for (auto gbuffer_texture : g_gbuffer_textures)
+				if (ImGui::BeginCombo("Show GBuffer Texture", get_texture_name(s_display_gbuffer_texture)))
 				{
-					if (ImGui::Selectable(get_texture_name(gbuffer_texture)))
-						s_display_gbuffer_texture = gbuffer_texture;
+					for (auto gbuffer_texture : g_gbuffer_textures)
+					{
+						if (ImGui::Selectable(get_texture_name(gbuffer_texture)))
+							s_display_gbuffer_texture = gbuffer_texture;
+					}
+					ImGui::EndCombo();
 				}
-				ImGui::EndCombo();
+				auto texture_info = system_resource_manager.GetTextureInfo(s_display_gbuffer_texture);
+				glm::vec2 image_size(texture_info.m_size.x, texture_info.m_size.y);
+				ImVec2 content_region_avail = ImGui::GetContentRegionAvail();
+				float image_ar = image_size.y / image_size.x;
+				float content_region_ar = content_region_avail.y / content_region_avail.x;
+
+				ImGui::Image(
+					reinterpret_cast<ImTextureID>((size_t)texture_info.m_gl_source_id),
+					ImVec2(content_region_avail.x, content_region_avail.x * image_ar),
+					ImVec2(0, 1), ImVec2(1, 0)
+				);
 			}
-			auto texture_info = system_resource_manager.GetTextureInfo(s_display_gbuffer_texture);
-			glm::vec2 image_size(texture_info.m_size.x, texture_info.m_size.y);
-			ImVec2 content_region_avail = ImGui::GetContentRegionAvail();
-			float image_ar = image_size.y / image_size.x;
-			float content_region_ar = content_region_avail.y / content_region_avail.x;
-
-			
-
-			ImGui::Image(
-				reinterpret_cast<ImTextureID>((size_t)texture_info.m_gl_source_id),
-				ImVec2(content_region_avail.x, content_region_avail.x * image_ar),
-				ImVec2(0, 1), ImVec2(1, 0)
-			);
 		}
 		ImGui::End();
 		if (ImGui::Begin("Ambient Occlusion"))

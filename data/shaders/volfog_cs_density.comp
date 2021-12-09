@@ -23,6 +23,7 @@ layout(binding = 0) uniform ubo_fogcam
     float u_fog_cam_near;
     vec3 u_world_pos;
     float u_fog_cam_far;
+    float u_layer_linearity;
 };
 
 uniform image3D writeonly out_density;
@@ -37,7 +38,11 @@ vec3 get_normalized_thread_global_id()
 
 vec3 get_thread_ndc_pos()
 {
-    return get_normalized_thread_global_id() * 2 - 1;
+    const vec3 offset = vec3(1.0) / imageSize(out_density);
+    const vec3 ndc_min = vec3(-1)+offset;
+    const vec3 ndc_max = vec3(1)-offset;
+    const vec3 normalized_pos = get_normalized_thread_global_id();
+    return ndc_min * (1-normalized_pos) + ndc_max * normalized_pos;
 }
 
 // Uniformly distributes volumetric texel space into world space.
@@ -56,6 +61,9 @@ void main(void)
 {
     // Have the first local thread in a given workgroup copy
     // copy volumetric fog instance data to shared array.
+
+    if(any(greaterThan(get_normalized_thread_global_id(), vec3(1))))
+        return;
 
     if(gl_LocalInvocationIndex == 0)
     {
@@ -91,7 +99,7 @@ void main(void)
     // Cuboid: Test if local space position is within [-1,1] boundary on all axes.
 
     float write_fog_density = 0.0;
-    for(unsigned int i = 0; i < 1; ++i)
+    for(unsigned int i = 0; i < shared_volfog_instance_count; ++i)
     {
         VolumetricFogInstance instance = shared_volfog_instances[i];
         const vec4 fog_pos = instance.u_inv_m * world_pos;
@@ -99,7 +107,7 @@ void main(void)
         if(all(greaterThan(fog_pos.xyz, vec3(-1)) && lessThan(fog_pos.xyz, vec3(1))))
         {
             float fog_bottom = (inverse(instance.u_inv_m) * vec4(fog_pos.x,-1,fog_pos.z,1)).y;
-            float height = fog_pos.y - fog_bottom;
+            float height = max(world_pos.y - fog_bottom,0);
             float uniform_density = instance.u_density * exp(-height*instance.u_density_attenuation);
             write_fog_density += uniform_density;
         }
@@ -107,5 +115,6 @@ void main(void)
     // TODO: Temporal variation using perlin noise varying over time.
 
     // Store accumulated data of fog instances into texture at texel corresponding to local thread's sampled texel.
+    write_fog_density = max(write_fog_density, 0);
     imageStore(out_density, ivec3(gl_GlobalInvocationID), vec4(write_fog_density,0,0,0));
 }

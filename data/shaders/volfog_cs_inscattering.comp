@@ -18,6 +18,7 @@ layout(binding = 0)uniform ubo_fogcam
     float u_fog_cam_near;
     vec3 u_fog_cam_world_pos;
     float u_fog_cam_far;
+	float u_layer_linearity;
 };
 
 layout(binding = 1) uniform ubo_shader_properties
@@ -138,7 +139,11 @@ vec3 get_normalized_thread_global_id()
 
 vec3 get_thread_ndc_pos()
 {
-    return get_normalized_thread_global_id() * 2 - 1;
+    const vec3 offset = vec3(1.0) / imageSize(u_out_inscattering);
+    const vec3 ndc_min = vec3(-1)+offset;
+    const vec3 ndc_max = vec3(1)-offset;
+    const vec3 normalized_pos = get_normalized_thread_global_id();
+    return ndc_min * (1-normalized_pos) + ndc_max * normalized_pos;
 }
 
 // Uniformly distributes volumetric texel space into world space.
@@ -202,6 +207,9 @@ vec3 get_local_light_radiance(uint _light_idx, vec3 _world_pos)
 
 void main()
 {
+	if(any(greaterThan(get_normalized_thread_global_id(), vec3(1))))
+        return;
+
     const vec3 world_pos = compute_thread_world_pos().xyz;
     const float layer_thickness = compute_layer_thickness(world_pos.xyz);
     const float dust_density = calculate_density_function(world_pos.xyz);

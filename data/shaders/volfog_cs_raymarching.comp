@@ -4,6 +4,11 @@ layout(local_size_x = 10, local_size_y = 10, local_size_z = 1) in;
 layout(rgba16f) uniform image3D readonly u_in_inscattering;
 uniform image3D writeonly u_out_accumulation;
 
+vec3 get_normalized_thread_global_id()
+{
+    return vec3(gl_GlobalInvocationID) / vec3(imageSize(u_out_accumulation) - 1);
+}
+
 vec4 accumulate_scattering(vec4 _col_and_density_front, vec4 _col_and_density_back)
 {
     vec3 light = _col_and_density_front.rgb + clamp(exp(-_col_and_density_front.a), 0.0,1.0) * _col_and_density_back.rgb;
@@ -18,6 +23,9 @@ void write_output(ivec3 _pos, vec4 _col_and_density)
 
 void main()
 {
+    if(any(greaterThan(get_normalized_thread_global_id(), vec3(1))))
+        return;
+
     ivec2 texel_xy = ivec2(gl_GlobalInvocationID.xy);
     ivec3 texel_pos = ivec3(texel_xy, 0);
     vec4 current_slice_value = imageLoad(u_in_inscattering, texel_pos).rgba;

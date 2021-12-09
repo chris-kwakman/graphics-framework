@@ -8,6 +8,7 @@ layout(binding = 0) uniform ubo_fogcam
     float u_fog_cam_near;
     vec3 u_fog_cam_world_pos;
     float u_fog_cam_far;
+	float u_layer_linearity;
 };
 layout(binding = 1) uniform ubo_camera_data
 {

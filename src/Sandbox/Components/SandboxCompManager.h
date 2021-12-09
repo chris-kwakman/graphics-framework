@@ -2,6 +2,7 @@
 #define COMPONENT_SANDBOX_COMPONENT_MANAGER_H
 
 #include "PlayerController.h"
+#include "VolumetricFog.h"
 
 namespace Component
 {

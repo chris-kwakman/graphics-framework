@@ -1,1 +1,2 @@
 DECLARE_MANAGER(PlayerControllerManager)
+DECLARE_MANAGER(VolumetricFogManager)

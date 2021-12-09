@@ -8,6 +8,7 @@
 #include <Engine/Components/SkeletonAnimator.h>
 #include <Engine/Components/CurveInterpolator.h>
 #include <Engine/Components/CurveFollower.h>
+#include <Sandbox/Components/VolumetricFog.h>
 
 #include "Components/PlayerController.h"
 
@@ -246,6 +247,14 @@ namespace Sandbox
 					}
 				}
 			}
+
+			auto volumetric_fog_iter = object_json.find("volumetric_fog");
+			if (volumetric_fog_iter != object_json.end())
+			{
+				auto volfog_instance = Component::Create<Component::VolumetricFog>(current_entity);
+				volfog_instance.SetBaseDensity(volumetric_fog_iter->value<float>("base_density", 0.1));
+				volfog_instance.SetHeightAttenuation(volumetric_fog_iter->value<float>("height_attenuation", 0.1));
+			}
 		}
 
 		for (unsigned int i = lights_offset; i < lights_offset + pointlight_count; ++i)
@@ -272,6 +281,14 @@ namespace Sandbox
 					glm::vec3(0.0f, 1.0f, 0.0f)
 				)
 			);
+
+			float blend_distance = object_json.value<float>("blend_distance", 20.0f);
+			unsigned int pcf_neighbour_count = object_json.value<unsigned int>("pcf_neighbour_count", 2);
+			unsigned int pow2_root_resolution = object_json.value<unsigned int>("pow2_root_resolution", 13);
+			float shadow_intensity = object_json.value<float>("shadow_intensity", 0.8f);
+			float linearity = object_json.value<float>("linearity", 0.6f);
+			light.SetBlendDistance(blend_distance);
+			light.SetShadowIntensity(shadow_intensity);
 
 			current_object.SetName("Directional Light");
 		}

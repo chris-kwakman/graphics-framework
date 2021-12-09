@@ -514,7 +514,7 @@ namespace Component
 		static ImGuizmo::OPERATION s_imguizmo_current_operation = ImGuizmo::TRANSLATE;
 		static ImGuizmo::MODE s_imguizmo_current_mode = ImGuizmo::LOCAL;
 
-		if (ImGui::IsItemFocused())
+		//if (ImGui::IsItemFocused())
 			Singleton<Engine::Editor::Editor>().ComponentUsingImguizmoWidget = GetComponentTypeName();
 
 		Transform transform_component = Get(_entity);

@@ -43,6 +43,8 @@ namespace Sandbox
 		float		m_near = 0.1f;
 		glm::vec3	m_world_pos;
 		float		m_far = 100.0f;
+		float		m_layer_linearity = 1.0f;
+		float		_padding[3];
 	};
 
 	struct volumetric_fog_pipeline_data

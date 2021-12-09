@@ -1,6 +1,8 @@
 #include "volumetric_fog.h"
 #include <Engine/Utils/singleton.h>
 #include <Sandbox/GraphicsPipeline/lighting_pass.h>
+#include <Sandbox/Components/VolumetricFog.h>
+#include <Engine/Components/Transform.h>
 
 namespace Sandbox
 {
@@ -12,12 +14,14 @@ namespace Sandbox
 	ssbo_volfog_instance s_volfog_instance_data[MAX_VOLUMETRIC_FOG_INSTANCES];
 	size_t s_volfog_instance_count = 0;
 	bool s_update_volfog_instance_data_buffer = false;
+	static bool s_accumulation_texture_cleared = false;
 
 	const GLuint BINDING_POINT_SSBO_VOLFOG_INSTANCES = 1;
 
 	const GLenum EFORMAT_TEXTURE_DENSITY = GL_R16F;
 	const GLenum EFORMAT_TEXTURE_INSCATTERING = GL_RGBA16F;
 	const GLenum EFORMAT_TEXTURE_ACCUMULATION = GL_RGBA16F;
+
 
 	void set_volfog_instances(ssbo_volfog_instance* _volfog_instance_data, size_t _volfog_instances)
 	{
@@ -127,12 +131,20 @@ namespace Sandbox
 
 		pipeline_data.m_volumetric_texture_resolution = _resolution;
 
-		if(pipeline_data.m_volumetric_density_texture == 0)
-			pipeline_data.m_volumetric_density_texture = res_mgr.CreateTexture(GL_TEXTURE_3D, "volumetric_fog/density");
-		if(pipeline_data.m_volumetric_inscattering_texture == 0)
-			pipeline_data.m_volumetric_inscattering_texture = res_mgr.CreateTexture(GL_TEXTURE_3D, "volumetric_fog/in_scattering");
-		if(pipeline_data.m_volumetric_accumulation_texture == 0)
-			pipeline_data.m_volumetric_accumulation_texture = res_mgr.CreateTexture(GL_TEXTURE_3D, "volumetric_fog/accumulation");
+		if (pipeline_data.m_volumetric_density_texture != 0)
+			res_mgr.DeleteTexture(pipeline_data.m_volumetric_density_texture);
+		if (pipeline_data.m_volumetric_inscattering_texture != 0)
+			res_mgr.DeleteTexture(pipeline_data.m_volumetric_inscattering_texture);
+		if (pipeline_data.m_volumetric_accumulation_texture != 0)
+			res_mgr.DeleteTexture(pipeline_data.m_volumetric_accumulation_texture);
+
+		pipeline_data.m_volumetric_density_texture = 0;
+		pipeline_data.m_volumetric_inscattering_texture = 0;
+		pipeline_data.m_volumetric_accumulation_texture = 0;
+
+		pipeline_data.m_volumetric_density_texture = res_mgr.CreateTexture(GL_TEXTURE_3D, "volumetric_fog/density");
+		pipeline_data.m_volumetric_inscattering_texture = res_mgr.CreateTexture(GL_TEXTURE_3D, "volumetric_fog/in_scattering");
+		pipeline_data.m_volumetric_accumulation_texture = res_mgr.CreateTexture(GL_TEXTURE_3D, "volumetric_fog/accumulation");
 
 		res_mgr.AllocateTextureStorage3D(
 			pipeline_data.m_volumetric_density_texture,
@@ -156,13 +168,58 @@ namespace Sandbox
 
 	void pipeline_volumetric_fog(Engine::Math::transform3D _cam_transform, Engine::Graphics::camera_data _camera_data)
 	{
+		auto& res_mgr = Singleton<ResourceManager>();
+		auto& pipeline_data = s_volumetric_fog_pipeline_data;
+
 		// Override camera near / far.
 		s_volfog_camera_ubo.m_near = _camera_data.m_near;
 		s_volfog_camera_ubo.m_far = _camera_data.m_far;
 		//_camera_data.m_near = s_volfog_camera_ubo.m_near;
 		//_camera_data.m_far = s_volfog_camera_ubo.m_far;
 
-		auto& pipeline_data = s_volumetric_fog_pipeline_data;
+		auto& volfog_comp_mgr = Singleton<Component::VolumetricFogManager>();
+
+		if (volfog_comp_mgr.ResetVolFogTextureSize)
+		{
+			volfog_comp_mgr.ResetVolFogTextureSize = false;
+			resize_volumetric_textures(volfog_comp_mgr.NewVolFogTextureSize);
+			s_accumulation_texture_cleared = false;
+		}
+
+		auto const & fog_instances = volfog_comp_mgr.GetAllFogInstances();
+		std::vector<ssbo_volfog_instance> upload_instances;
+		upload_instances.reserve(fog_instances.size());
+		for (auto const & pair : fog_instances)
+		{
+			auto const fog_instance = pair.second;
+			ssbo_volfog_instance new_instance;
+			new_instance.m_density = fog_instance.m_base_density;
+			new_instance.m_density_height_attenuation = fog_instance.m_density_height_attenuation;
+			new_instance.m_inv_m = pair.first.GetComponent<Component::Transform>().ComputeWorldTransform().GetInvMatrix();
+			upload_instances.emplace_back(std::move(new_instance));
+		}
+		set_volfog_instances(
+			&upload_instances.front(), upload_instances.size()
+		);
+
+		/*
+		* Before doing volumetric fog pass, check if we have any Volumetric Fog instances.
+		* If not, do not perform volfog pass and clear the final accumulation texture so 
+		* that we can use a default accumulation texture for applying volfog effect to shaded objects.
+		* This prevents rendering issues where we're trying to do a volfog pass without any fog instances.
+		*/
+		if (fog_instances.empty() && !s_accumulation_texture_cleared)
+		{
+			auto accum_tex_info = res_mgr.GetTextureInfo(pipeline_data.m_volumetric_accumulation_texture);
+			glm::vec4 const clear_color{ 0.0f, 0.0f, 0.0f, 1.0f };
+			glClearTexImage(accum_tex_info.m_gl_source_id, 0, GL_RGBA, GL_FLOAT, &clear_color);
+			return;
+		}
+		else
+		{
+			s_accumulation_texture_cleared = false;
+		}
+
 		if (s_update_volfog_instance_data_buffer)
 		{
 			s_update_volfog_instance_data_buffer = false;
@@ -179,6 +236,7 @@ namespace Sandbox
 		);
 		s_volfog_camera_ubo.m_view_dir = _cam_transform.quaternion * glm::vec3(0.0f, 0.0f, -1.0f);
 		s_volfog_camera_ubo.m_world_pos = _cam_transform.position;
+		s_volfog_camera_ubo.m_layer_linearity = volfog_comp_mgr.LayerLinearity;
 		
 		glBindBuffer(GL_UNIFORM_BUFFER, pipeline_data.m_fog_cam_ubo);
 		glBufferData(
@@ -187,6 +245,12 @@ namespace Sandbox
 			&s_volfog_camera_ubo,
 			GL_DYNAMIC_DRAW
 		);
+
+		s_volfog_shader_properties.m_fog_albedo = volfog_comp_mgr.FogAlbedo;
+		s_volfog_shader_properties.m_phase_anisotropy = volfog_comp_mgr.FogPhaseAnisotropy;
+		s_volfog_shader_properties.m_scattering_coefficient = volfog_comp_mgr.ScatteringCoefficient;
+		s_volfog_shader_properties.m_absorption_coefficient = volfog_comp_mgr.AbsorptionCoefficient;
+
 		glBindBuffer(GL_UNIFORM_BUFFER, pipeline_data.m_fog_shader_properties_ubo);
 		glBufferData(
 			GL_UNIFORM_BUFFER,
