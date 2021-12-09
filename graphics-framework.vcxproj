@@ -206,6 +206,7 @@
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\Sandbox\Components\PlayerController.cpp" />
     <ClCompile Include="src\Sandbox\Components\SandboxCompManager.cpp" />
+    <ClCompile Include="src\Sandbox\Components\VolumetricFog.cpp" />
     <ClCompile Include="src\Sandbox\GraphicsPipeline\volumetric_fog.cpp" />
     <ClCompile Include="src\Sandbox\graphics_pipeline.cpp" />
     <ClCompile Include="src\Sandbox\GraphicsPipeline\lighting_pass.cpp" />
@@ -533,6 +534,7 @@
     <ClInclude Include="src\Engine\Utils\algorithm.h" />
     <ClInclude Include="src\Engine\Utils\logging.h" />
     <ClInclude Include="src\Engine\Utils\singleton.h" />
+    <ClInclude Include="src\Sandbox\Components\VolumetricFog.h" />
     <ClInclude Include="src\Sandbox\Components\PlayerController.h" />
     <ClInclude Include="src\Sandbox\Components\SandboxCompManager.h" />
     <ClInclude Include="src\Sandbox\GraphicsPipeline\volumetric_fog.h" />
