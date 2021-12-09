@@ -45,16 +45,28 @@ vec3 get_thread_ndc_pos()
     return ndc_min * (1-normalized_pos) + ndc_max * normalized_pos;
 }
 
+float linearize_value(float t, float a, float b, float linearity)
+{  
+    return (1 - linearity) * (a * pow(b / a, t)) + linearity * (a + t * (b-a));
+}
+
 // Uniformly distributes volumetric texel space into world space.
 vec4 compute_thread_world_pos()
 {
     vec3 normalized_global_id = get_normalized_thread_global_id();
-    vec3 ndc_pos = get_thread_ndc_pos();
-    vec4 world_near = u_fog_cam_inv_vp * vec4(ndc_pos.xy, -1.0, 1.0);
-    world_near /= world_near.w;
-    vec4 world_far = u_fog_cam_inv_vp * vec4(ndc_pos.xy, 1.0, 1.0);
-    world_far /= world_far.w;
-    return world_far * normalized_global_id.z + world_near * (1.0 - normalized_global_id.z);
+    
+    // Rather than using converting normalized [0,1] Z of thread global id to 
+    // NDC directly, we first compute view depth, convert to ndc depth,
+    // and use new ndc depth with NDC position to get proper world position.
+    float n = u_fog_cam_near;
+    float f = u_fog_cam_far;
+    float view_depth = linearize_value(normalized_global_id.z, n, f, u_layer_linearity);
+    float ndc_z = (f + n - (2*n*f)/view_depth)/(f-n);
+
+    // Convert NDC to world position
+    vec3 ndc_pos = vec3(get_thread_ndc_pos().xy, ndc_z);
+    vec4 world_pos = u_fog_cam_inv_vp * vec4(ndc_pos, 1);
+    return world_pos / world_pos.w;
 }
 
 void main(void)

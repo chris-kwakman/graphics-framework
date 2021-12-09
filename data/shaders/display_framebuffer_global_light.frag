@@ -46,22 +46,10 @@ in vec2 f_uv;
 
 layout(location = 0) out vec4 out_color;
 
-vec3 get_volfog_uv(vec3 ndc)
-{
-	vec4 world_pos = u_cam_inv_vp * vec4(ndc,1);
-	world_pos /= world_pos.w;
-	vec4 view_pos = u_cam_v * world_pos;
-	// NDC position in volfog camera NDC space.
-	// However, we want to distribute depth linearly along volfog camera.
-	vec3 volfog_ndc = ndc;
-	volfog_ndc.z = 2*((-view_pos.z - u_fog_cam_near) / (u_fog_cam_far - u_fog_cam_near)) - 1;
-	// Convert volfog ndc position to texel position linearly.
-	return (volfog_ndc.xyz + 1)*0.5;
-}
 
-vec4 get_volumetric_fog_value(vec3 ndc)
-{	
-	return texture(u_sampler_volumetric_fog, get_volfog_uv(ndc)).rgba;
+float linearize_value(float t, float a, float b, float linearity)
+{  
+    return (1 - linearity) * (a * pow(b / a, t)) + linearity * (a + t * (b-a));
 }
 
 void main()
@@ -79,7 +67,12 @@ void main()
 	vec4 world_pos = u_cam_inv_vp * vec4(ndc,1);
 	world_pos /= world_pos.w;
 	
-	vec4 volfog_value = get_volumetric_fog_value(ndc);
+	vec4 view_pos = u_cam_v * world_pos;
+	float normalized_view_depth = (-view_pos.z - u_fog_cam_near) / (u_fog_cam_far - u_fog_cam_near);
+	float fog_ndc_z = linearize_value(normalized_view_depth, -1, 1, u_layer_linearity);
+	vec3 fog_ndc = vec3(ndc.xy, fog_ndc_z);
+
+	vec4 volfog_value = texture(u_sampler_volumetric_fog, (fog_ndc+1)/2);
 	vec3 fog_inscattering = volfog_value.rgb;
 	float fog_transmittance = volfog_value.a;
 

@@ -91,13 +91,19 @@ namespace Sandbox
 		glm::mat4 const camera_view_matrix = cam_transform.GetInvMatrix();
 		auto camera_data = camera_component.GetCameraData();
 
-		ubo_camera_data new_cam_data_ubo(cam_transform, camera_data);
-		new_cam_data_ubo.m_viewport_size = Singleton<sdl_manager>().get_window_size();
-		update_camera_ubo(new_cam_data_ubo);
-
 		glm::mat4 const camera_perspective_matrix = camera_data.is_orthogonal_camera() ?
 			camera_data.get_orthogonal_matrix() : camera_data.get_perspective_matrix();
 		glm::mat4 const matrix_vp = camera_perspective_matrix * camera_view_matrix;
+
+		ubo_camera_data new_cam_data_ubo(cam_transform, camera_data);
+		new_cam_data_ubo.m_viewport_size = Singleton<sdl_manager>().get_window_size();
+		new_cam_data_ubo.m_inv_vp = glm::inverse(matrix_vp);
+		new_cam_data_ubo.m_v = camera_view_matrix;
+		new_cam_data_ubo.m_p = camera_perspective_matrix;
+		new_cam_data_ubo.m_near = camera_data.m_near;
+		new_cam_data_ubo.m_far = camera_data.m_far;
+		new_cam_data_ubo.m_view_dir = cam_transform.quaternion * glm::vec3(0.0f, 0.0f, -1.0f);
+		update_camera_ubo(new_cam_data_ubo);
 
 		auto all_renderables = Singleton<Component::RenderableManager>().GetAllRenderables();
 
