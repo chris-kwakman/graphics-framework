@@ -721,6 +721,11 @@
     <Text Include="src\Engine\Components\EngineComponents.txt" />
     <Text Include="src\Sandbox\Components\SandboxComponents.txt" />
   </ItemGroup>
+  <ItemGroup>
+    <Library Include="lib\Debug\glew32.lib" />
+    <Library Include="lib\Debug\SDL2.lib" />
+    <Library Include="lib\Debug\SDL2main.lib" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
