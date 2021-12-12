@@ -3,8 +3,6 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
-*.dll
-
 # User-specific files
 *.rsuser
 *.suo
@@ -16,9 +14,7 @@
 *.userprefs
 
 # Build results
-[Dd]ebug/
 [Dd]ebugPublic/
-[Rr]elease/
 [Rr]eleases/
 x64/
 x86/
@@ -334,7 +330,4 @@ ASALocalRun/
 
 # Local History for Visual Studio
 .localhistory/
-working_dir/imgui.ini
-working_dir/imgui.ini
-*.png
 imgui.ini
