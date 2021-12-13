@@ -10,7 +10,7 @@ struct VolumetricFogInstance
     float   u_density_attenuation;  // How density attenuates over height (i.e. distance from bottom of boundary box)
 };
 
-layout(binding = 0)uniform ubo_fogcam
+uniform ubo_fogcam
 {
     // Do not reorder
     mat4 u_fog_cam_inv_vp;
@@ -19,9 +19,10 @@ layout(binding = 0)uniform ubo_fogcam
     vec3 u_fog_cam_world_pos;
     float u_fog_cam_far;
 	float u_layer_linearity;
+    uint u_layer_count;
 };
 
-layout(binding = 1) uniform ubo_shader_properties
+uniform ubo_shader_properties
 {
 	vec3	u_fog_albedo;
 	float	u_scattering_coefficient;
@@ -30,7 +31,7 @@ layout(binding = 1) uniform ubo_shader_properties
 };
 
 const int NUM_CASCADES = 3;
-layout(binding = 2) uniform ubo_camera_data
+uniform ubo_camera_data
 {
 	mat4 u_cam_inv_vp;
 	mat4 u_cam_v;
@@ -40,7 +41,7 @@ layout(binding = 2) uniform ubo_camera_data
 	float u_cam_far;
 	vec3 u_cam_view_dir;
 };
-layout(binding = 3) uniform ubo_csm_data
+uniform ubo_csm_data
 {
 	mat4	u_csm_vp[NUM_CASCADES];
 	vec3	u_world_light_dir;
@@ -170,14 +171,29 @@ vec4 compute_thread_world_pos()
     return world_pos / world_pos.w;
 }
 
-const float pi = 3.1415926535897932384626433832795;
+float get_normalized_fog_depth(float _positive_view_depth)
+{
+	return linearize_value(_positive_view_depth / u_fog_cam_far, u_fog_cam_near, u_fog_cam_far, u_layer_linearity) / u_fog_cam_far;
+}
+
 
 // Thickness of slice - non-constant due to exponential slice distrubtion.
-// TODO: Slice distribution IS constant, so the above is not actually true.
-float compute_layer_thickness(vec3 _world_pos)
+float compute_layer_thickness()
 {
-    // TODO: Convert to using exponential depth (if ever)
-    return (u_fog_cam_far - u_fog_cam_near) / imageSize(u_in_density).z;
+    uint layer_count = imageSize(u_in_density).z;
+
+    // Get layer using GlobalInvocationID
+    uint fog_texture_layer = gl_GlobalInvocationID.z;
+
+    // Get [min,max] boundaries of this layer in UV space.
+    const float uv_z_min = float(fog_texture_layer) / float(layer_count);
+    const float uv_z_max = float(fog_texture_layer+1) / float(layer_count);
+
+    // Get view depth for uv_z_min and uv_z_max
+    const float view_depth_min = linearize_value(uv_z_min, u_fog_cam_near, u_fog_cam_far, u_layer_linearity);
+    const float view_depth_max = linearize_value(uv_z_max, u_fog_cam_near, u_fog_cam_far, u_layer_linearity);
+
+    return view_depth_max - view_depth_min;
 }
 
 // Estimated density of participating medium at given point.
@@ -194,6 +210,8 @@ vec3 get_sun_lighting_radiance(vec3 _world_pos)
 	const float radiance = 1;
     return u_csm_light_color * radiance * get_world_pos_shadow_factor(vec4(_world_pos,1));
 }
+
+const float pi = 3.1415926535897932384626433832795;
 
 float get_phase_function(vec3 _view_dir, vec3 _light_dir, float _fog_phase_anisotropy)
 {
@@ -223,7 +241,7 @@ void main()
         return;
 
     const vec3 world_pos = compute_thread_world_pos().xyz;
-    const float layer_thickness = compute_layer_thickness(world_pos.xyz);
+    const float layer_thickness = compute_layer_thickness();
     const float dust_density = calculate_density_function(world_pos.xyz);
     // Scattering coefficient
     const float scattering = u_scattering_coefficient * dust_density * layer_thickness;

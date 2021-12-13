@@ -185,6 +185,7 @@ namespace Sandbox
 			resize_volumetric_textures(volfog_comp_mgr.NewVolFogTextureSize);
 			s_accumulation_texture_cleared = false;
 		}
+		s_volfog_camera_ubo.m_layer_count = pipeline_data.m_volumetric_texture_resolution.z;
 
 		auto const & fog_instances = volfog_comp_mgr.GetAllFogInstances();
 		std::vector<ssbo_volfog_instance> upload_instances;

@@ -15,15 +15,16 @@ layout(std430, binding = 0) readonly buffer ssbo_volfog_instance_data
     VolumetricFogInstance volfog_instances[];
 };
 
-layout(binding = 0) uniform ubo_fogcam
+uniform ubo_fogcam
 {
     // Do not reorder
     mat4 u_fog_cam_inv_vp;
     vec3 u_fog_cam_view_dir;
     float u_fog_cam_near;
-    vec3 u_world_pos;
+    vec3 u_fog_cam_world_pos;
     float u_fog_cam_far;
     float u_layer_linearity;
+    uint u_layer_count;
 };
 
 uniform image3D writeonly out_density;
@@ -67,6 +68,25 @@ vec4 compute_thread_world_pos()
     vec3 ndc_pos = vec3(get_thread_ndc_pos().xy, ndc_z);
     vec4 world_pos = u_fog_cam_inv_vp * vec4(ndc_pos, 1);
     return world_pos / world_pos.w;
+}
+
+// Thickness of slice - non-constant due to exponential slice distrubtion.
+float compute_layer_thickness()
+{
+    uint layer_count = imageSize(out_density).z;
+
+    // Get layer using GlobalInvocationID
+    uint fog_texture_layer = gl_GlobalInvocationID.z;
+
+    // Get [min,max] boundaries of this layer in UV space.
+    const float uv_z_min = float(fog_texture_layer) / float(layer_count);
+    const float uv_z_max = float(fog_texture_layer+1) / float(layer_count);
+
+    // Get view depth for uv_z_min and uv_z_max
+    const float view_depth_min = linearize_value(uv_z_min, u_fog_cam_near, u_fog_cam_far, u_layer_linearity);
+    const float view_depth_max = linearize_value(uv_z_max, u_fog_cam_near, u_fog_cam_far, u_layer_linearity);
+
+    return view_depth_max - view_depth_min;
 }
 
 void main(void)
@@ -120,7 +140,7 @@ void main(void)
         {
             float fog_bottom = (inverse(instance.u_inv_m) * vec4(fog_pos.x,-1,fog_pos.z,1)).y;
             float height = max(world_pos.y - fog_bottom,0);
-            float uniform_density = instance.u_density * exp(-height*instance.u_density_attenuation);
+            float uniform_density = instance.u_density * exp(-height*instance.u_density_attenuation) * compute_layer_thickness();
             write_fog_density += uniform_density;
         }
     }

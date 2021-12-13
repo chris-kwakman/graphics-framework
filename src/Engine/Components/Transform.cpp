@@ -533,16 +533,13 @@ namespace Component
 			transform_matrix = transform_component.GetLocalTransform().GetMatrix();
 
 		bool is_manipulated = false;
-		if (Singleton<Engine::Editor::Editor>().ComponentUsingImguizmoWidget == GetComponentTypeName())
-		{
-			is_manipulated = ImGuizmo::Manipulate(
-				&matrix_view[0][0],
-				&matrix_perspective[0][0],
-				s_imguizmo_current_operation,
-				s_imguizmo_current_mode,
-				&transform_matrix[0][0]
-			);
-		}
+		is_manipulated = ImGuizmo::Manipulate(
+			&matrix_view[0][0],
+			&matrix_perspective[0][0],
+			s_imguizmo_current_operation,
+			s_imguizmo_current_mode,
+			&transform_matrix[0][0]
+		);
 
 		if (is_manipulated)
 		{
@@ -595,15 +592,18 @@ namespace Component
 		ImGui::DragFloat4("Orientation", &transform.quaternion.x, 0.025f);
 		transform.quaternion = glm::normalize(transform.quaternion);
 
-		/*if(s_imguizmo_current_mode == ImGuizmo::LOCAL)
-			transform_component.SetLocalTransform(transform);
-		else
+		if (!is_manipulated)
 		{
-			transform_component.SetLocalTransform(
-				(transform_component.ComputeWorldTransform() * transform_component.GetLocalTransform().GetInverse()).GetInverse()
-				* transform
-			);
-		}*/
+			if(s_imguizmo_current_mode == ImGuizmo::LOCAL)
+				transform_component.SetLocalTransform(transform);
+			else
+			{
+				transform_component.SetLocalTransform(
+					(transform_component.ComputeWorldTransform() * transform_component.GetLocalTransform().GetInverse()).GetInverse()
+					* transform
+				);
+			}
+		}
 	}
 
 	/*

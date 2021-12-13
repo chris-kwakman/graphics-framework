@@ -1581,6 +1581,7 @@
     <None Include="data\shaders\volfog_cs_density.comp" />
     <None Include="data\shaders\volfog_cs_inscattering.comp" />
     <None Include="data\shaders\volfog_cs_raymarching.comp" />
+    <None Include="data\shaders\display_framebuffer_clearcolor.frag" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="src\Engine\Components\EngineComponents.txt" />

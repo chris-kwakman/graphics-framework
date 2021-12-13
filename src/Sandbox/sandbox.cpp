@@ -87,6 +87,7 @@ namespace Sandbox
 			"data/shaders/display_framebuffer_global_light.frag",
 			"data/shaders/display_framebuffer_ambient_occlusion.frag",
 			"data/shaders/display_framebuffer_ao_monochrome.frag",
+			"data/shaders/display_framebuffer_clearcolor.frag",
 			"data/shaders/blur_ambient_occlusion.frag",
 			"data/shaders/phong.frag",
 			"data/shaders/bloom.frag",
@@ -111,6 +112,7 @@ namespace Sandbox
 		program_shader_path_list const draw_framebuffer_global_light = { "data/shaders/display_framebuffer.vert", "data/shaders/display_framebuffer_global_light.frag" };
 		program_shader_path_list const draw_framebuffer_ambient_occlusion = { "data/shaders/display_framebuffer.vert", "data/shaders/display_framebuffer_ambient_occlusion.frag" };
 		program_shader_path_list const draw_framebuffer_ao_monochrome = { "data/shaders/display_framebuffer.vert", "data/shaders/display_framebuffer_ao_monochrome.frag" };
+		program_shader_path_list const draw_framebuffer_clearcolor = { "data/shaders/display_framebuffer.vert", "data/shaders/display_framebuffer_clearcolor.frag" };
 		program_shader_path_list const blur_ambient_occlusion_shaders = { "data/shaders/display_framebuffer.vert", "data/shaders/blur_ambient_occlusion.frag" };
 		program_shader_path_list const draw_phong_shaders = { "data/shaders/default.vert", "data/shaders/phong.frag" };
 		program_shader_path_list const process_bloom_blur_shaders = { "data/shaders/display_framebuffer.vert", "data/shaders/bloom.frag" };
@@ -128,6 +130,7 @@ namespace Sandbox
 		system_resource_manager.LoadShaderProgram("draw_framebuffer_global_light", draw_framebuffer_global_light);
 		system_resource_manager.LoadShaderProgram("draw_framebuffer_ambient_occlusion", draw_framebuffer_ambient_occlusion);
 		system_resource_manager.LoadShaderProgram("draw_framebuffer_ao_monochrome", draw_framebuffer_ao_monochrome);
+		system_resource_manager.LoadShaderProgram("draw_framebuffer_clearcolor", draw_framebuffer_clearcolor);
 		system_resource_manager.LoadShaderProgram("blur_ambient_occlusion", blur_ambient_occlusion_shaders);
 		system_resource_manager.LoadShaderProgram("draw_phong", draw_phong_shaders);
 		system_resource_manager.LoadShaderProgram("process_bloom_blur", process_bloom_blur_shaders);

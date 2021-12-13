@@ -1,6 +1,6 @@
 #version 420 core
 
-layout(binding = 0) uniform ubo_fogcam
+uniform ubo_fogcam
 {
     // Do not reorder
     mat4 u_fog_cam_inv_vp;
@@ -8,9 +8,10 @@ layout(binding = 0) uniform ubo_fogcam
     float u_fog_cam_near;
     vec3 u_fog_cam_world_pos;
     float u_fog_cam_far;
-	float u_layer_linearity;
+    float u_layer_linearity;
+	uint u_layer_count;
 };
-layout(binding = 1) uniform ubo_camera_data
+uniform ubo_camera_data
 {
 	mat4 u_cam_inv_vp;
 	mat4 u_cam_v;
@@ -21,7 +22,7 @@ layout(binding = 1) uniform ubo_camera_data
 	vec3 u_cam_view_dir;
 };
 const int CSM_PARTITION_COUNT = 3;
-layout(binding = 2) uniform ubo_csm_data
+uniform ubo_csm_data
 {
 	mat4	u_csm_vp[CSM_PARTITION_COUNT];
 	vec3	u_world_light_dir;
@@ -46,10 +47,14 @@ in vec2 f_uv;
 
 layout(location = 0) out vec4 out_color;
 
-
 float linearize_value(float t, float a, float b, float linearity)
 {  
-    return (1 - linearity) * (a * pow(b / a, t)) + linearity * (a + t * (b-a));
+    return (1.0 - linearity) * (a * pow(b / a, t)) + linearity * (a + t * (b-a));
+}
+
+float get_normalized_fog_depth(float _positive_view_depth)
+{
+	return linearize_value(_positive_view_depth / u_fog_cam_far, u_fog_cam_near, u_fog_cam_far, u_layer_linearity) / u_fog_cam_far;
 }
 
 void main()
@@ -68,11 +73,8 @@ void main()
 	world_pos /= world_pos.w;
 	
 	vec4 view_pos = u_cam_v * world_pos;
-	float normalized_view_depth = (-view_pos.z - u_fog_cam_near) / (u_fog_cam_far - u_fog_cam_near);
-	float fog_ndc_z = linearize_value(normalized_view_depth, -1, 1, u_layer_linearity);
-	vec3 fog_ndc = vec3(ndc.xy, fog_ndc_z);
-
-	vec4 volfog_value = texture(u_sampler_volumetric_fog, (fog_ndc+1)/2);
+	float fog_normalized_depth = get_normalized_fog_depth(-view_pos.z);
+	vec4 volfog_value = texture(u_sampler_volumetric_fog, vec3(f_uv.xy, fog_normalized_depth));
 	vec3 fog_inscattering = volfog_value.rgb;
 	float fog_transmittance = volfog_value.a;
 
