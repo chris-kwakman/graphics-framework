@@ -30,7 +30,12 @@ namespace Sandbox
 		float		m_scattering_coefficient = 100.0f;
 		float		m_absorption_coefficient = 100.0f;
 		float		m_phase_anisotropy = 0.5f; // [-1,1]
-		float _padding2[2];
+		float		m_fog_noise_min = 0.5f;
+		float		m_fog_noise_max = 1.0f;
+		glm::vec3	m_wind_dir = glm::vec3(1.0f, 0.0f, 0.0f);
+		float		m_time = 0.0f;
+		float		m_fog_noise_scale;
+		float		_padding[3];
 	};
 
 	struct ubo_volfog_camera

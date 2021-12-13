@@ -712,6 +712,7 @@ namespace Sandbox
 
 		GameplayLogic();
 
+		s_time += 1.0 / 60.0;
 		GraphicsPipelineRender();
 
 		if (s_bool_save_screenshot)

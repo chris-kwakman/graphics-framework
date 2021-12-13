@@ -44,6 +44,10 @@ namespace Component
 		float		AbsorptionCoefficient = 1.0f;
 		glm::uvec3	NewVolFogTextureSize = { 160,90,128 };
 		bool		ResetVolFogTextureSize = false;
+		glm::vec3	WindDirection = glm::vec3(0.0f);
+		float		NoiseScale = 0.1f;
+		float		NoiseMinValue = 0.5f;
+		float		NoiseMaxValue = 1.0f;
 		auto const& GetAllFogInstances() const { return m_fog_instances; }
 
 		fog_instance_data& GetEntityFogInstance(Entity _e);

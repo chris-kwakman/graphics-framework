@@ -49,6 +49,8 @@ namespace Sandbox
 	bool			s_render_infinite_grid = true;
 
 
+	double			s_time = 0.0;
+
 	GfxAmbientOcclusion s_ambient_occlusion;
 
 	GLuint s_buffers[1];

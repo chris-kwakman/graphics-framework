@@ -54,6 +54,8 @@ namespace Sandbox
 	extern glm::vec3		s_bloom_treshhold_color;
 	extern unsigned int		s_bloom_blur_count;
 
+	extern double			s_time;
+
 	// Ambient occlusion data
 	struct GfxAmbientOcclusion
 	{

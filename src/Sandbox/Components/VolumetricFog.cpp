@@ -37,6 +37,10 @@ namespace Component
 			ImGui::SliderFloat("Fog Phase Anisotropy", &FogPhaseAnisotropy, -1.0f, 1.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
 			ImGui::DragFloat("Scattering Coefficient", &ScatteringCoefficient, 0.1f, 0.0f, 10.0f);
 			ImGui::DragFloat("Absorption Coefficient", &AbsorptionCoefficient, 0.1f, 0.0f, 10.0f);
+			ImGui::DragFloat3("Wind Direction", &WindDirection.x, 0.05f, -FLT_MAX, FLT_MAX, "%.2f");
+			ImGui::SliderFloat("Noise Scale", &NoiseScale, 0.01f, 10.0f, "%.2f", 10.0f);
+			ImGui::SliderFloat("Noise Min Value", &NoiseMinValue, 0.0f, NoiseMaxValue, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+			ImGui::SliderFloat("Noise Max Value", &NoiseMaxValue, NoiseMinValue, 1.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
 
 			glm::ivec3 new_size = NewVolFogTextureSize;
 			new_size = glm::max(new_size, glm::ivec3(32, 32, 32));

@@ -251,6 +251,12 @@ namespace Sandbox
 		s_volfog_shader_properties.m_phase_anisotropy = volfog_comp_mgr.FogPhaseAnisotropy;
 		s_volfog_shader_properties.m_scattering_coefficient = volfog_comp_mgr.ScatteringCoefficient;
 		s_volfog_shader_properties.m_absorption_coefficient = volfog_comp_mgr.AbsorptionCoefficient;
+		s_volfog_shader_properties.m_fog_noise_min = volfog_comp_mgr.NoiseMinValue;
+		s_volfog_shader_properties.m_fog_noise_max = volfog_comp_mgr.NoiseMaxValue;
+		s_volfog_shader_properties.m_fog_noise_scale = volfog_comp_mgr.NoiseScale;
+		s_volfog_shader_properties.m_wind_dir = volfog_comp_mgr.WindDirection;
+		s_volfog_shader_properties.m_time = float(s_time);
+
 
 		glBindBuffer(GL_UNIFORM_BUFFER, pipeline_data.m_fog_shader_properties_ubo);
 		glBufferData(
