@@ -213,6 +213,7 @@
     <ClCompile Include="src\Sandbox\LoadScene.cpp" />
     <ClCompile Include="src\Sandbox\render_common.cpp" />
     <ClCompile Include="src\Sandbox\sandbox.cpp" />
+    <ClCompile Include="src\Sandbox\VerletIntegration\verlet_integration.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\delaunator\delaunator.hpp" />
@@ -543,6 +544,7 @@
     <ClInclude Include="src\Sandbox\render_common.h" />
     <ClInclude Include="src\Sandbox\sandbox.h" />
     <ClInclude Include="src\Sandbox\LoadScene.h" />
+    <ClInclude Include="src\Sandbox\VerletIntegration\verlet_integration.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitattributes" />

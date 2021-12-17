@@ -59,12 +59,24 @@ namespace Component
 
 	mesh_handle Renderable::GetMeshHandle() const
 	{
-		return GetManager().m_mesh_map.at(m_owner);
+		return GetManager().m_mesh_map.at(m_owner).m_mesh;
 	}
 
 	void Renderable::SetMesh(mesh_handle _mesh)
 	{
-		GetManager().m_mesh_map.find(m_owner)->second = _mesh;
+		GetManager().m_mesh_map.find(m_owner)->second.m_mesh = _mesh;
+	}
+
+	void Renderable::SetBaseColor(glm::vec3 _color)
+	{
+		auto& renderable_data = GetManager().m_mesh_map.find(m_owner)->second;
+		renderable_data.m_color = _color;
+		renderable_data.m_override_base_color = true;
+	}
+
+	glm::vec3 Renderable::GetBaseColor() const
+	{
+		return GetManager().m_mesh_map.at(m_owner).m_color;
 	}
 
 
@@ -81,7 +93,11 @@ namespace Component
 		if(!_e.HasComponent<Transform>())
 			return false;
 
-		m_mesh_map.emplace(_e, 0);
+		renderable_data new_data;
+		new_data.m_mesh = 0;
+		new_data.m_color = glm::vec3(1.0f);
+		new_data.m_override_base_color = false;
+		m_mesh_map.emplace(_e, new_data);
 
 		return true;
 	}
@@ -105,8 +121,8 @@ namespace Component
 		std::string mesh_name = component.GetMeshName();
 		mesh_handle my_mesh = component.GetMeshHandle();
 
-
 		mesh_handle payload_mesh_handle = 0;
+
 		ImGui::InputText("Mesh Name", (char*)mesh_name.c_str(), mesh_name.size(), ImGuiInputTextFlags_ReadOnly);
 		payload_mesh_handle |= accept_resource_handle_payload<mesh_handle>("RESOURCE_MESH");
 		//ImGui::InputInt("Mesh ID", (int*)&my_mesh, 0, 0, ImGuiInputTextFlags_ReadOnly);
@@ -114,6 +130,12 @@ namespace Component
 
 		if (payload_mesh_handle)
 			component.SetMesh(payload_mesh_handle);
+
+		glm::vec3 base_color = component.GetBaseColor();
+		if (ImGui::ColorEdit3("Base Color", &base_color.x))
+		{
+			component.SetBaseColor(base_color);
+		}
 	}
 
 	void RenderableManager::impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context)

@@ -4,6 +4,9 @@
 #include "GraphicsPipeline/lighting_pass.h"
 #include "GraphicsPipeline/volumetric_fog.h"
 
+#include "VerletIntegration/verlet_integration.h"
+#include "sandbox.h"
+
 // Engine File Includes
 #include <Engine/Graphics/manager.h>
 #include <Engine/Graphics/sdl_window.h>
@@ -182,7 +185,8 @@ namespace Sandbox
 		for (unsigned int renderable_idx = 0; renderable_idx < sorted_renderables.size(); ++renderable_idx)
 		{
 			Engine::ECS::Entity const renderable_entity = sorted_renderables[renderable_idx].first;
-			mesh_handle const renderable_mesh = sorted_renderables[renderable_idx].second;
+			auto const& renderable_data = sorted_renderables[renderable_idx].second;
+			mesh_handle const renderable_mesh = renderable_data.m_mesh;
 			if (renderable_mesh == 0)
 				continue;
 
@@ -203,6 +207,7 @@ namespace Sandbox
 			res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, matrix_vp * mesh_model_matrix);
 			res_mgr.SetBoundProgramUniform(LOC_MAT_MV, matrix_mv);
 			res_mgr.SetBoundProgramUniform(LOC_MAT_MV_T_INV, matrix_t_inv_mv);
+			res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, glm::vec4(sorted_renderables[renderable_idx].second.m_color, 1.0f));
 
 			if (renderable_idx >= first_skinned_renderable_index)
 			{
@@ -251,7 +256,10 @@ namespace Sandbox
 					activate_texture(use_base_color, LOC_SAMPLER_BASE_COLOR, 0);
 					activate_texture(use_metallic_roughness, LOC_SAMPLER_METALLIC, 1);
 					activate_texture(material.m_texture_normal, LOC_SAMPLER_NORMAL, 2);
-					res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, material.m_pbr_metallic_roughness.m_base_color_factor);
+					if (!renderable_data.m_override_base_color)
+						res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, material.m_pbr_metallic_roughness.m_base_color_factor);
+					else
+						res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, renderable_data.m_color);
 					/*activate_texture(material.m_texture_occlusion, 3, 3);
 					activate_texture(material.m_texture_emissive, 4, 4);*/
 
@@ -495,6 +503,68 @@ namespace Sandbox
 			}
 
 		}
+
+
+		//
+		//	Verlet Integration Rendering
+		//
+		{
+			res_mgr.BindFramebuffer(s_framebuffer_gbuffer);
+
+
+			auto * springs_adjacent = dynamic_cast<VerletIntegration::SpringConstraint*>(s_verlet_particle_system.m_constraints[0].get());
+			auto * springs_diagonal = dynamic_cast<VerletIntegration::SpringConstraint*>(s_verlet_particle_system.m_constraints[1].get());
+
+			if (springs_adjacent && springs_diagonal)
+			{
+				std::vector<glm::vec3> points;
+				points.reserve(2*(springs_adjacent->m_links.size() - springs_adjacent->m_expired_links + springs_diagonal->m_links.size() - springs_diagonal->m_expired_links));
+				glm::vec3 const* con_points = s_verlet_particle_system.current_positions();
+				for (unsigned int i = 0; i < springs_adjacent->m_links.size() - springs_adjacent->m_expired_links; ++i)
+				{
+					VerletIntegration::Link const curr_link = springs_adjacent->m_links[i];
+					points.emplace_back(con_points[curr_link.P1]);
+					points.emplace_back(con_points[curr_link.P2]);
+				}
+				for (unsigned int i = 0; i < springs_diagonal->m_links.size() - springs_diagonal->m_expired_links; ++i)
+				{
+					VerletIntegration::Link const curr_link = springs_diagonal->m_links[i];
+					points.emplace_back(con_points[curr_link.P1]);
+					points.emplace_back(con_points[curr_link.P2]);
+				}
+
+				res_mgr.UseProgram(res_mgr.FindShaderProgram("draw_gbuffer_primitive"));
+				set_bound_program_uniform_locations();
+				res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, glm::vec4(1.0f,0.0f,0.0f,1.0f));
+
+				Engine::Math::transform3D cloth_transform;
+				cloth_transform.scale = glm::vec3(1.0f);
+				cloth_transform.position = glm::vec3(0.0f);
+				glm::mat4 const mesh_model_matrix = cloth_transform.GetMatrix();
+				glm::mat4 const matrix_mv = camera_view_matrix * mesh_model_matrix;
+				glm::mat4 const matrix_t_inv_mv = glm::transpose(glm::inverse(matrix_mv));
+
+				res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, matrix_vp* mesh_model_matrix);
+				res_mgr.SetBoundProgramUniform(LOC_MAT_MV, matrix_mv);
+				res_mgr.SetBoundProgramUniform(LOC_MAT_MV_T_INV, matrix_t_inv_mv);
+
+				glDepthMask(GL_TRUE);
+				glDepthFunc(GL_LESS);
+				glDisable(GL_BLEND);
+				glLineWidth(4.0f);
+
+				glBindVertexArray(s_gl_line_vao);
+				glBindBuffer(GL_ARRAY_BUFFER, s_gl_line_vbo);
+				glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3)* points.size(), (void*)&points.front(), GL_DYNAMIC_DRAW);
+				glDrawArrays(
+					GL_LINES,
+					0,
+					(GLsizei)points.size()
+				);
+
+			}
+		}
+	
 
 		// 
 		// Skeleton Node Rendering

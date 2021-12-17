@@ -18,6 +18,8 @@ namespace Component
 		std::string		GetMeshName() const;
 		mesh_handle		GetMeshHandle() const;
 		void			SetMesh(mesh_handle _mesh);
+		void			SetBaseColor(glm::vec3 _color);
+		glm::vec3		GetBaseColor() const;
 	};
 
 	class SkinManager;
@@ -45,7 +47,14 @@ namespace Component
 	{
 		friend struct Renderable;
 
-		std::unordered_map<Entity, mesh_handle, Entity::hash> m_mesh_map;
+		struct renderable_data
+		{
+			mesh_handle m_mesh : 15;
+			bool		m_override_base_color : 1;
+			glm::vec3	m_color{ glm::vec3(1.0f) };
+		};
+
+		std::unordered_map<Entity, renderable_data, Entity::hash> m_mesh_map;
 
 		void impl_clear() final;
 		bool impl_create(Entity _e) final;

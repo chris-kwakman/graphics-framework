@@ -56,6 +56,7 @@ namespace Sandbox
 
 	extern double			s_time;
 
+
 	// Ambient occlusion data
 	struct GfxAmbientOcclusion
 	{

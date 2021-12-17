@@ -15,8 +15,10 @@
 
 #include <Engine/Components/Transform.h>
 #include <Engine/Components/Camera.h>
+#include <Engine/Components/Renderable.h>
 
 #include <Sandbox/Components/PlayerController.h>
+
 
 #include <STB/stb_image_write.h>
 
@@ -32,6 +34,7 @@
 #include <math.h>
 #include <iostream>
 #include <iomanip>
+#include "VerletIntegration/verlet_integration.h"
 
 Engine::Graphics::texture_handle		s_display_gbuffer_texture = 0;
 
@@ -305,6 +308,11 @@ namespace Sandbox
 		Singleton<Component::SceneEntityComponentManager>().Clear();
 	}
 
+
+	void SetupGameplayLogic();
+	void UpdateGameplayLogic();
+	void ShutdownGameplayLogic();
+
 	static bool s_scene_reset = false;
 	static bool s_camera_reset = false;
 
@@ -325,6 +333,8 @@ namespace Sandbox
 		LoadScene(LoadJSON(s_scene_loaded.c_str()), s_scene_loaded.c_str());
 
 		ResetEditorCamera();
+
+		SetupGameplayLogic();
 	}
 
 	bool Initialize(int argc, char* argv[])
@@ -344,7 +354,7 @@ namespace Sandbox
 			if (argc >= 2)
 				s_scene_loaded = argv[1];
 			else
-				s_scene_loaded = "data/scenes/sceneVolumetricFog.json";
+				s_scene_loaded = "data/scenes/sceneVerlet.json";
 		}
 
 		if (argc >= 3)
@@ -368,6 +378,8 @@ namespace Sandbox
 	float const CAM_ROTATE_SPEED = MATH_PI * 0.75f;
 	float const MOUSE_SENSITIVITY = 0.05f;
 	bool camera_invert = false;
+
+	glm::vec3 s_verlet_wind_direction = glm::vec3(0.0f);
 
 	void control_camera()
 	{
@@ -559,7 +571,7 @@ namespace Sandbox
 			}
 		}
 		ImGui::End();
-		if (ImGui::Begin("Ambient Occlusion"))
+		/*if (ImGui::Begin("Ambient Occlusion"))
 		{
 			ImGui::DragFloat("Radius Scale", &s_ambient_occlusion.radius_scale, 0.01f, 0.0f, 10.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 			ImGui::SliderFloat("Angle Bias", &s_ambient_occlusion.angle_bias, 0.0f, M_PI / 2, "%.3f", ImGuiSliderFlags_AlwaysClamp);
@@ -583,7 +595,7 @@ namespace Sandbox
 					current_render_mode = AORenderMode::eAO_Applied;
 			}
 		}
-		ImGui::End();
+		ImGui::End();*/
 
 		auto & transform_manager = Singleton<Component::TransformManager>();
 
@@ -625,7 +637,7 @@ namespace Sandbox
 						std::string const comp_name = manager->GetComponentTypeName();
 						if (!s_search_input.empty())
 						{
-							std::string lower_case_search_input;
+							/*std::string lower_case_search_input;
 							std::transform(
 								s_search_input.begin(), s_search_input.end(), 
 								std::back_inserter(lower_case_search_input), std::tolower
@@ -633,8 +645,8 @@ namespace Sandbox
 							std::string lower_case_comp_name;
 							std::transform(comp_name.begin(), comp_name.end(),
 								std::back_inserter(lower_case_comp_name), std::tolower
-							);
-							size_t result = lower_case_comp_name.find(lower_case_search_input);
+							);*/
+							size_t result = comp_name.find(s_search_input);
 							if (result != std::string::npos)
 								show_component = true;
 						}
@@ -651,13 +663,16 @@ namespace Sandbox
 		}
 		ImGui::End();
 
+		if (ImGui::Begin("Verlet Simulation"))
+		{
+			ImGui::TextWrapped("Cloth resolution is 64x64. It has four constraints: Two spring constraints (for adjacent and diagonal vertices), one static point constraint (for topmost vertices), and one sphere collider constraint (for all vertices)");
+			ImGui::TextWrapped("Cannot interact with individual particle, only with the entity in the scene graph labelled \"Sphere Collider\". The cloth does not exist as an entity in the world.");
+			ImGui::DragFloat3("Wind Direction", &s_verlet_wind_direction.x, 0.1f, -10.0f, 10.0f);
+		}
+		ImGui::End();
+
 		system_resource_manager.EditorDisplay();
 
-	}
-
-	void GameplayLogic()
-	{
-		Singleton<Component::PlayerControllerManager>().Update(1.0f / 60.0f);
 	}
 
 	void Update()
@@ -710,7 +725,7 @@ namespace Sandbox
 		control_camera();
 		frame_counter++;
 
-		GameplayLogic();
+		UpdateGameplayLogic();
 
 		s_time += 1.0 / 60.0;
 		GraphicsPipelineRender();
@@ -727,10 +742,159 @@ namespace Sandbox
 
 	void Shutdown()
 	{
+		ShutdownGameplayLogic();
+
 		ShutdownGraphicsPipelineRender();
 
 		shutdown_render_common();
 
 		ShutdownSandboxComponentManagers();
+	}
+
+
+	VerletIntegration::particle_system s_verlet_particle_system;
+	Entity s_verlet_sphere_collider;
+
+	void SetupGameplayLogic()
+	{
+		using namespace VerletIntegration;
+
+		float const DEFAULT_CLOTH_STIFFNESS = 0.5f;
+		unsigned int const CLOTH_RESOLUTION = 64;
+
+		s_verlet_sphere_collider.DestroyEndOfFrame();
+		s_verlet_sphere_collider = Entity::InvalidEntity;
+
+		// Create sphere collider
+
+
+		SphereCollisionConstraint* sphere_collider_constraint = nullptr;;
+		if (!s_verlet_sphere_collider.Alive())
+		{
+			Singleton<Engine::ECS::EntityManager>().EntityCreationRequest(&s_verlet_sphere_collider, 1);
+			auto collider_transform = Component::Create<Component::Transform>(s_verlet_sphere_collider);
+			auto collider_renderable = Component::Create<Component::Renderable>(s_verlet_sphere_collider);
+			collider_transform.SetLocalPosition(glm::vec3(0.0f, 0.0f, 2.0f));
+			collider_transform.SetLocalScale(glm::vec3(2.0f, 2.0f, 2.0f));
+			collider_renderable.SetMesh(Singleton<Engine::Graphics::ResourceManager>().FindMesh("Sphere/Sphere"));
+			sphere_collider_constraint = new SphereCollisionConstraint(collider_transform);
+			collider_renderable.SetBaseColor(glm::vec3(1.0f, 1.0f, 1.0f));
+		}
+
+		// Create cloth
+		glm::vec3 const min = { -4.0f,0.0f, 0.0f };
+		glm::vec3 const max = { 4.0f, 8.0f, 0.0f };
+		float restlength_adjacent = (max.x - min.x) / float(CLOTH_RESOLUTION);
+		float restlength_diagonal = glm::length(max - min) / float(CLOTH_RESOLUTION);
+		
+		std::vector<Link> horizontal_links, vertical_links, diagonal_links;
+		unsigned int const adjacent_link_count = (CLOTH_RESOLUTION - 1) * CLOTH_RESOLUTION;
+
+		// Create horizontal and vertical link vectors
+		horizontal_links.reserve(adjacent_link_count);
+		vertical_links.reserve(adjacent_link_count);
+		for (unsigned int j = 0; j < CLOTH_RESOLUTION; ++j)
+		{
+			for (unsigned int i = 0; i < CLOTH_RESOLUTION - 1; ++i)
+			{
+				horizontal_links.emplace_back(i + j * CLOTH_RESOLUTION, i + 1 + j * CLOTH_RESOLUTION);
+			}
+		}
+
+		for (unsigned int j = 0; j < CLOTH_RESOLUTION - 1; ++j)
+		{
+			for (unsigned int i = 0; i < CLOTH_RESOLUTION; ++i)
+			{
+				vertical_links.emplace_back(i + j * CLOTH_RESOLUTION, i + (j + 1) * CLOTH_RESOLUTION);
+			}
+		}
+
+		// Concatenate horizontal and vertical link vectors
+		horizontal_links.insert(horizontal_links.end(), vertical_links.begin(), vertical_links.end());
+
+		// Create diagonal link vectors
+		diagonal_links.reserve(2 * (CLOTH_RESOLUTION - 1) * (CLOTH_RESOLUTION - 1));
+		for (unsigned int j = 0; j < CLOTH_RESOLUTION - 1; ++j)
+		{
+			for (unsigned int i = 0; i < CLOTH_RESOLUTION - 1; ++i)
+			{
+				Link link1, link2;
+				link1.P1 = i + (j * CLOTH_RESOLUTION);
+				link1.P2 = (i + 1) + (j + 1) * CLOTH_RESOLUTION;
+				link2.P1 = i + 1 + j * CLOTH_RESOLUTION;
+				link2.P2 = i + (j + 1) * CLOTH_RESOLUTION;
+				diagonal_links.emplace_back(link1);
+				diagonal_links.emplace_back(link2);
+			}
+		}
+
+		std::vector<unsigned int> top_particle_indices;
+		top_particle_indices.reserve(CLOTH_RESOLUTION);
+		for (unsigned int i = 0; i < CLOTH_RESOLUTION; ++i)
+			top_particle_indices.emplace_back((CLOTH_RESOLUTION - 1) * CLOTH_RESOLUTION + i);
+
+		SpringConstraint* adjacent_spring = new SpringConstraint(horizontal_links, DEFAULT_CLOTH_STIFFNESS, restlength_adjacent);
+		SpringConstraint* diagonal_spring = new SpringConstraint(diagonal_links, DEFAULT_CLOTH_STIFFNESS, restlength_diagonal);
+
+		// Create default cloth particle system
+		// Create default positions from bottom left to top right
+		std::vector<glm::vec3> cloth_particle_positions;
+		cloth_particle_positions.reserve(CLOTH_RESOLUTION * CLOTH_RESOLUTION);
+		for (unsigned int j = 0; j < CLOTH_RESOLUTION; ++j)
+		{
+			for (unsigned int i = 0; i < CLOTH_RESOLUTION; ++i)
+			{
+				float x = float(i) / float(CLOTH_RESOLUTION - 1);
+				float y = float(j) / float(CLOTH_RESOLUTION - 1);
+				float z = 0.0f;
+				glm::vec3 param(x, y, z);
+				glm::vec3 particle_pos = min * (1.0f - param) + max * param;
+				cloth_particle_positions.push_back(particle_pos);
+			}
+		}
+		StaticConstraint* static_con = new StaticConstraint(top_particle_indices, &cloth_particle_positions.front());
+
+		s_verlet_particle_system.allocate_particles(
+			&cloth_particle_positions.front(),
+			CLOTH_RESOLUTION * CLOTH_RESOLUTION
+		);
+
+		s_verlet_particle_system.m_constraints.emplace_back(adjacent_spring);
+		s_verlet_particle_system.m_constraints.emplace_back(diagonal_spring);
+		s_verlet_particle_system.m_constraints.emplace_back(static_con);
+		s_verlet_particle_system.m_constraints.emplace_back(sphere_collider_constraint);
+	}
+
+	void UpdateGameplayLogic()
+	{
+		float const DT = 1.0f / 60.0f;
+
+		Singleton<Component::PlayerControllerManager>().Update(DT);
+
+		VerletIntegration::verlet_set_value(
+			s_verlet_particle_system.accelerations(),
+			s_verlet_particle_system.particle_count(),
+			s_verlet_wind_direction + glm::vec3(0.0f, -9.81f, 0.0f)
+		);
+
+		unsigned int iter = 0;
+		do
+		{
+			s_verlet_particle_system.solve_constraints(DT);
+		} while (++iter < 4);
+
+		VerletIntegration::verlet_integration(
+			s_verlet_particle_system.current_positions(),
+			s_verlet_particle_system.previous_positions(),
+			s_verlet_particle_system.accelerations(),
+			s_verlet_particle_system.particle_count(),
+			DT
+		);
+
+	}
+
+	void ShutdownGameplayLogic()
+	{
+
 	}
 }
