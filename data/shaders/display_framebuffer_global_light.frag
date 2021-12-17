@@ -56,7 +56,7 @@ float get_normalized_fog_depth(float _positive_view_depth)
 {
 	return linearize_value(_positive_view_depth / u_fog_cam_far, u_fog_cam_near, u_fog_cam_far, u_layer_linearity) / u_fog_cam_far;
 }
-
+	
 void main()
 {
 	float sunlight_factor = texture2D(u_sampler_shadow, f_uv).r;

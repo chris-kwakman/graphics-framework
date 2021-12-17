@@ -344,7 +344,7 @@ namespace Sandbox
 			if (argc >= 2)
 				s_scene_loaded = argv[1];
 			else
-				s_scene_loaded = "data/scenes/scenePoseBlending.json";
+				s_scene_loaded = "data/scenes/sceneVolumetricFog.json";
 		}
 
 		if (argc >= 3)
