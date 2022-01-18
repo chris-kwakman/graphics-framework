@@ -150,6 +150,9 @@
     <ClCompile Include="src\Sandbox\Components\VolumetricFog.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\Engine\Physics\half_edge.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Sandbox\sandbox.h">
@@ -1134,6 +1137,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\Sandbox\Components\VolumetricFog.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Engine\Physics\half_edge.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

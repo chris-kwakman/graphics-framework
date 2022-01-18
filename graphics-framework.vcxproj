@@ -199,6 +199,7 @@
     <ClCompile Include="src\Engine\Graphics\tiny_gltf.cc" />
     <ClCompile Include="src\Engine\Managers\input.cpp" />
     <ClCompile Include="src\Engine\Math\Transform3D.cpp" />
+    <ClCompile Include="src\Engine\Physics\half_edge.cpp" />
     <ClCompile Include="src\Engine\Serialisation\common.cpp" />
     <ClCompile Include="src\Engine\Serialisation\scene.cpp" />
     <ClCompile Include="src\Engine\Serialisation\serialise_gltf.cpp" />
@@ -528,6 +529,7 @@
     <ClInclude Include="src\Engine\Graphics\sdl_window.h" />
     <ClInclude Include="src\Engine\Managers\input.h" />
     <ClInclude Include="src\Engine\Math\Transform3D.h" />
+    <ClInclude Include="src\Engine\Physics\half_edge.h" />
     <ClInclude Include="src\Engine\Serialisation\common.h" />
     <ClInclude Include="src\Engine\Serialisation\scene.h" />
     <ClInclude Include="src\Engine\Serialisation\serialise_gltf.h" />
