@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.15)
 project(Demo LANGUAGES C CXX)
 
 # Ensure we use proper C++ standard
@@ -13,7 +13,7 @@ add_subdirectory(${PARENT_DIR}/engine Engine)
 
 link_directories(../lib/${CMAKE_BUILD_TYPE})
 include_directories(
-	"${PARENT_DIR}/include/"
+	"${PARENT_DIR}/include"
 	"${PARENT_DIR}/engine/src"
 	"src/"
 )

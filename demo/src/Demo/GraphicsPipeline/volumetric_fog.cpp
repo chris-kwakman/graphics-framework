@@ -200,8 +200,9 @@ namespace Sandbox
 			new_instance.m_inv_m = pair.first.GetComponent<Component::Transform>().ComputeWorldTransform().GetInvMatrix();
 			upload_instances.emplace_back(std::move(new_instance));
 		}
+
 		set_volfog_instances(
-			&upload_instances.front(), upload_instances.size()
+			upload_instances.empty() ? nullptr : &upload_instances.front(), upload_instances.size()
 		);
 
 		/*

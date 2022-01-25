@@ -88,7 +88,11 @@ namespace ECS {
 				ImGui::EndPopup();
 			}
 			if (opened_collapsing_header && !component_destroyed)
+			{
+				ImGui::PushID(GetComponentTypeName());
 				impl_edit_component(_entity);
+				ImGui::PopID();
+			}
 		}
 	}
 

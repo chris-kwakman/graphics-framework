@@ -10,6 +10,7 @@
 #include "Nameable.h"
 #include "CurveInterpolator.h"
 #include "CurveFollower.h"
+#include "Rigidbody.h"
 
 void Component::InitializeEngineComponentManagers()
 {
