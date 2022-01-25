@@ -8,6 +8,11 @@
 namespace Engine {
 namespace Physics {
 
+	/*
+	* Specifications:
+	* - One edge may only be adjacent to two faces at most.
+	* - 
+	*/
 	struct convex_hull
 	{
 		typedef uint16_t half_edge_idx;
@@ -26,8 +31,11 @@ namespace Physics {
 
 		struct face
 		{
-			vertex_idx		m_vertices[3];
-			uint16_t		_meta;
+			// TODO: Store all face vertex indices in one buffer, and
+			// refer to it through an offset and a length (i.e. a bufferview)
+
+			// Stored in counter-clockwise order.
+			std::vector<vertex_idx>	m_vertices;
 		};
 
 		std::vector<glm::vec3>	m_vertices;

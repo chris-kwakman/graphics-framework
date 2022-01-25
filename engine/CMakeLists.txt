@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARDS 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 
-set(ENGINE_SRC ${PROJECT_SOURCE_DIR}/src)
+set(ENGINE_SRC_DIR ${PROJECT_SOURCE_DIR}/src)
 
 add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 
@@ -23,8 +23,7 @@ set(DELAUNATOR_CPP ${PARENT_DIR}/include/delaunator/delaunator.cpp)
 add_library(${PROJECT_NAME} ${ENGINE_LIB_CPP_FILES} ${DELAUNATOR_CPP})
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
 
-target_link_libraries(${PROJECT_NAME} PUBLIC opengl32 glew32 SDL2 SDL2main)
-target_include_directories(${PROJECT_NAME} PUBLIC ${ENGINE_SRC})
+target_include_directories(${PROJECT_NAME} PUBLIC ${ENGINE_SRC_DIR})
 target_include_directories(${PROJECT_NAME} PUBLIC ${PARENT_DIR}/include)
 
 install(TARGETS ${PROJECT_NAME} DESTINATION ${PROJECT_SOURCE_DIR}/bin/${CMAKE_BUILD_TYPE}/)
