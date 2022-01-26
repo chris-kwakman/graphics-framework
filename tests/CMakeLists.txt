@@ -1,11 +1,8 @@
-cmake_minimum_required(VERSION 3.15)
 project(Tests LANGUAGES C CXX)
-
-set(CMAKE_CXX_STANDARD 11)
 
 get_filename_component(PARENT_DIR "../" ABSOLUTE)
 
-add_subdirectory(${PARENT_DIR}/engine Engine)
+#add_subdirectory(${PARENT_DIR}/engine Engine)
 
 file(GLOB_RECURSE TESTS_CPP ${PROJECT_SOURCE_DIR}/src/*.cpp)
 

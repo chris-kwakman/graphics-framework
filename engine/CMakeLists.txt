@@ -1,12 +1,6 @@
-cmake_minimum_required(VERSION 3.15)
 project(Engine LANGUAGES C CXX)
 
 get_filename_component(PARENT_DIR "../" ABSOLUTE)
-
-# Ensure we use proper C++ standard
-set(CMAKE_CXX_STANDARDS 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS ON)
 
 set(ENGINE_SRC_DIR ${PROJECT_SOURCE_DIR}/src)
 

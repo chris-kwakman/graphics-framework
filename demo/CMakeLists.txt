@@ -1,15 +1,9 @@
-cmake_minimum_required(VERSION 3.15)
 project(Demo LANGUAGES C CXX)
-
-# Ensure we use proper C++ standard
-set(CMAKE_CXX_STANDARDS 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS ON)
 
 get_filename_component(PARENT_DIR "../" ABSOLUTE)
 get_filename_component(SRC_DIR "src" ABSOLUTE)
 
-add_subdirectory(${PARENT_DIR}/engine Engine)
+#add_subdirectory(${PARENT_DIR}/engine Engine)
 
 link_directories(../lib/${CMAKE_BUILD_TYPE})
 include_directories(
@@ -40,3 +34,4 @@ target_link_libraries(${PROJECT_NAME}
 
 install(TARGETS ${PROJECT_NAME} DESTINATION ${PROJECT_SOURCE_DIR}/bin/${CMAKE_BUILD_TYPE}/)
 
+set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
