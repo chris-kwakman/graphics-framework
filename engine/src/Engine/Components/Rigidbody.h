@@ -15,7 +15,8 @@ namespace Component
 
 	class RigidBodyManager : public TCompManager<RigidBody>
 	{
-		std::unordered_map<Entity, size_t, Entity::hash> m_entity_map;
+
+	public:
 
 		struct rigidbody_data_collection
 		{
@@ -27,13 +28,22 @@ namespace Component
 				glm::mat3 _inertial_tensor
 			);
 
+			void erase(Entity _entity);
+			bool has(Entity _entity) const;
+			size_t get_entity_index(Entity _entity) const;
 			bool swap_back(size_t _idx);
 			bool swap_indices(size_t _idx1, size_t _idx2);
 			void pop_back();
 			size_t size() const { return m_positions.size(); }
 
+			bool is_linear_integration_enabled(size_t const _entity_index) const;
+			void enable_linear_integration(Entity const _entity, bool _state);
+
+			std::unordered_map<Entity, size_t, Entity::hash> m_entity_map;
 			// Index map
 			std::vector<Entity> m_index_entities;
+
+			size_t m_skip_linear_integration_count = 0;
 
 			// ### State
 			// Linear
@@ -42,7 +52,7 @@ namespace Component
 			std::vector<glm::vec3>	m_forces;
 			// Angular
 			std::vector<glm::quat>	m_rotations;
-			std::vector<glm::vec3>	m_omegas;
+			std::vector<glm::vec3>	m_angular_moments;
 			std::vector<glm::vec3>	m_torques;
 
 			// ### Constant Properties
@@ -55,6 +65,14 @@ namespace Component
 
 		// Inherited via TCompManager
 		virtual const char* GetComponentTypeName() const override;
+
+		void Integrate(float _dt);
+		void UpdateTransforms();
+
+		void EnableLinearIntegration(Entity const _entity, bool _state);
+
+		void ApplyForce(Entity _entity, glm::vec3 _force, glm::vec3 _offset);
+		void ApplyForce(size_t _entity_index, glm::vec3 _force, glm::vec3 _offset);
 
 	private:
 

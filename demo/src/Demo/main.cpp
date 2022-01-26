@@ -10,6 +10,7 @@
 
 #include <Engine/Components/SkeletonAnimator.h>
 #include <Engine/Components/CurveFollower.h>
+#include <Engine/Components/Rigidbody.h>
 
 #include "Demo/sandbox.h"
 #include "Demo/Components/SandboxCompManager.h"
@@ -68,6 +69,8 @@ void update_loop()
 		float const TEMP_DT = 1.0f / 60.0f;
 		Singleton<Component::CurveFollowerManager>().UpdateFollowers(TEMP_DT);
 		Singleton<Component::SkeletonAnimatorManager>().UpdateAnimatorInstances(TEMP_DT);
+		Singleton<Component::RigidBodyManager>().Integrate(TEMP_DT);
+		Singleton<Component::RigidBodyManager>().UpdateTransforms();
 
 		sdl_manager.set_gl_debug_state(false);
 

@@ -15,6 +15,7 @@
 
 #include <Engine/Components/Transform.h>
 #include <Engine/Components/Camera.h>
+#include <Engine/Components/Rigidbody.h>
 
 #include <Demo/Components/PlayerController.h>
 
@@ -32,6 +33,8 @@
 #include <math.h>
 #include <iostream>
 #include <iomanip>
+
+#include <glm/gtx/string_cast.hpp>
 
 Engine::Graphics::texture_handle		s_display_gbuffer_texture = 0;
 
@@ -652,7 +655,95 @@ namespace Sandbox
 
 	void GameplayLogic()
 	{
-		Singleton<Component::PlayerControllerManager>().Update(1.0f / 60.0f);
+		using namespace Engine::Managers;
+		using namespace Component;
+		using button_state = InputManager::button_state;
+
+		float const DT = 1.0f / 60.0f;
+
+		Singleton<Component::PlayerControllerManager>().Update(DT);
+
+		// Get rigidbody and detect if ray from camera intersects body.
+		// If so, impart a force on object at relative position.
+
+		static float holddown_timer = 0.0f;
+		auto& input_mgr = Singleton<InputManager>();
+		auto& rb_mgr = Singleton<RigidBodyManager>();
+
+		button_state mb_state = input_mgr.GetKeyboardButtonState(SDL_SCANCODE_F);
+		if (mb_state == button_state::eDown)
+			holddown_timer += DT;
+		else if (mb_state == button_state::eUnpressed)
+		{
+			glm::ivec2 const mouse_window_pos = input_mgr.GetMousePos();
+			glm::vec2 const normalized_mouse_pos = glm::vec2(mouse_window_pos) / glm::vec2(Singleton<Engine::sdl_manager>().get_window_size());
+			// Flip Y-axis since mouse window position starts in top-left rather than bottom-left.
+			glm::vec4 const mouse_ndc_pos = glm::vec4(
+				((2.0f * normalized_mouse_pos) - 1.0f) * glm::vec2(1.0f, -1.0f),
+				-1.0f,
+				1.0f
+			);
+
+			Engine::ECS::Entity camera_entity = Singleton<Engine::Editor::Editor>().EditorCameraEntity;
+			Camera camera_component = camera_entity.GetComponent<Camera>();
+			Transform camera_transform = camera_entity.GetComponent<Transform>();
+
+			Engine::Graphics::camera_data const cam_data = camera_component.GetCameraData();
+
+			glm::mat4 const perspective_mat = cam_data.get_perspective_matrix();
+			glm::mat4 const view_mat = camera_transform.ComputeWorldTransform().GetInverse().GetMatrix();
+			glm::mat4 const inv_vp = glm::inverse(perspective_mat * view_mat);
+
+			// Define start and end of ray
+
+			glm::mat2x4 const ray_ndc_points(
+				mouse_ndc_pos, 
+				glm::vec4(mouse_ndc_pos.x, mouse_ndc_pos.y, 1.0f, 1.0f)
+			);
+			glm::mat2x4 const ray_world_points = inv_vp* ray_ndc_points;
+			glm::vec3 const & ray_world_start = ray_world_points[0] / ray_world_points[0].w;
+			glm::vec3 const & ray_world_end = ray_world_points[1] / ray_world_points[1].w;
+			glm::vec3 const& ray_direction = glm::normalize(ray_world_end - ray_world_start);
+
+			auto const & rb_data = rb_mgr.m_rigidbodies_data;
+			for (size_t i = 0; i < rb_data.m_index_entities.size(); i++)
+			{
+				Entity const rb_entity = rb_data.m_index_entities[i];
+				Transform rb_transform = rb_entity.GetComponent<Transform>();
+				glm::vec3 position = rb_transform.GetLocalPosition();
+				glm::vec3 scale = rb_transform.GetLocalScale();
+				float const max_scale = glm::compMax(scale);
+				float const sphere_radius = max_scale * 0.5f;
+
+				// Perform line-sphere intersection test
+				float const A = glm::length2(ray_world_end - ray_world_start);
+				float const B = 2.0f * glm::dot(
+					ray_world_end - ray_world_start, 
+					ray_world_start - position
+				);
+				float const C = glm::length2(ray_world_start) + glm::length2(position) - 2 * glm::dot(ray_world_start, position) - sphere_radius * sphere_radius;
+
+				float const discriminant = B * B - 4.0f * A * C;
+				if (discriminant >= 0.0f)
+				{
+					float const sqrt_discriminant = glm::sqrt(discriminant);
+					float t0 = (-B - sqrt_discriminant)/(2.0f*A);
+					float t1 = (-B + sqrt_discriminant)/(2.0f * A);
+
+					float t_intersect = glm::min(t0, t1);
+					glm::vec3 world_intersection_point = ray_world_start + t_intersect * (ray_world_end - ray_world_start);
+
+					rb_mgr.ApplyForce(
+						i,
+						ray_direction * std::clamp(holddown_timer * 500.0f, 0.0f, 1000.0f),
+						world_intersection_point - position
+					);
+				}
+			}
+
+
+			holddown_timer = 0.0f;
+		}
 	}
 
 	void Update()
@@ -670,6 +761,14 @@ namespace Sandbox
 			std::string const dropped_file_dir = Singleton<sdl_manager>().get_dropped_file();
 			res_mgr.ImportModel_GLTF(dropped_file_dir.c_str());
 		}
+
+		//// Apply gravitational force to all objects
+		//auto& rb_data = Singleton<Component::RigidBodyManager>().m_rigidbodies_data;
+		//for (size_t i = 0; i < rb_data.size(); i++)
+		//{
+		//	float mass = rb_data.m_inv_masses[i] <= 0.0f ? 0.0f : 1.0f / rb_data.m_inv_masses[i];
+		//	rb_data.m_forces[i] += glm::vec3(0.0f, -9.81f, 0.0f) * mass;
+		//}
 
 		DummyEditorRender();
 
