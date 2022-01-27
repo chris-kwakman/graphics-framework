@@ -7,6 +7,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include <Engine/Serialisation/common.h>
+
 namespace Engine {
 namespace ECS {
 
@@ -102,6 +104,10 @@ namespace ECS {
 
 		void RegisterComponentManager(ICompManager* _component_manager);
 	};
+
+	void from_json(nlohmann::json const& j, Entity& t);
+	void to_json(nlohmann::json& j, Entity const& t);
+
 
 }
 }

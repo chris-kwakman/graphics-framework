@@ -607,24 +607,36 @@ namespace Component
 		}
 	}
 
-	/*
-	* Deserialize json into this entity's component
-	* @param	Entity
-	* @param	json		Json component to deserialize
-	* @param	SceneContext		Provided when deserialising scene
-	* @details	Assumes entity corresponding to this component has already been created.
-	*/
-	void TransformManager::impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context)
+	void TransformManager::impl_deserialize_data(nlohmann::json const& _j)
 	{
-		Transform component = Get(_e);
-		component.SetLocalTransform(_json_comp["local_transform"]);
-		if (_context)
+		int const serializer_version = _j.at("serializer_version");
+		if (serializer_version == 1)
 		{
-			auto parent_iter = _json_comp.find("parent_index");
-			if (parent_iter != _json_comp.end())
-				component.SetParent(_context->m_index_entities[parent_iter->get<unsigned int>()]);
+			m_entity_indexer_map = _j["m_entity_indexer_map"].get<decltype(m_entity_indexer_map)>();
+			m_transform_owners = _j["m_transform_owners"].get<decltype(m_transform_owners)>();
+			m_local_transforms = _j["m_local_transforms"].get<decltype(m_local_transforms)>();
+			m_parent = _j["m_parent"].get<decltype(m_parent)>();
+			m_first_child = _j["m_first_child"].get<decltype(m_first_child)>();
+			m_next_sibling = _j["m_next_sibling"].get<decltype(m_next_sibling)>();
+			m_world_matrix_owners = _j["m_world_matrix_owners"].get<decltype(m_world_matrix_owners)>();
+			m_root_entities = _j["m_root_entities"].get<decltype(m_root_entities)>();
 		}
+		m_dirty_matrix_count = m_world_matrix_owners.size();
 	}
+
+	void TransformManager::impl_serialize_data(nlohmann::json& _j) const
+	{
+		_j["m_entity_indexer_map"] = m_entity_indexer_map;
+		_j["m_transform_owners"] = m_transform_owners;
+		_j["m_local_transforms"] = m_local_transforms;
+		_j["m_parent"] = m_parent;
+		_j["m_first_child"] = m_first_child;
+		_j["m_next_sibling"] = m_next_sibling;
+		_j["m_world_matrix_owners"] = m_world_matrix_owners;
+		_j["m_root_entities"] = m_root_entities;
+		_j["serializer_version"] = 1;
+	}
+
 
 	//////////////////////////////////////////////////////////////////////////
 	//			Component Getters / Setters

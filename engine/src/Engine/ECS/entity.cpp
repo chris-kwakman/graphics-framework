@@ -191,5 +191,15 @@ namespace ECS {
 		nameable_comp.SetName(_name);
 	}
 
+	void from_json(nlohmann::json const& j, Entity& t)
+	{
+		t.m_data = j.get<uint16_t>();
+	}
+
+	void to_json(nlohmann::json & j, Entity const & t)
+	{
+		j = t.m_data;
+	}
+
 }
 }

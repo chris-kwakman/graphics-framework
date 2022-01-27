@@ -46,7 +46,7 @@ namespace Component
 			&m_rigidbodies_data.m_rotations.front(),
 			&m_rigidbodies_data.m_angular_moments.front(),
 			&m_rigidbodies_data.m_torques.front(),
-			&m_rigidbodies_data.m_inv_intertial_tensors.front(),
+			&m_rigidbodies_data.m_inv_inertial_tensors.front(),
 			rigidbody_count
 		);
 
@@ -178,18 +178,33 @@ namespace Component
 
 		bool edited_inertial_tensor = edit_mat3(m_rigidbodies_data.m_inertial_tensors[entity_index], "Inertial Tensor");
 		if (edited_inertial_tensor)
-			m_rigidbodies_data.m_inv_intertial_tensors[entity_index] = glm::inverse(m_rigidbodies_data.m_inertial_tensors[entity_index]);
+			m_rigidbodies_data.m_inv_inertial_tensors[entity_index] = glm::inverse(m_rigidbodies_data.m_inertial_tensors[entity_index]);
 
 		ImGui::BeginDisabled(true);
-		edit_mat3(m_rigidbodies_data.m_inv_intertial_tensors[entity_index], "Inverse Inertial Tensor");
+		edit_mat3(m_rigidbodies_data.m_inv_inertial_tensors[entity_index], "Inverse Inertial Tensor");
 		ImGui::EndDisabled();
 
 	}
 
-	void RigidBodyManager::impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context)
+	void RigidBodyManager::impl_deserialize_data(nlohmann::json const& _j)
 	{
+		int const serializer_version = _j["serializer_version"];
+		if (serializer_version == 1)
+		{
+			m_rigidbodies_data = _j["rigidbody_data"];
+			for (size_t i = 0; i < m_rigidbodies_data.size(); i++)
+			{
+				m_rigidbodies_data.m_inv_inertial_tensors[i] = glm::inverse(m_rigidbodies_data.m_inertial_tensors[i]);
+			}
+		}
 	}
 
+	void RigidBodyManager::impl_serialize_data(nlohmann::json& _j) const
+	{
+		_j["serializer_version"] = 1;
+
+		_j["rigidbody_data"] = m_rigidbodies_data;
+	}
 
 
 	size_t RigidBodyManager::rigidbody_data_collection::push_element(
@@ -218,7 +233,7 @@ namespace Component
 		// Properties
 		m_inv_masses.push_back(_mass);
 		m_inertial_tensors.push_back(_inertial_tensor);
-		m_inv_intertial_tensors.push_back(glm::inverse(_inertial_tensor));
+		m_inv_inertial_tensors.push_back(glm::inverse(_inertial_tensor));
 
 		// Update enabled & disabled linear integration partitions.
 		m_skip_linear_integration_count += 1;
@@ -278,7 +293,7 @@ namespace Component
 		// Constant properties
 		swap_indices(m_inv_masses);
 		swap_indices(m_inertial_tensors);
-		swap_indices(m_inv_intertial_tensors);
+		swap_indices(m_inv_inertial_tensors);
 
 		return true;
 	}
@@ -297,7 +312,7 @@ namespace Component
 
 		m_inv_masses.pop_back();
 		m_inertial_tensors.pop_back();
-		m_inv_intertial_tensors.pop_back();
+		m_inv_inertial_tensors.pop_back();
 
 		m_skip_linear_integration_count -= 1;
 	}

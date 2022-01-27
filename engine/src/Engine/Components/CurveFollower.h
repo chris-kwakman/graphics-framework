@@ -28,19 +28,23 @@ namespace Component
 		};
 		union
 		{
-			struct 
+			struct _s1
 			{
 				float		m_travel_rate;
 			} m_lin_dist_time_data;
-			struct
+			struct _s2
 			{
 				float		m_travel_rate; // Travel rate in normalized parameter space.
 				float		m_seg_front_param;	// Normalized parameter
 				float		m_seg_back_param;	// Normalized parameter
+
+				NLOHMANN_DEFINE_TYPE_INTRUSIVE(_s2, m_travel_rate, m_seg_front_param, m_seg_back_param)
 			} m_sine_interp_dist_time_data;
 		};
 		CurveInterpolator	m_curve_component; // Drag-droppeable / settable
 		distance_time_func	m_distance_time_func = distance_time_func::eLinear;
+
+		NLOHMANN_DEFINE_TYPE_INTRUSIVE(follower_data, m_arclength, m_max_travel_rate, m_sine_interp_dist_time_data, m_curve_component, m_distance_time_func)
 
 		void set_linear_dist_time_func_data(float _travel_rate);
 		void set_sine_interp_dist_time_func_data(float _param_travel_rate, float _seg_front_param, float _seg_back_param);
@@ -72,7 +76,6 @@ namespace Component
 		virtual void impl_destroy(Entity const* _entities, unsigned int _count) override;
 		virtual bool impl_component_owned_by_entity(Entity _entity) const override;
 		virtual void impl_edit_component(Entity _entity) override;
-		virtual void impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context) override;
 
 		friend struct CurveFollower;
 
@@ -82,6 +85,10 @@ namespace Component
 		virtual const char* GetComponentTypeName() const override;
 
 		void UpdateFollowers(float _dt);
+
+		// Inherited via TCompManager
+		virtual void impl_deserialize_data(nlohmann::json const& _j) override;
+		virtual void impl_serialize_data(nlohmann::json& _j) const override;
 	};
 
 }

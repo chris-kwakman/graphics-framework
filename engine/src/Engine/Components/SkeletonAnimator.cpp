@@ -1359,6 +1359,15 @@ void SkeletonAnimatorManager::UpdateAnimatorInstances(float _dt)
     }
 }
 
+void SkeletonAnimatorManager::impl_deserialize_data(nlohmann::json const& _j)
+{
+    assert(_j.empty());
+}
+
+void SkeletonAnimatorManager::impl_serialize_data(nlohmann::json& _j) const
+{
+}
+
 void SkeletonAnimatorManager::impl_clear()
 {
     m_entity_animator_data.clear();
@@ -1431,10 +1440,6 @@ void SkeletonAnimatorManager::impl_edit_component(Entity _entity)
         }
         ImGui::End();
     }
-}
-
-void SkeletonAnimatorManager::impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context)
-{
 }
 
 SkeletonAnimatorManager::animator_data& SkeletonAnimatorManager::get_entity_animator(Entity _e)

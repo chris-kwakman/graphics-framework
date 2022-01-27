@@ -2,6 +2,7 @@
 #define ENGINE_GRAPHICS_CAMERA_DATA_H
 
 #include <glm/mat4x4.hpp>
+#include <Engine/Serialisation/common.h>
 
 namespace Engine {
 	namespace Graphics {
@@ -22,6 +23,8 @@ namespace Engine {
 				};
 			};
 
+			NLOHMANN_DEFINE_TYPE_INTRUSIVE(camera_data, m_aspect_ratio, m_near, m_far, m_camera_type_value);
+
 			float get_vertical_fov() const { return m_camera_type_value; }
 			float get_orthogonal_width() const { return m_camera_type_value; }
 			float get_clipping_depth(float _world_depth) const;
@@ -33,6 +36,7 @@ namespace Engine {
 			glm::mat4 get_orthogonal_matrix() const;
 
 		};
+
 	}
 }
 #endif // !ENGINE_GRAPHICS_CAMERA_DATA_H

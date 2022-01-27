@@ -74,7 +74,6 @@ namespace Component
 		void impl_destroy(Entity const* _entities, unsigned int _count) final;
 		bool impl_component_owned_by_entity(Entity _entity) const final;
 		void impl_edit_component(Entity _entity) final;
-		void impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context) final;
 
 	public:
 
@@ -93,6 +92,12 @@ namespace Component
 		// Inherited via TCompManager
 		virtual void impl_clear() override;
 
+
+		// Inherited via TCompManager
+		virtual void impl_deserialize_data(nlohmann::json const& _j) override;
+
+		virtual void impl_serialize_data(nlohmann::json& _j) const override;
+
 	};
 
 	/*
@@ -109,7 +114,7 @@ namespace Component
 		Entity m_directional_light_entity = Entity::InvalidEntity;
 		// CSM textures sorted from nearest to furthest.
 		// Uses mipmap layers to define textures for different cascades
-		float				m_cascade_shadow_bias[CSM_PARTITION_COUNT];
+		std::array<float, CSM_PARTITION_COUNT>	m_cascade_shadow_bias;
 		texture_handle		m_cascade_shadow_map_textures[CSM_PARTITION_COUNT];
 		framebuffer_handle	m_cascade_shadow_map_framebuffers[CSM_PARTITION_COUNT];
 
@@ -132,12 +137,15 @@ namespace Component
 		virtual void impl_destroy(Entity const* _entities, unsigned int _count) override;
 		virtual bool impl_component_owned_by_entity(Entity _entity) const override;
 		virtual void impl_edit_component(Entity _entity) override;
-		virtual void impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context) override;
 
 	public:
 
 		virtual const char* GetComponentTypeName() const override { return "DirectionalLight"; }
 		DirectionalLight GetDirectionalLight() const { return DirectionalLight(m_directional_light_entity); }
+
+		// Inherited via TCompManager
+		virtual void impl_deserialize_data(nlohmann::json const& _j) override;
+		virtual void impl_serialize_data(nlohmann::json& _j) const override;
 	};
 }
 

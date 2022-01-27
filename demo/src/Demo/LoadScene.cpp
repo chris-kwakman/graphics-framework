@@ -479,40 +479,56 @@ namespace Component
 
 	void SceneEntityComponentManager::DestroySceneEntities(std::string const& _scene_path)
 	{
-		auto iter = m_scene_filepath_id.find(_scene_path);
-		if (iter != m_scene_filepath_id.end()) destroy_scene_id_entities(iter->second);
+		auto iter = m_data.m_scene_filepath_id.find(_scene_path);
+		if (iter != m_data.m_scene_filepath_id.end()) destroy_scene_id_entities(iter->second);
 	}
 
 	void SceneEntityComponentManager::DestroyAllSceneEntities()
 	{
-		for (auto& pair : m_scene_filepath_id)
+		for (auto& pair : m_data.m_scene_filepath_id)
 			destroy_scene_id_entities(pair.second);
 	}
 
 	void SceneEntityComponentManager::RegisterScene(std::string const& _scene_path)
 	{
-		auto scene_filepath_iter = m_scene_filepath_id.find(_scene_path);
-		if (scene_filepath_iter == m_scene_filepath_id.end())
+		auto scene_filepath_iter = m_data.m_scene_filepath_id.find(_scene_path);
+		if (scene_filepath_iter == m_data.m_scene_filepath_id.end())
 		{
-			uint8_t const new_scene_id = static_cast<uint8_t>(m_scene_filepath_id.size());
-			m_scene_filepath_id.emplace(_scene_path, new_scene_id);
-			m_scene_id_entities.emplace(
+			uint8_t const new_scene_id = static_cast<uint8_t>(m_data.m_scene_filepath_id.size());
+			m_data.m_scene_filepath_id.emplace(_scene_path, new_scene_id);
+			m_data.m_scene_id_entities.emplace(
 				new_scene_id, 
-				decltype(m_scene_id_entities)::value_type::second_type()
+				decltype(m_data.m_scene_id_entities)::value_type::second_type()
 			);
 		}
 	}
 
+	void SceneEntityComponentManager::impl_deserialize_data(nlohmann::json const& _j)
+	{
+		int const serializer_version = _j["serializer_version"];
+		if (serializer_version == 1)
+		{
+			m_data = _j["m_data"];
+		}
+	}
+
+	void SceneEntityComponentManager::impl_serialize_data(nlohmann::json& _j) const
+	{
+		_j["serializer_version"] = 1;
+
+		_j["m_data"] = m_data;
+	}
+
 	void SceneEntityComponentManager::impl_clear()
 	{
-		m_scene_filepath_id.clear();
-		m_entity_scene_id.clear();
-		m_scene_id_entities.clear();
+		m_data.m_scene_filepath_id.clear();
+		m_data.m_entity_scene_id.clear();
+		m_data.m_scene_id_entities.clear();
 	}
 
 	bool SceneEntityComponentManager::impl_create(Entity _e)
 	{
-		m_entity_scene_id.emplace(_e, INVALID_SCENE_ID);
+		m_data.m_entity_scene_id.emplace(_e, INVALID_SCENE_ID);
 		return true;
 	}
 
@@ -521,25 +537,25 @@ namespace Component
 		std::vector<Entity> existing_entities;
 		for (unsigned int i = 0; i < _count; ++i)
 		{
-			if (m_entity_scene_id.find(_entities[i]) != m_entity_scene_id.end())
+			if (m_data.m_entity_scene_id.find(_entities[i]) != m_data.m_entity_scene_id.end())
 				existing_entities.push_back(_entities[i]);
 		}
 
 		// After sorting entities by scene ID, remove from internal map
 		for (Entity const destroy_entity : existing_entities)
-			m_entity_scene_id.erase(destroy_entity);
+			m_data.m_entity_scene_id.erase(destroy_entity);
 	}
 
 	bool SceneEntityComponentManager::impl_component_owned_by_entity(Entity _entity) const
 	{
-		return (m_entity_scene_id.find(_entity) != m_entity_scene_id.end());
+		return (m_data.m_entity_scene_id.find(_entity) != m_data.m_entity_scene_id.end());
 	}
 
 	void SceneEntityComponentManager::impl_edit_component(Entity _entity)
 	{
-		uint8_t const entity_scene_id = m_entity_scene_id.at(_entity);
+		uint8_t const entity_scene_id = m_data.m_entity_scene_id.at(_entity);
 		std::string scene_filepath = "None";
-		for (auto pair : m_scene_filepath_id)
+		for (auto pair : m_data.m_scene_filepath_id)
 		{
 			if (pair.second == entity_scene_id)
 			{
@@ -550,13 +566,9 @@ namespace Component
 		ImGui::Text("Scene: %s", scene_filepath.c_str());
 	}
 
-	void SceneEntityComponentManager::impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context)
-	{
-	}
-
 	void SceneEntityComponentManager::destroy_scene_id_entities(uint8_t _id)
 	{
-		auto& scene_entity_list = m_scene_id_entities.at(_id);
+		auto& scene_entity_list = m_data.m_scene_id_entities.at(_id);
 
 		for (Entity e : scene_entity_list)
 			Singleton<Engine::ECS::EntityManager>().EntityDelayedDeletion(&e, 1);
@@ -565,29 +577,29 @@ namespace Component
 
 	void SceneEntityComponentManager::set_entity_scene_id(Entity _e, uint8_t _id)
 	{
-		uint8_t const current_scene_id = m_entity_scene_id.at(_e);
+		uint8_t const current_scene_id = m_data.m_entity_scene_id.at(_e);
 		if (current_scene_id == _id)
 			return;
 
 		// Remove from current scene (if any)
 		if (current_scene_id != INVALID_SCENE_ID)
 		{
-			auto& scene_id_entities = m_scene_id_entities.at(current_scene_id);
+			auto& scene_id_entities = m_data.m_scene_id_entities.at(current_scene_id);
 			scene_id_entities.erase(_e);
 		}
 		// Add to new scene (if valid one is set)
 		if (_id != INVALID_SCENE_ID)
 		{
-			auto& scene_id_entities = m_scene_id_entities.at(_id);
+			auto& scene_id_entities = m_data.m_scene_id_entities.at(_id);
 			scene_id_entities.insert(_e);
 		}
-		m_entity_scene_id.at(_e) = _id;
+		m_data.m_entity_scene_id.at(_e) = _id;
 	}
 
 	void SceneEntityComponent::SetToScene(std::string const& _scene_path)
 	{
-		auto iter = GetManager().m_scene_filepath_id.find(_scene_path);
-		if (iter != GetManager().m_scene_filepath_id.end())
+		auto iter = GetManager().m_data.m_scene_filepath_id.find(_scene_path);
+		if (iter != GetManager().m_data.m_scene_filepath_id.end())
 			GetManager().set_entity_scene_id(m_owner, iter->second);
 		else
 			GetManager().set_entity_scene_id(m_owner, SceneEntityComponentManager::INVALID_SCENE_ID);

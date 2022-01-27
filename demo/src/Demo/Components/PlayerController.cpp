@@ -16,7 +16,7 @@ namespace Component
 
     void PlayerControllerManager::impl_clear()
     {
-        m_player_map.clear();
+        m_data.m_player_map.clear();
     }
 
     bool PlayerControllerManager::impl_create(Entity _e)
@@ -26,7 +26,7 @@ namespace Component
         new_player_data.m_velocity_cap = 5.789f;
         new_player_data.m_velocity_attenuation = 0.916f;
         new_player_data.m_acceleration = 45.0f;
-        m_player_map.emplace(_e, std::move(new_player_data));
+        m_data.m_player_map.emplace(_e, std::move(new_player_data));
         return true;
     }
 
@@ -34,31 +34,23 @@ namespace Component
     {
         for (unsigned int i = 0; i < _count; ++i)
         {
-            m_player_map.erase(_entities[i]);
+            m_data.m_player_map.erase(_entities[i]);
         }
     }
 
     bool PlayerControllerManager::impl_component_owned_by_entity(Entity _entity) const
     {
-        return m_player_map.find(_entity) != m_player_map.end();
+        return m_data.m_player_map.find(_entity) != m_data.m_player_map.end();
     }
 
     void PlayerControllerManager::impl_edit_component(Entity _entity)
     {
-        player_data& data = m_player_map.at(_entity);
+        player_data& data = m_data.m_player_map.at(_entity);
         ImGui::InputFloat2("Velocity", &data.m_velocity.x, "%.2f", ImGuiInputTextFlags_ReadOnly);
         ImGui::SliderFloat("Velocity Cap", &data.m_velocity_cap, 0.0f, 10.0f, "%.3f");
         ImGui::SliderFloat("Velocity Attenuation", &data.m_velocity_attenuation, 0.0f, 1.0f);
         ImGui::SliderFloat("Acceleration", &data.m_acceleration, 0.0f, 50.0f);
     }
-
-    void PlayerControllerManager::impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context)
-    {
-        // Nada
-    }
-
-
-
 
 
     void PlayerControllerManager::update_player(float _dt, Entity _e, player_data& _data)
@@ -165,7 +157,7 @@ namespace Component
 
     void PlayerControllerManager::Update(float _dt)
     {
-        for (auto & pair : m_player_map)
+        for (auto & pair : m_data.m_player_map)
         {
             update_player(_dt, pair.first, pair.second);
         }
@@ -173,8 +165,8 @@ namespace Component
 
     void PlayerControllerManager::SetPlayerMoveBlendParam(Entity _e, float* _param)
     {
-        auto find = m_player_map.find(_e);
-        if (find != m_player_map.end())
+        auto find = m_data.m_player_map.find(_e);
+        if (find != m_data.m_player_map.end())
         {
             find->second.m_anim_ptr_move_blend = _param;
         }
@@ -182,11 +174,27 @@ namespace Component
 
     void PlayerControllerManager::SetPlayerLookBlendParam(Entity _e, glm::vec2* _param)
     {
-        auto find = m_player_map.find(_e);
-        if (find != m_player_map.end())
+        auto find = m_data.m_player_map.find(_e);
+        if (find != m_data.m_player_map.end())
         {
             find->second.m_anim_ptr_look_blend = _param;
         }
+    }
+
+    void PlayerControllerManager::impl_deserialize_data(nlohmann::json const& _j)
+    {
+        int const serializer_version = _j["serializer_version"];
+        if (serializer_version == 1)
+        {
+            m_data = _j["m_data"];
+        }
+    }
+
+    void PlayerControllerManager::impl_serialize_data(nlohmann::json& _j) const
+    {
+        _j["serializer_version"] = 1;
+
+        _j["m_data"] = m_data;
     }
 
     void PlayerController::BindMoveBlendParameter(float* _param)

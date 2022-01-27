@@ -1,11 +1,6 @@
 #ifndef ENGINE_TRANSFORM_H
 #define ENGINE_TRANSFORM_H
 
-#include <glm/vec3.hpp>
-#include <glm/vec4.hpp>
-#include <glm/mat4x4.hpp>
-#include <glm/gtc/quaternion.hpp>
-
 #include <Engine/Serialisation/common.h>
 
 namespace Engine

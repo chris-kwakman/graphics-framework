@@ -180,10 +180,10 @@ namespace Sandbox
 
 		auto& volfog_comp_mgr = Singleton<Component::VolumetricFogManager>();
 
-		if (volfog_comp_mgr.ResetVolFogTextureSize)
+		if (volfog_comp_mgr.m_data.ResetVolFogTextureSize)
 		{
-			volfog_comp_mgr.ResetVolFogTextureSize = false;
-			resize_volumetric_textures(volfog_comp_mgr.NewVolFogTextureSize);
+			volfog_comp_mgr.m_data.ResetVolFogTextureSize = false;
+			resize_volumetric_textures(volfog_comp_mgr.m_data.NewVolFogTextureSize);
 			s_accumulation_texture_cleared = false;
 		}
 		s_volfog_camera_ubo.m_layer_count = pipeline_data.m_volumetric_texture_resolution.z;
@@ -239,7 +239,7 @@ namespace Sandbox
 		);
 		s_volfog_camera_ubo.m_view_dir = _cam_transform.quaternion * glm::vec3(0.0f, 0.0f, -1.0f);
 		s_volfog_camera_ubo.m_world_pos = _cam_transform.position;
-		s_volfog_camera_ubo.m_layer_linearity = volfog_comp_mgr.LayerLinearity;
+		s_volfog_camera_ubo.m_layer_linearity = volfog_comp_mgr.m_data.LayerLinearity;
 		
 		glBindBuffer(GL_UNIFORM_BUFFER, pipeline_data.m_fog_cam_ubo);
 		glBufferData(
@@ -249,14 +249,14 @@ namespace Sandbox
 			GL_DYNAMIC_DRAW
 		);
 
-		s_volfog_shader_properties.m_fog_albedo = volfog_comp_mgr.FogAlbedo;
-		s_volfog_shader_properties.m_phase_anisotropy = volfog_comp_mgr.FogPhaseAnisotropy;
-		s_volfog_shader_properties.m_scattering_coefficient = volfog_comp_mgr.ScatteringCoefficient;
-		s_volfog_shader_properties.m_absorption_coefficient = volfog_comp_mgr.AbsorptionCoefficient;
-		s_volfog_shader_properties.m_fog_noise_min = volfog_comp_mgr.NoiseMinValue;
-		s_volfog_shader_properties.m_fog_noise_max = volfog_comp_mgr.NoiseMaxValue;
-		s_volfog_shader_properties.m_fog_noise_scale = volfog_comp_mgr.NoiseScale;
-		s_volfog_shader_properties.m_wind_dir = volfog_comp_mgr.WindDirection;
+		s_volfog_shader_properties.m_fog_albedo = volfog_comp_mgr.m_data.FogAlbedo;
+		s_volfog_shader_properties.m_phase_anisotropy = volfog_comp_mgr.m_data.FogPhaseAnisotropy;
+		s_volfog_shader_properties.m_scattering_coefficient = volfog_comp_mgr.m_data.ScatteringCoefficient;
+		s_volfog_shader_properties.m_absorption_coefficient = volfog_comp_mgr.m_data.AbsorptionCoefficient;
+		s_volfog_shader_properties.m_fog_noise_min = volfog_comp_mgr.m_data.NoiseMinValue;
+		s_volfog_shader_properties.m_fog_noise_max = volfog_comp_mgr.m_data.NoiseMaxValue;
+		s_volfog_shader_properties.m_fog_noise_scale = volfog_comp_mgr.m_data.NoiseScale;
+		s_volfog_shader_properties.m_wind_dir = volfog_comp_mgr.m_data.WindDirection;
 		s_volfog_shader_properties.m_time = float(s_time);
 
 

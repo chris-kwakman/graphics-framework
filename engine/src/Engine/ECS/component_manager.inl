@@ -97,17 +97,24 @@ namespace ECS {
 	}
 
 	template<class TComp>
-	inline void TCompManager<TComp>::DeserializeEntityComponent(Entity _e, nlohmann::json const& _json_entity, Engine::Serialisation::SceneContext const* _context)
-	{
-		auto component_iter = _json_entity.find(GetComponentTypeName());
-		if (component_iter != _json_entity.end())
-			impl_deserialise_component(_e, *component_iter, _context);
-	}
-
-	template<class TComp>
 	inline void TCompManager<TComp>::receive_entity_destruction_message(std::vector<Entity> const& _destroyed_entities)
 	{
 		Destroy(&_destroyed_entities.front(), (unsigned int)_destroyed_entities.size());
+	}
+
+	template<typename TComp>
+	inline void TCompManager<TComp>::Deserialize(nlohmann::json const& _j)
+	{
+		Clear();
+		auto component_mgr_iter = _j.find(GetComponentTypeName());
+		if (component_mgr_iter != _j.end())
+			impl_deserialize_data(*component_mgr_iter);
+	}
+
+	template<typename TComp>
+	inline void TCompManager<TComp>::Serialize(nlohmann::json & _j) const
+	{
+		impl_serialize_data(_j[GetComponentTypeName()]);
 	}
 
 	template<typename TComp>
@@ -123,6 +130,7 @@ namespace ECS {
 		return TComp::GetManager().Get(*this);
 #endif // _DEBUG
 	}
+
 
 	template<typename TComp>
 	inline bool Entity::HasComponent() const
