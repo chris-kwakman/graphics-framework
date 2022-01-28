@@ -34,6 +34,8 @@
 #include <iostream>
 #include <iomanip>
 
+#include <fstream>
+
 #include <glm/gtx/string_cast.hpp>
 
 Engine::Graphics::texture_handle		s_display_gbuffer_texture = 0;
@@ -171,8 +173,8 @@ namespace Sandbox
 		s_fb_texture_ao = resource_manager.CreateTexture(GL_TEXTURE_2D, "FB Ambient Occlusion");
 		for (unsigned int i = 0; i < 2; ++i)
 			s_fb_texture_bloom_pingpong[i] = resource_manager.CreateTexture(GL_TEXTURE_2D, "FB Bloom Pingpong");
-		for (unsigned int i = 0; i < 2; ++i)
-			s_fb_texture_ao_pingpong = resource_manager.CreateTexture(GL_TEXTURE_2D, "FB AO Pingpong");
+
+		s_fb_texture_ao_pingpong = resource_manager.CreateTexture(GL_TEXTURE_2D, "FB AO Pingpong");
 		s_texture_white = resource_manager.CreateTexture(GL_TEXTURE_2D, "White Texture");
 
 		s_display_gbuffer_texture = s_fb_texture_ao;
@@ -316,7 +318,17 @@ namespace Sandbox
 		s_camera_reset = false;
 
 		Entity& editor_camera_entity = Singleton<Engine::Editor::Editor>().EditorCameraEntity;
-		editor_camera_entity = Singleton<Component::CameraManager>().AllCameras().begin()->first;
+		auto& all_cameras = Singleton<Component::CameraManager>().AllCameras();
+		if (!all_cameras.empty())
+		{
+			editor_camera_entity = all_cameras.begin()->first;
+		}
+		else
+		{
+			Singleton<Engine::ECS::EntityManager>().EntityCreationRequest(&editor_camera_entity, 1);
+			Component::Create<Component::Transform>(editor_camera_entity);
+			Component::Create<Component::Camera>(editor_camera_entity);
+		}
 		s_camera_default_transform = editor_camera_entity.GetComponent<Component::Transform>().GetLocalTransform();
 	}
 
@@ -324,22 +336,18 @@ namespace Sandbox
 	{
 		s_scene_reset = false;
 
-		// Load next JSON scene
-		LoadScene(LoadJSON(s_scene_loaded.c_str()), s_scene_loaded.c_str());
-
 		ResetEditorCamera();
 	}
 
 	bool Initialize(int argc, char* argv[])
 	{
-		InitializeSandboxComponentManagers();
-
 		setup_render_common();
 		create_framebuffer_triangle();
 		setup_shaders();
 		setup_framebuffer();
 
 		SetupGraphicsPipelineRender();
+		ResetEditorCamera();
 
 		// Load glTF model Sponza by default, other if specified in commandline argument.
 		if (!s_scene_reset)
@@ -374,6 +382,9 @@ namespace Sandbox
 
 	void control_camera()
 	{
+		if (!Singleton<Engine::Editor::Editor>().EditorCameraEntity.Alive())
+			return;
+
 		auto& input_manager = Singleton<Engine::Managers::InputManager>();
 		using button_state = Engine::Managers::InputManager::button_state;
 
@@ -418,9 +429,9 @@ namespace Sandbox
 
 		auto camera_transform_comp = camera_entity.GetComponent<Component::Transform>();
 		auto cam_transform = camera_transform_comp.GetLocalTransform();
-		cam_transform.quaternion = quat_rotate_around_y * cam_transform.quaternion;
+		cam_transform.rotation = quat_rotate_around_y * cam_transform.rotation;
 
-		glm::vec3 const cam_dir = glm::rotate(cam_transform.quaternion, glm::vec3(0.0f, 0.0f, -1.0f));
+		glm::vec3 const cam_dir = glm::rotate(cam_transform.rotation, glm::vec3(0.0f, 0.0f, -1.0f));
 		// Project camera direction vector onto horizontal plane & normalize.
 		glm::vec3 const proj_cam_dir(cam_dir.x, 0.0f, cam_dir.z);
 		glm::vec3 const perp_proj_cam_dir = glm::normalize(glm::cross(proj_cam_dir, glm::vec3(0.0f, 1.0f, 0.0f)));
@@ -430,7 +441,7 @@ namespace Sandbox
 			accum_rotate_vertical * CAM_ROTATE_SPEED * DT, 
 			perp_proj_cam_dir
 		);
-		cam_transform.quaternion = quat_rotate_around_right_vector * cam_transform.quaternion;
+		cam_transform.rotation = quat_rotate_around_right_vector * cam_transform.rotation;
 
 		float accum_move_forward_backward = 0.0f, accum_move_left_right = 0.0f, accum_move_up_down = 0.0f;
 
@@ -782,23 +793,6 @@ namespace Sandbox
 
 		if (input_manager.GetKeyboardButtonState(SDL_SCANCODE_LCTRL) == button_state::eDown && input_manager.GetKeyboardButtonState(SDL_SCANCODE_Q) == button_state::ePress)
 			Singleton<Engine::sdl_manager>().m_want_quit = true;
-
-
-		////////////////////////////////////////
-		//   Switch scene
-		////////////////////////////////////////
-		if (input_manager.GetKeyboardButtonState(SDL_SCANCODE_LCTRL) == button_state::eDown && input_manager.GetKeyboardButtonState(SDL_SCANCODE_1) == button_state::ePress)
-		{
-			s_scene_loaded = "data/scenes/sceneAnimation.json";
-			s_scene_reset = true;
-			Singleton<Engine::sdl_manager>().m_want_restart = true;
-		}
-		else if (input_manager.GetKeyboardButtonState(SDL_SCANCODE_LCTRL) == button_state::eDown && input_manager.GetKeyboardButtonState(SDL_SCANCODE_2) == button_state::ePress)
-		{
-			s_scene_loaded = "data/scenes/sceneCurves.json";
-			s_scene_reset = true;
-			Singleton<Engine::sdl_manager>().m_want_restart = true;
-		}
 
 
 		control_camera();

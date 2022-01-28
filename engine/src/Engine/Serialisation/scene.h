@@ -19,6 +19,7 @@ namespace Serialisation {
 	};
 
 	void DeserialiseScene(nlohmann::json const& _j);
+	void SerialiseScene(nlohmann::json & _j);
 
 }
 }

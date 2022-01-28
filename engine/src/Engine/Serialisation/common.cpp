@@ -47,6 +47,28 @@ namespace glm
 		j["z"] = v[2];
 	}
 
+	void from_json(json const& j, glm::uvec3& v)
+	{
+		if (j.is_array())
+		{
+			for (unsigned int i = 0; i < 3; ++i)
+				v[i] = j.at(i);
+		}
+		else
+		{
+			v[0] = j.at("x");
+			v[1] = j.at("y");
+			v[2] = j.at("z");
+		}
+	}
+
+	void to_json(json& j, glm::uvec3 const& v)
+	{
+		j["x"] = v[0];
+		j["y"] = v[1];
+		j["z"] = v[2];
+	}
+
 	void from_json(json const& j, glm::vec4& v)
 	{
 		if (j.is_array())
@@ -97,6 +119,18 @@ namespace glm
 		j["x"] = q.x;
 		j["y"] = q.y;
 		j["z"] = q.z;
+	}
+
+	void from_json(nlohmann::json const& j, glm::mat3& m)
+	{
+		for (unsigned int i = 0; i < 9; ++i)
+			m[i / 3][i % 3] = (float)j.at(i);
+	}
+
+	void to_json(nlohmann::json& j, glm::mat3 const& m)
+	{
+		for (unsigned int i = 0; i < 9; ++i)
+			j.push_back(m[i / 3][i % 3]);
 	}
 
 	void from_json(nlohmann::json const& j, glm::mat4& m)

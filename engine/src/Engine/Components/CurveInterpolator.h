@@ -49,6 +49,8 @@ namespace Component
 
 		bool m_adaptive = false;
 
+		NLOHMANN_DEFINE_TYPE_INTRUSIVE(lookup_table, m_arclengths, m_normalized_parameters, m_points, m_lut_metadata, m_adaptive)
+
 		float get_normalized_parameter(unsigned int _index) const;
 		float compute_arclength(float _normalized_param) const;
 		float compute_normalized_parameter(float _arclength) const;
@@ -62,6 +64,8 @@ namespace Component
 		std::vector<glm::vec3>	m_nodes;
 		lookup_table			m_lut;
 		EType mutable			m_type;
+
+		NLOHMANN_DEFINE_TYPE_INTRUSIVE(piecewise_curve, m_nodes, m_lut, m_type)
 
 		void set_curve_type(EType _type);
 
@@ -98,7 +102,6 @@ namespace Component
 		virtual void impl_destroy(Entity const* _entities, unsigned int _count) override;
 		virtual bool impl_component_owned_by_entity(Entity _entity) const override;
 		virtual void impl_edit_component(Entity _entity) override;
-		virtual void impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context) override;
 
 		static void generate_curve_lut(piecewise_curve const* _curve, lookup_table* _lut, unsigned int _lut_resolution);
 		static void generate_curve_lut_adaptive(piecewise_curve const* _curve, lookup_table* _lut, unsigned int _subdivisions, float _treshhold);
@@ -120,6 +123,10 @@ namespace Component
 		decltype(m_renderable_curves) const& GetRenderableCurves() const;
 		decltype(m_renderable_curve_nodes) const& GetRenderableCurveNodes() const;
 		decltype(m_renderable_curve_lut) const& GetRenderableCurveLUTs() const;
+
+		// Inherited via TCompManager
+		virtual void impl_deserialize_data(nlohmann::json const& _j) override;
+		virtual void impl_serialize_data(nlohmann::json& _j) const override;
 	};
 }
 

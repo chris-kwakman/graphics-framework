@@ -118,6 +118,24 @@ namespace Component
 		}
 	}
 
+	void CurveFollowerManager::impl_deserialize_data(nlohmann::json const& _j)
+	{
+		int const serializer_version = _j["serializer_version"];
+		if (serializer_version == 1)
+		{
+			m_follower_map = _j["m_follower_map"].get<decltype(m_follower_map)>();
+			m_animateable = _j["m_animateable"].get<decltype(m_animateable)>();
+		}
+	}
+
+	void CurveFollowerManager::impl_serialize_data(nlohmann::json& _j) const
+	{
+		_j["serializer_version"] = 1;
+
+		_j["m_follower_map"] = m_follower_map;
+		_j["m_animateable"] = m_animateable;
+	}
+
 	void CurveFollowerManager::set_follower_playing_state(Entity _e, bool _play_state)
 	{
 		follower_data& data = m_follower_map.at(_e);
@@ -256,10 +274,6 @@ namespace Component
 
 		if (!data.m_curve_component.IsValid())
 			ImGui::EndDisabled();
-	}
-
-	void CurveFollowerManager::impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context)
-	{
 	}
 
 	///////////////////////////////////////////////////

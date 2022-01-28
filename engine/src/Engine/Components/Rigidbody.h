@@ -58,7 +58,23 @@ namespace Component
 			// ### Constant Properties
 			std::vector<float>		m_inv_masses;
 			std::vector<glm::mat3>	m_inertial_tensors;
-			std::vector<glm::mat3>	m_inv_intertial_tensors;
+			std::vector<glm::mat3>	m_inv_inertial_tensors;
+
+			NLOHMANN_DEFINE_TYPE_INTRUSIVE(
+				rigidbody_data_collection,
+				m_entity_map,
+				m_index_entities,
+				m_skip_linear_integration_count,
+				m_positions,
+				m_velocities,
+				//m_forces,		// Should always be zero at end of each frame
+				m_rotations,
+				m_angular_moments,
+				//m_torques,	// Should always be zero at end of each frame
+				m_inv_masses,
+				m_inertial_tensors
+				//m_inv_inertial_tensors // No need to serialize / deserialize, we can derive it from original tensor.
+			)
 		};
 
 		rigidbody_data_collection m_rigidbodies_data;
@@ -81,6 +97,9 @@ namespace Component
 		virtual void impl_destroy(Entity const* _entities, unsigned int _count) override;
 		virtual bool impl_component_owned_by_entity(Entity _entity) const override;
 		virtual void impl_edit_component(Entity _entity) override;
-		virtual void impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context) override;
+
+		// Inherited via TCompManager
+		virtual void impl_deserialize_data(nlohmann::json const& _j) override;
+		virtual void impl_serialize_data(nlohmann::json& _j) const override;
 	};
 }

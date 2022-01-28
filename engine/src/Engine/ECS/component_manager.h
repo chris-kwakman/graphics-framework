@@ -32,6 +32,8 @@ namespace ECS {
 
 		static inline TCompManager& GetManager() { return Singleton<TCompManager>(); }
 
+		NLOHMANN_DEFINE_TYPE_INTRUSIVE(IComp, m_owner)
+
 	protected:
 
 		Entity m_owner;
@@ -47,7 +49,9 @@ namespace ECS {
 
 		virtual void EditComponent(Entity _entity) = 0;
 		virtual const char* GetComponentTypeName() const = 0;
-		virtual void DeserializeEntityComponent(Entity _entity, nlohmann::json const & _json_entity, Engine::Serialisation::SceneContext const * _context) = 0;
+
+		virtual void	Deserialize(nlohmann::json const& _j) = 0;
+		virtual void	Serialize(nlohmann::json& _j) const = 0;
 
 		static std::vector<ICompManager*> const& GetRegisteredComponentManagers();
 
@@ -83,16 +87,13 @@ namespace ECS {
 		void			EditComponent(Entity _entity) final;
 
 		virtual const char* GetComponentTypeName() const = 0;
-
-		// Inherited via ICompManager
-		// These methods assume that the entity's component already exists.
-		// If json components have dependencies on each other, it is ALSO assumed the dependency component exists.
-		void DeserializeEntityComponent(Entity _e, nlohmann::json const& _json_entity, Engine::Serialisation::SceneContext const* _context) final;
-
 	protected:
 
 		void			CreateComponent(Entity _entity) final { Create(_entity); }
 		void			DestroyComponent(Entity _entity) final { Destroy(&_entity, 1); }
+
+		void	Deserialize(nlohmann::json const& _j) final;
+		void	Serialize(nlohmann::json& _j) const final;
 
 		virtual void impl_clear() = 0;
 
@@ -100,7 +101,9 @@ namespace ECS {
 		virtual void impl_destroy(Entity const* _entities, unsigned int _count) = 0;
 		virtual bool impl_component_owned_by_entity(Entity _entity) const = 0;
 		virtual void impl_edit_component(Entity _entity) = 0;
-		virtual void impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context) = 0;
+		
+		virtual void impl_deserialize_data(nlohmann::json const& _j) = 0;
+		virtual void impl_serialize_data(nlohmann::json& _j) const = 0;
 
 
 	private:

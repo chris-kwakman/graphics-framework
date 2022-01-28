@@ -78,9 +78,9 @@ namespace Component
                 interp_type::LINEAR
             );
             AnimationUtil::interpolate_quaternion(
-                &current_transform.quaternion,
-                &current_transform.quaternion,
-                &bind_transform.quaternion,
+                &current_transform.rotation,
+                &current_transform.rotation,
+                &bind_transform.rotation,
                 inv_mask,
                 interp_type::LINEAR,
                 false
@@ -113,9 +113,9 @@ namespace Component
                 interp_type::LINEAR
             );
             AnimationUtil::interpolate_quaternion(
-                &current_transform.quaternion,
-                &_left.m_joint_transforms[i].quaternion,
-                &_right.m_joint_transforms[i].quaternion,
+                &current_transform.rotation,
+                &_left.m_joint_transforms[i].rotation,
+                &_right.m_joint_transforms[i].rotation,
                 _blend_param,
                 interp_type::LINEAR,
                 false
@@ -155,10 +155,10 @@ namespace Component
                 p0_transform.scale * _blend_params[0] +
                 p1_transform.scale * _blend_params[1] +
                 p2_transform.scale * _blend_params[2];
-            m_joint_transforms[i].quaternion = glm::normalize(
-                p0_transform.quaternion * _blend_params[0] +
-                p1_transform.quaternion * _blend_params[1] +
-                p2_transform.quaternion * _blend_params[2]
+            m_joint_transforms[i].rotation = glm::normalize(
+                p0_transform.rotation * _blend_params[0] +
+                p1_transform.rotation * _blend_params[1] +
+                p2_transform.rotation * _blend_params[2]
             );
         }
         return *this;
@@ -1154,7 +1154,7 @@ namespace AnimationUtil
                     instance_data_channel_offset += 3;
                     break;
                 case channel_target_path::ROTATION:
-                    modify_joint_transform->quaternion = *(glm::quat const*)(_in_anim_channel_data + instance_data_channel_offset);
+                    modify_joint_transform->rotation = *(glm::quat const*)(_in_anim_channel_data + instance_data_channel_offset);
                     instance_data_channel_offset += 4;
                     break;
                 }
@@ -1359,6 +1359,15 @@ void SkeletonAnimatorManager::UpdateAnimatorInstances(float _dt)
     }
 }
 
+void SkeletonAnimatorManager::impl_deserialize_data(nlohmann::json const& _j)
+{
+    assert(_j.empty());
+}
+
+void SkeletonAnimatorManager::impl_serialize_data(nlohmann::json& _j) const
+{
+}
+
 void SkeletonAnimatorManager::impl_clear()
 {
     m_entity_animator_data.clear();
@@ -1431,10 +1440,6 @@ void SkeletonAnimatorManager::impl_edit_component(Entity _entity)
         }
         ImGui::End();
     }
-}
-
-void SkeletonAnimatorManager::impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context)
-{
 }
 
 SkeletonAnimatorManager::animator_data& SkeletonAnimatorManager::get_entity_animator(Entity _e)

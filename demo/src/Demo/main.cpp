@@ -20,6 +20,8 @@
 #include <filesystem>
 #include <iostream>
 
+#include <fstream>
+
 #undef main
 
 #define SCREEN_WIDTH 1920
@@ -31,6 +33,96 @@ using ms = std::chrono::milliseconds;
 static ms frametime = ms(0);
 static ms curr_frame_duration = ms(0);
 static ms const max_frametime(1000 / MAX_FRAMERATE);
+
+fs::path const scene_directory("data//scenes//");
+
+static fs::path s_load_scene_at_path;
+
+
+void load_scene(fs::path _scene_path)
+{
+	if (_scene_path.extension() != ".scene")
+		return;
+
+	std::ifstream scene_file(_scene_path);
+	if (scene_file.is_open())
+	{
+		nlohmann::json scene_json;
+		scene_file >> scene_json;
+		Engine::Serialisation::DeserialiseScene(scene_json);
+	}
+}
+
+void menu_bar()
+{
+	static char file_name_buffer[32];
+	fs::directory_iterator const dir_iter(scene_directory);
+
+	bool popup_scene_save = false;
+
+	if (ImGui::BeginMainMenuBar())
+	{
+		if (ImGui::BeginMenu("Scene"))
+		{
+			popup_scene_save = ImGui::MenuItem("Save Scene");
+			
+
+			if (ImGui::BeginMenu("Load Scene"))
+			{
+
+				for (auto & entry : dir_iter)
+				{
+					auto const entry_path = entry.path();
+					if (fs::is_regular_file(entry) && entry_path.has_extension() && entry_path.extension() == ".scene")
+					{
+						if (ImGui::MenuItem(entry_path.filename().string().c_str()))
+						{
+							Singleton<Engine::sdl_manager>().m_want_restart = true;
+							s_load_scene_at_path = entry_path;
+						}
+					}
+				}
+
+				ImGui::EndMenu();
+			}
+			ImGui::EndMenu();
+		}
+
+		ImGui::EndMainMenuBar();
+
+	}
+
+	if (popup_scene_save)
+	{
+		auto& io = ImGui::GetIO();
+		ImGui::OpenPopup("Save Scene");
+		ImGui::SetNextWindowPos(glm::vec2(io.DisplaySize) * 0.5f, ImGuiCond_Appearing, glm::vec2(0.5f, 0.5f));
+		memset(file_name_buffer, 0, sizeof(file_name_buffer));
+	}
+
+	glm::vec2 const screen_size = Singleton<Engine::sdl_manager>().get_window_size();
+
+	if (ImGui::BeginPopupContextWindow("Save Scene", ImGuiPopupFlags_None))
+	{
+		bool pressed_enter = ImGui::InputText("File Name", file_name_buffer, sizeof(file_name_buffer), ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_EnterReturnsTrue);
+		ImGui::SetItemDefaultFocus();
+		if (pressed_enter)
+		{
+			fs::path const const scene_file_name = std::string(file_name_buffer) + ".scene";
+			fs::path const const scene_file_path = scene_directory / scene_file_name;
+
+			std::ofstream scene_file(scene_file_path);
+			if (scene_file.is_open())
+			{
+				nlohmann::json scene_json;
+				Engine::Serialisation::SerialiseScene(scene_json);
+				scene_file << std::setw(4) << scene_json;
+			}
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::EndPopup();
+	}
+}
 
 void update_loop()
 {
@@ -74,8 +166,10 @@ void update_loop()
 
 		sdl_manager.set_gl_debug_state(false);
 
-		Singleton<Engine::Editor::Editor>().Render();
 		Singleton<Engine::ECS::EntityManager>().FreeQueuedEntities();
+
+		menu_bar();
+		Singleton<Engine::Editor::Editor>().Render();
 
 		sdl_manager.set_gl_debug_state(true);
 
@@ -98,7 +192,7 @@ int main(int argc, char* argv[])
 	std::string const cwd = std::filesystem::current_path().string();
 	printf("Working directory: %s\n", cwd.c_str());
 
-
+	s_load_scene_at_path = argv[1];
 	
 	Engine::sdl_manager& sdl_manager = Singleton<Engine::sdl_manager>();
 	if (sdl_manager.setup_volumetric_fog(glm::uvec2(SCREEN_WIDTH, SCREEN_HEIGHT)))
@@ -106,16 +200,18 @@ int main(int argc, char* argv[])
 		sdl_manager.m_want_restart = true;
 		while (sdl_manager.m_want_restart)
 		{
+			sdl_manager.m_want_restart = false;
+
 			Component::InitializeEngineComponentManagers();
 			Component::InitializeSandboxComponentManagers();
 
-			sdl_manager.m_want_restart = false;
 			Singleton<Engine::Editor::Editor>().Initialise();
 			Singleton<Engine::ECS::EntityManager>().Reset();
 			Singleton<Engine::Graphics::ResourceManager>().Reset();
 
-			import_default_resources();
+			load_scene(s_load_scene_at_path);
 
+			import_default_resources();
 
 			if (Sandbox::Initialize(argc, argv))
 				update_loop();

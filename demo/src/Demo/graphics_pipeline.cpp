@@ -73,7 +73,7 @@ namespace Sandbox
 			camera_entity = editor_cam_entity;
 
 		auto const cam_transform = camera_entity.GetComponent<Component::Transform>().ComputeWorldTransform();
-		glm::vec3 const camera_forward = cam_transform.quaternion * glm::vec3(0.0f, 0.0f, -1.0f);
+		glm::vec3 const camera_forward = cam_transform.rotation * glm::vec3(0.0f, 0.0f, -1.0f);
 		glm::vec3 const camera_right = glm::normalize(glm::cross(camera_forward, glm::vec3(0.0f, 1.0f, 0.0f)));
 		glm::vec3 const camera_up = glm::normalize(glm::cross(camera_forward, camera_right));
 
@@ -102,7 +102,7 @@ namespace Sandbox
 		new_cam_data_ubo.m_p = camera_perspective_matrix;
 		new_cam_data_ubo.m_near = camera_data.m_near;
 		new_cam_data_ubo.m_far = camera_data.m_far;
-		new_cam_data_ubo.m_view_dir = cam_transform.quaternion * glm::vec3(0.0f, 0.0f, -1.0f);
+		new_cam_data_ubo.m_view_dir = cam_transform.rotation * glm::vec3(0.0f, 0.0f, -1.0f);
 		update_camera_ubo(new_cam_data_ubo);
 
 		auto all_renderables = Singleton<Component::RenderableManager>().GetAllRenderables();
@@ -548,13 +548,13 @@ namespace Sandbox
 
 						glm::vec3 dir_vec = parent_world_transform.position - child_world_transform.position;
 						Engine::Math::transform3D bone_transform;
-						bone_transform.quaternion = glm::quatLookAt(glm::normalize(dir_vec), glm::vec3(0.0f, 1.0f, 0.0f));
+						bone_transform.rotation = glm::quatLookAt(glm::normalize(dir_vec), glm::vec3(0.0f, 1.0f, 0.0f));
 						float dir_vec_length = glm::length(dir_vec);
 						bone_transform.scale = glm::vec3(0.25f, 0.25f, 1.0f) * dir_vec_length;
 
 						child_world_transform.scale = glm::vec3(1.0f);
-						child_world_transform.quaternion = glm::quat(0.0f, 0.0f, 0.0f, 0.0f);
-						child_world_transform.quaternion.w = 1.0f;
+						child_world_transform.rotation = glm::quat(0.0f, 0.0f, 0.0f, 0.0f);
+						child_world_transform.rotation.w = 1.0f;
 
 
 

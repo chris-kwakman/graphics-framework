@@ -118,12 +118,20 @@ namespace Component
 			component.SetMesh(payload_mesh_handle);
 	}
 
-	void RenderableManager::impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context)
+	void RenderableManager::impl_deserialize_data(nlohmann::json const& _j)
 	{
-		auto& resource_manager = Singleton<Engine::Graphics::ResourceManager>();
-		Renderable component = Get(_e);
-		auto mesh_handle = resource_manager.FindMesh(_json_comp["mesh_name"].get<std::string>().c_str());
-		component.SetMesh(mesh_handle);
+		int const serializer_version = _j.at("serializer_version");
+		if (serializer_version == 1)
+		{
+			m_mesh_map = _j["m_mesh_map"].get<decltype(m_mesh_map)>();
+		}
+	}
+
+	void RenderableManager::impl_serialize_data(nlohmann::json& _j) const
+	{
+		_j["serializer_version"] = 1;
+
+		_j["m_mesh_map"] = m_mesh_map;
 	}
 
 	///////////////////////////////////////////////////////////////////////////
@@ -182,6 +190,15 @@ namespace Component
 		return "Skin";
 	}
 
+	void SkinManager::impl_deserialize_data(nlohmann::json const& _j)
+	{
+
+	}
+
+	void SkinManager::impl_serialize_data(nlohmann::json& _j) const
+	{
+	}
+
 	void SkinManager::impl_clear()
 	{
 		m_skin_instance_map.clear();
@@ -221,10 +238,6 @@ namespace Component
 		ImGui::EndListBox();
 	}
 
-	void SkinManager::impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context)
-	{
-	}
-
 	///////////////////////////////////////////////////////////////////////////
 	//						Decals & Decal Manager
 	///////////////////////////////////////////////////////////////////////////
@@ -247,6 +260,22 @@ namespace Component
 	decltype(DecalManager::m_decal_data_map) const& DecalManager::GetAllDecals() const
 	{
 		return m_decal_data_map;
+	}
+
+	void DecalManager::impl_deserialize_data(nlohmann::json const& _j)
+	{
+		int const serializer_version = _j["serializer_version"];
+		if (serializer_version == 1)
+		{
+			m_decal_data_map = _j["m_decal_data_map"].get<decltype(m_decal_data_map)>();
+		}
+	}
+
+	void DecalManager::impl_serialize_data(nlohmann::json& _j) const
+	{
+		_j["serializer_version"] = 1;
+
+		_j["m_decal_data_map"] = m_decal_data_map;
 	}
 
 	void DecalManager::impl_clear()
@@ -314,10 +343,6 @@ namespace Component
 			ImGui::EndCombo();
 		}
 		ImGui::SliderFloat("Decal Angle Treshhold", &s_decal_angle_treshhold, 0.0f, 90.0f, "%.1f");
-	}
-
-	void DecalManager::impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context)
-	{
 	}
 
 	decal_textures& Decal::GetTexturesRef()

@@ -7,6 +7,21 @@ namespace Component
 		return "Nameable";
 	}
 
+	void NameableManager::impl_deserialize_data(nlohmann::json const& _j)
+	{
+		m_entity_index_map = _j["m_entity_index_map"].get<decltype(m_entity_index_map)>();
+		m_index_entities = _j["m_index_entities"].get<decltype(m_index_entities)>();
+		m_index_names = _j["m_index_names"].get<decltype(m_index_names)>();
+	}
+
+	void NameableManager::impl_serialize_data(nlohmann::json& _j) const
+	{
+		_j["m_entity_index_map"] = m_entity_index_map;
+		_j["m_index_entities"] = m_index_entities;
+		_j["m_index_names"] = m_index_names;
+		_j["serializer_version"] = 1;
+	}
+
 	void NameableManager::impl_clear()
 	{
 		m_entity_index_map.clear();
@@ -60,10 +75,6 @@ namespace Component
 		memcpy(name_buffer, &m_index_names[entity_index].front(), MAX_STRING_SIZE-1);
 		if (ImGui::InputText("Name", name_buffer, MAX_STRING_SIZE))
 			set_index_name(entity_index, name_buffer);
-	}
-
-	void NameableManager::impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context)
-	{
 	}
 
 	uint8_t NameableManager::get_index_name_length(unsigned int _index) const

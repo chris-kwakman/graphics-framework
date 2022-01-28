@@ -15,11 +15,17 @@ namespace glm
 	void from_json(nlohmann::json const& j, glm::vec3& v);
 	void to_json(nlohmann::json& j, glm::vec3 const& v);
 
+	void from_json(nlohmann::json const& j, glm::uvec3& v);
+	void to_json(nlohmann::json& j, glm::uvec3 const& v);
+
 	void from_json(nlohmann::json const& j, glm::vec4& v);
 	void to_json(nlohmann::json& j, glm::vec4 const& v);
 
 	void from_json(nlohmann::json const& j, glm::quat& q);
 	void to_json(nlohmann::json& j, glm::quat const& q);
+
+	void from_json(nlohmann::json const& j, glm::mat3& m);
+	void to_json(nlohmann::json& j, glm::mat3 const& m);
 
 	void from_json(nlohmann::json const& j, glm::mat4& m);
 	void to_json(nlohmann::json & j, glm::mat4 const & m);

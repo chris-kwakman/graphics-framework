@@ -1,11 +1,6 @@
 #ifndef ENGINE_TRANSFORM_H
 #define ENGINE_TRANSFORM_H
 
-#include <glm/vec3.hpp>
-#include <glm/vec4.hpp>
-#include <glm/mat4x4.hpp>
-#include <glm/gtc/quaternion.hpp>
-
 #include <Engine/Serialisation/common.h>
 
 namespace Engine
@@ -17,7 +12,9 @@ namespace Engine
 		{
 			glm::vec3 position{ 0.0f,0.0f,0.0f };
 			glm::vec3 scale{ 1.0f,1.0f,1.0f };
-			glm::quat quaternion{ 1.0f, 0.0f, 0.0f, 0.0f };
+			glm::quat rotation{ 1.0f, 0.0f, 0.0f, 0.0f };
+
+			NLOHMANN_DEFINE_TYPE_INTRUSIVE(transform3D, position, scale, rotation)
 
 			transform3D GetInverse() const;
 
@@ -36,9 +33,6 @@ namespace Engine
 
 			static transform3D concatenate(transform3D _l, transform3D _r);
 		};
-
-		void from_json(nlohmann::json const& j, Engine::Math::transform3D& t);
-		void to_json(nlohmann::json& j, Engine::Math::transform3D const& t);
 	}
 }
 

@@ -28,7 +28,6 @@ namespace Component
 		virtual void impl_destroy(Entity const* _entities, unsigned int _count) override;
 		virtual bool impl_component_owned_by_entity(Entity _entity) const override;
 		virtual void impl_edit_component(Entity _entity) override;
-		virtual void impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context) override;
 
 		uint8_t get_index_name_length(unsigned int _index) const;
 		uint8_t set_index_name_length(unsigned int _index, uint8_t _length);
@@ -39,6 +38,11 @@ namespace Component
 	public:
 
 		virtual const char* GetComponentTypeName() const override;
+
+
+		// Inherited via TCompManager
+		virtual void impl_deserialize_data(nlohmann::json const& _j) override;
+		virtual void impl_serialize_data(nlohmann::json& _j) const override;
 
 	};
 }

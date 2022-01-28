@@ -54,14 +54,6 @@ namespace Component
 		entity_camera_data.m_is_orthogonal_camera = is_orthogonal;
 	}
 
-	void CameraManager::impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context)
-	{
-		Camera comp = Get(_e);
-		comp.SetVerticalFOV(_json_comp["FOVy"]);
-		comp.SetNearDistance(_json_comp["near"]);
-		comp.SetFarDistance(_json_comp["far"]);
-	}
-
 	Engine::Graphics::camera_data& CameraManager::get_camera_data(Entity _e)
 	{
 		return m_camera_data_map.at(_e);
@@ -70,6 +62,22 @@ namespace Component
 	Engine::Graphics::camera_data const & CameraManager::get_camera_data(Entity _e) const
 	{
 		return m_camera_data_map.at(_e);
+	}
+
+	void CameraManager::impl_deserialize_data(nlohmann::json const& _j)
+	{
+		int const serializer_version = _j["serializer_version"];
+		if (serializer_version == 1)
+		{
+			m_camera_data_map = _j["m_camera_data_map"].get<decltype(m_camera_data_map)>();
+		}
+	}
+
+	void CameraManager::impl_serialize_data(nlohmann::json& _j) const
+	{
+		_j["serializer_version"] = 1;
+
+		_j["m_camera_data_map"] = m_camera_data_map;
 	}
 
 	void CameraManager::impl_clear()

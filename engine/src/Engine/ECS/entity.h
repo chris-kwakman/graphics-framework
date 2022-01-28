@@ -7,6 +7,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include <Engine/Serialisation/common.h>
+
 namespace Engine {
 namespace ECS {
 
@@ -79,9 +81,9 @@ namespace ECS {
 	private:
 
 		// Stores whether an entity ID is currently in use (ID == index in bitset)
-		std::bitset<MAX_ENTITIES>	m_entity_in_use_flag;
+		std::bitset<MAX_ENTITIES>			m_entity_in_use_flag;
 		// Stores Counter of how many times an ID has been used (ID == index in array)
-		uint8_t						m_entity_counters[MAX_ENTITIES];
+		std::array<uint8_t, MAX_ENTITIES>	m_entity_counters;
 
 		unsigned int				m_entity_id_iter = 0;
 
@@ -90,6 +92,9 @@ namespace ECS {
 		std::unordered_multiset<ICompManager*, std::hash<ICompManager*>> m_registered_component_managers;
 
 	public:
+
+		void			Deserialize(nlohmann::json const& _j);
+		void			Serialize(nlohmann::json& _j) const;
 
 		void			Reset();
 		Entity	EntityCreationRequest();
@@ -102,6 +107,10 @@ namespace ECS {
 
 		void RegisterComponentManager(ICompManager* _component_manager);
 	};
+
+	void from_json(nlohmann::json const& j, Entity& t);
+	void to_json(nlohmann::json& j, Entity const& t);
+
 
 }
 }

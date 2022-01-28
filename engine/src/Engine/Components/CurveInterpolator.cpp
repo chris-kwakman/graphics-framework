@@ -31,6 +31,28 @@ namespace Component
 		return m_renderable_curve_lut;
 	}
 
+	void CurveInterpolatorManager::impl_deserialize_data(nlohmann::json const& _j)
+	{
+		int const serializer_version = _j["serializer_version"];
+		if (serializer_version == 1)
+		{
+			m_map = _j["m_map"].get<decltype(m_map)>();
+			m_renderable_curves = _j["m_renderable_curves"].get<decltype(m_renderable_curves)>();
+			m_renderable_curve_nodes = _j["m_renderable_curve_nodes"].get<decltype(m_renderable_curve_nodes)>();
+			m_renderable_curve_lut = _j["m_renderable_curve_lut"].get<decltype(m_renderable_curve_lut)>();
+		}
+	}
+
+	void CurveInterpolatorManager::impl_serialize_data(nlohmann::json& _j) const
+	{
+		_j["serializer_version"] = 1;
+
+		_j["m_map"] = m_map;
+		_j["m_renderable_curves"] = m_renderable_curves;
+		_j["m_renderable_curve_nodes"] = m_renderable_curve_nodes;
+		_j["m_renderable_curve_lut"] = m_renderable_curve_lut;
+	}
+
 	void CurveInterpolatorManager::impl_clear()
 	{
 		m_map.clear();
@@ -475,10 +497,6 @@ namespace Component
 			else
 				generate_curve_lut(&curve, &curve.m_lut, curve.m_lut.m_resolution);
 		}
-	}
-
-	void CurveInterpolatorManager::impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context)
-	{
 	}
 
 	void CurveInterpolatorManager::generate_curve_lut(piecewise_curve const* _curve, lookup_table* _lut, unsigned int _lut_resolution)

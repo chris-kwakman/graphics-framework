@@ -50,13 +50,6 @@ namespace Component
 		ImGui::DragFloat("Radius", &m_light_radius_arr[edit_index], 1.0f, 0.1, 10000.0f, "%.1f");
 	}
 
-	void PointLightManager::impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context)
-	{
-		unsigned int const entity_index = m_entity_map.at(_e);
-		m_light_color_arr[entity_index] = _json_comp["color"];
-		m_light_radius_arr[entity_index] = _json_comp["radius"];
-	}
-
 	PointLightManager::Collection PointLightManager::GetPointLightCollection() const
 	{
 		Collection new_collection;
@@ -84,6 +77,28 @@ namespace Component
 		m_light_color_arr.clear();
 		m_light_radius_arr.clear();
 		m_index_entities.clear();
+	}
+
+	void PointLightManager::impl_deserialize_data(nlohmann::json const& _j)
+	{
+		int const serializer_version = _j["serializer_version"];
+		if (serializer_version == 1)
+		{
+			m_entity_map = _j["m_entity_map"].get<decltype(m_entity_map)>();
+			m_index_entities = _j["m_index_entities"].get<decltype(m_index_entities)>();
+			m_light_color_arr = _j["m_light_color_arr"].get<decltype(m_light_color_arr)>();
+			m_light_radius_arr = _j["m_light_radius_arr"].get<decltype(m_light_radius_arr)>();
+		}
+	}
+
+	void PointLightManager::impl_serialize_data(nlohmann::json& _j) const
+	{
+		_j["serializer_version"] = 1;
+
+		_j["m_entity_map"] = m_entity_map;
+		_j["m_index_entities"] = m_index_entities;
+		_j["m_light_color_arr"] = m_light_color_arr;
+		_j["m_light_radius_arr"] = m_light_radius_arr;
 	}
 
 	//////////////////////////////////////////////////////////////////
@@ -237,12 +252,41 @@ namespace Component
 
 	}
 
-	void DirectionalLightManager::impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context)
+	void DirectionalLightManager::impl_deserialize_data(nlohmann::json const& _j)
 	{
+		int const serializer_version = _j["serializer_version"];
+		if (serializer_version == 1)
+		{
+			m_directional_light_entity = _j["m_directional_light_entity"];
+			m_cascade_shadow_bias = _j["m_cascade_shadow_bias"];
+
+			m_pow2_csm_resolution = _j["m_pow2_csm_resolution"];
+			m_light_color = _j["m_light_color"];
+			m_partition_linearity = _j["m_partition_linearity"];
+			m_occluder_distance = _j["m_occluder_distance"];
+			m_shadow_factor = _j["m_shadow_factor"];
+			m_blend_distance = _j["m_blend_distance"];
+			m_pcf_neighbour_count = _j["m_pcf_neighbour_count"];
+
+			setup_csm(m_pow2_csm_resolution, CSM_PARTITION_COUNT);
+		}
 	}
 
+	void DirectionalLightManager::impl_serialize_data(nlohmann::json& _j) const
+	{
+		_j["serializer_version"] = 1;
 
+		_j["m_directional_light_entity"] = m_directional_light_entity;
+		_j["m_cascade_shadow_bias"] = m_cascade_shadow_bias;
 
+		_j["m_pow2_csm_resolution"] = m_pow2_csm_resolution;
+		_j["m_light_color"] = m_light_color;
+		_j["m_partition_linearity"] = m_partition_linearity;
+		_j["m_occluder_distance"] = m_occluder_distance;
+		_j["m_shadow_factor"] = m_shadow_factor;
+		_j["m_blend_distance"] = m_blend_distance;
+		_j["m_pcf_neighbour_count"] = m_pcf_neighbour_count;
+	}
 
 
 	//////////////////////////////////////////////////////////////////

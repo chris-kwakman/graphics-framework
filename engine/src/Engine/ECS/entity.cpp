@@ -12,6 +12,35 @@ namespace ECS {
 
 	Entity const Entity::InvalidEntity;
 
+	void EntityManager::Deserialize(nlohmann::json const& _j)
+	{
+		int const serializer_version = _j["serializer_version"];
+		if (serializer_version == 1)
+		{
+			std::vector<bool> transformed_bitset = _j["m_entity_in_use_flag"];
+			for (size_t i = 0; i < transformed_bitset.size(); i++)
+				m_entity_in_use_flag[i] = transformed_bitset[i];
+			m_entity_counters = _j["m_entity_counters"];
+			m_entity_id_iter = _j["m_entity_id_iter"];
+		}
+	}
+
+	void EntityManager::Serialize(nlohmann::json& _j) const
+	{
+		_j["serializer_version"] = 1;
+
+		// nlohmann::json does not have a way to
+		// serialize bitsets directly. Must transform it
+		// to a vector of bools first.
+		std::vector<bool> transformed_bitset(m_entity_in_use_flag.size(), false);
+		for (size_t i = 0; i < m_entity_in_use_flag.size(); i++)
+			transformed_bitset[i] = m_entity_in_use_flag[i];
+
+		_j["m_entity_in_use_flag"] = transformed_bitset;
+		_j["m_entity_counters"] = m_entity_counters;
+		_j["m_entity_id_iter"] = m_entity_id_iter;
+	}
+
 	/*
 	* Reset manager to base state. ASSUMES ALL PREVIOUS ENTITY HANDLES ARE NOT BEING USED.
 	* @detail	Registered component managers are maintained however.
@@ -27,7 +56,7 @@ namespace ECS {
 		FreeQueuedEntities();
 
 		m_entity_in_use_flag.reset();
-		memset(m_entity_counters, 0, sizeof(m_entity_counters));
+		memset(&m_entity_counters.front(), 0, sizeof(m_entity_counters));
 		m_entity_deletion_queue.clear();
 		m_entity_id_iter = 0;
 	}
@@ -189,6 +218,16 @@ namespace ECS {
 		if (!nameable_comp.IsValid())
 			nameable_comp = Component::Create<Component::Nameable>(*this);
 		nameable_comp.SetName(_name);
+	}
+
+	void from_json(nlohmann::json const& j, Entity& t)
+	{
+		t.m_data = j.get<uint16_t>();
+	}
+
+	void to_json(nlohmann::json & j, Entity const & t)
+	{
+		j = t.m_data;
 	}
 
 }

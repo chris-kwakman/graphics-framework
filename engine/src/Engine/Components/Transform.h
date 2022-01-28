@@ -42,6 +42,8 @@ namespace Component
 		{
 			unsigned int transform;
 			unsigned int matrix;
+
+			NLOHMANN_DEFINE_TYPE_INTRUSIVE(indexer_data, transform, matrix)
 		};
 
 		// Double-linked maps
@@ -111,7 +113,10 @@ namespace Component
 
 		// Inherited via TCompManager
 		virtual void impl_edit_component(Entity _entity) override;
-		virtual void impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const * _context) override;
+
+		// Inherited via TCompManager
+		virtual void impl_deserialize_data(nlohmann::json const& _j) override;
+		virtual void impl_serialize_data(nlohmann::json& _j) const override;
 	};
 }
 

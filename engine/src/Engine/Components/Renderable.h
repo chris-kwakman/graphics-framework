@@ -53,7 +53,6 @@ namespace Component
 		void impl_destroy(Entity const* _entities, unsigned int _count) final;
 		bool impl_component_owned_by_entity(Entity _entity) const final;
 		void impl_edit_component(Entity _entity) final;
-		void impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context) final;
 
 	public:
 
@@ -61,6 +60,11 @@ namespace Component
 		const char* GetComponentTypeName() const final { return "Renderable"; }
 
 		decltype(m_mesh_map) const& GetAllRenderables() const { return m_mesh_map; }
+
+
+		// Inherited via TCompManager
+		virtual void impl_deserialize_data(nlohmann::json const& _j) override;
+		virtual void impl_serialize_data(nlohmann::json& _j) const override;
 
 	};
 
@@ -74,6 +78,8 @@ namespace Component
 			Transform				m_skeleton_root;
 			std::vector<Transform>	m_skeleton_instance_nodes;
 			bool					m_render_joints;
+
+			NLOHMANN_DEFINE_TYPE_INTRUSIVE(skin_instance, m_skin_handle, m_skeleton_root, m_skeleton_instance_nodes)
 		};
 
 		std::unordered_map<Entity, skin_instance, Entity::hash> m_skin_instance_map;
@@ -84,13 +90,17 @@ namespace Component
 		virtual void impl_destroy(Entity const* _entities, unsigned int _count) override;
 		virtual bool impl_component_owned_by_entity(Entity _entity) const override;
 		virtual void impl_edit_component(Entity _entity) override;
-		virtual void impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context) override;
 
 	public:
 
 		virtual const char* GetComponentTypeName() const override;
 
 		decltype(m_skin_instance_map) const& GetAllSkinEntities() const { return m_skin_instance_map; }
+
+
+		// Inherited via TCompManager
+		virtual void impl_deserialize_data(nlohmann::json const& _j) override;
+		virtual void impl_serialize_data(nlohmann::json& _j) const override;
 
 	};
 
@@ -99,6 +109,8 @@ namespace Component
 		texture_handle	m_texture_albedo,
 						m_texture_metallic_roughness,
 						m_texture_normal;
+
+		NLOHMANN_DEFINE_TYPE_INTRUSIVE(decal_textures, m_texture_albedo, m_texture_metallic_roughness, m_texture_normal)
 	};
 
 	class DecalManager;
@@ -124,7 +136,6 @@ namespace Component
 		virtual void impl_destroy(Entity const* _entities, unsigned int _count) override;
 		virtual bool impl_component_owned_by_entity(Entity _entity) const override;
 		virtual void impl_edit_component(Entity _entity) override;
-		virtual void impl_deserialise_component(Entity _e, nlohmann::json const& _json_comp, Engine::Serialisation::SceneContext const* _context) override;
 
 	public:
 
@@ -136,6 +147,10 @@ namespace Component
 		virtual const char* GetComponentTypeName() const override;
 		decltype(m_decal_data_map) const& GetAllDecals() const;
 		E_DecalRenderMode GetDecalRenderMode() const { return s_decal_render_mode; }
+
+		// Inherited via TCompManager
+		virtual void impl_deserialize_data(nlohmann::json const& _j) override;
+		virtual void impl_serialize_data(nlohmann::json& _j) const override;
 	};
 }
 
