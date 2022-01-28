@@ -7,6 +7,8 @@ set(CMAKE_CXX_STANDARDS 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 
+add_compile_definitions(_ITERATOR_DEBUG_LEVEL=0)
+
 # Include other project subdirectories
 add_subdirectory(engine framework_engine)
 add_subdirectory(demo framework_demo)
