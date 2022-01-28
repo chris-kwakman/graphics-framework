@@ -115,6 +115,9 @@ namespace Sandbox
 		glDeleteBuffers(1, &pipeline_data.m_fog_instance_ssbo);
 
 		// Texture deletion will be handled by resource manager
+		pipeline_data.m_volumetric_accumulation_texture = 0;
+		pipeline_data.m_volumetric_density_texture = 0;
+		pipeline_data.m_volumetric_inscattering_texture = 0;
 	}
 
 	void resize_volumetric_textures(glm::uvec3 _resolution)
@@ -237,7 +240,7 @@ namespace Sandbox
 		s_volfog_camera_ubo.m_inv_vp = glm::inverse(
 			_camera_data.get_perspective_matrix() * _cam_transform.GetInvMatrix()
 		);
-		s_volfog_camera_ubo.m_view_dir = _cam_transform.quaternion * glm::vec3(0.0f, 0.0f, -1.0f);
+		s_volfog_camera_ubo.m_view_dir = _cam_transform.rotation * glm::vec3(0.0f, 0.0f, -1.0f);
 		s_volfog_camera_ubo.m_world_pos = _cam_transform.position;
 		s_volfog_camera_ubo.m_layer_linearity = volfog_comp_mgr.m_data.LayerLinearity;
 		

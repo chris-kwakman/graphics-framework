@@ -107,8 +107,10 @@ namespace ECS {
 	{
 		Clear();
 		auto component_mgr_iter = _j.find(GetComponentTypeName());
-		if (component_mgr_iter != _j.end())
+		if (component_mgr_iter != _j.end() && !component_mgr_iter->is_null())
+		{
 			impl_deserialize_data(*component_mgr_iter);
+		}
 	}
 
 	template<typename TComp>

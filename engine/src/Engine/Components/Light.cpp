@@ -97,7 +97,7 @@ namespace Component
 
 		_j["m_entity_map"] = m_entity_map;
 		_j["m_index_entities"] = m_index_entities;
-		_j["m_light_color_array"] = m_light_color_arr;
+		_j["m_light_color_arr"] = m_light_color_arr;
 		_j["m_light_radius_arr"] = m_light_radius_arr;
 	}
 
@@ -267,6 +267,8 @@ namespace Component
 			m_shadow_factor = _j["m_shadow_factor"];
 			m_blend_distance = _j["m_blend_distance"];
 			m_pcf_neighbour_count = _j["m_pcf_neighbour_count"];
+
+			setup_csm(m_pow2_csm_resolution, CSM_PARTITION_COUNT);
 		}
 	}
 

@@ -548,7 +548,7 @@ namespace Component
 			glm::vec3 skew;
 			glm::vec4 perspective;
 
-			glm::decompose(transform_matrix, transform.scale, transform.quaternion, transform.position, skew, perspective);
+			glm::decompose(transform_matrix, transform.scale, transform.rotation, transform.position, skew, perspective);
 
 			if (s_imguizmo_current_mode == ImGuizmo::LOCAL)
 				transform_component.SetLocalTransform(transform);
@@ -590,8 +590,8 @@ namespace Component
 
 		ImGui::DragFloat3("Position", &transform.position.x, 1.0f, -FLT_MAX / INT_MIN, FLT_MAX / INT_MIN);
 		ImGui::DragFloat3("Scale", &transform.scale.x, 0.1f, 0.0f, FLT_MAX / INT_MIN);
-		ImGui::DragFloat4("Orientation", &transform.quaternion.x, 0.025f);
-		transform.quaternion = glm::normalize(transform.quaternion);
+		ImGui::DragFloat4("Orientation", &transform.rotation.x, 0.025f);
+		transform.rotation = glm::normalize(transform.rotation);
 
 		if (!is_manipulated)
 		{
@@ -689,7 +689,7 @@ namespace Component
 	}
 	glm::quat Transform::GetLocalRotation() const
 	{
-		return GetLocalTransform().quaternion;
+		return GetLocalTransform().rotation;
 	}
 
 	/*
@@ -773,7 +773,7 @@ namespace Component
 	void Transform::SetLocalRotation(glm::quat _value)
 	{
 		unsigned int const entity_transform_index = GetManager().get_entity_indexer_data(m_owner).transform;
-		GetManager().m_local_transforms[entity_transform_index].quaternion = _value;
+		GetManager().m_local_transforms[entity_transform_index].rotation = _value;
 		GetManager().mark_matrix_dirty(entity_transform_index);
 	}
 	bool Transform::HasChildren() const

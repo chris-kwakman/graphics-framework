@@ -99,7 +99,7 @@ namespace Component
 		{
 			Engine::Math::transform3D const world_transform = entity_transform.ComputeWorldTransform();
 			assign_position = world_transform.position;
-			assign_rotation = world_transform.quaternion;
+			assign_rotation = world_transform.rotation;
 		}
 		size_t const new_element_index = m_rigidbodies_data.push_element(
 			_e,
@@ -192,10 +192,11 @@ namespace Component
 		if (serializer_version == 1)
 		{
 			m_rigidbodies_data = _j["rigidbody_data"];
+			m_rigidbodies_data.m_forces.resize(m_rigidbodies_data.m_entity_map.size(), glm::vec3(0.0f));
+			m_rigidbodies_data.m_torques.resize(m_rigidbodies_data.m_entity_map.size(), glm::vec3(0.0f));
+			m_rigidbodies_data.m_inv_inertial_tensors.resize(m_rigidbodies_data.m_entity_map.size());
 			for (size_t i = 0; i < m_rigidbodies_data.size(); i++)
-			{
 				m_rigidbodies_data.m_inv_inertial_tensors[i] = glm::inverse(m_rigidbodies_data.m_inertial_tensors[i]);
-			}
 		}
 	}
 

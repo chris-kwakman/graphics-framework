@@ -81,7 +81,7 @@ namespace Serialisation {
             transform3D transform;
             transform.position = translation;
             transform.scale = scale;
-            transform.quaternion = rotation;
+            transform.rotation = rotation;
 
             transform_component["local_transform"] = transform;
             if(node_parents[node_index] != Engine::ECS::Entity::InvalidEntity.ID())

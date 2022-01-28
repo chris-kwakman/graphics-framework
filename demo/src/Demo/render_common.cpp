@@ -303,7 +303,7 @@ namespace Sandbox
 	) : 
 		m_near(_cam_data.m_near),
 		m_far(_cam_data.m_far),
-		m_view_dir(_cam_transform.quaternion * glm::vec3(0.0f,0.0f,-1.0f)),
+		m_view_dir(_cam_transform.rotation * glm::vec3(0.0f,0.0f,-1.0f)),
 		m_v(_cam_transform.GetInvMatrix()),
 		m_p(_cam_data.get_perspective_matrix()),
 		m_inv_vp(glm::inverse(_cam_data.get_perspective_matrix() * _cam_transform.GetInvMatrix()))

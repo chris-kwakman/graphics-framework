@@ -85,7 +85,7 @@ namespace Component
         if (glm::any(glm::epsilonNotEqual(acc_dir, glm::vec2(0.0f), glm::epsilon<float>())))
         {
             // Apply acceleration relative to camera look direction.
-            glm::vec3 const view_dir = cam_transform_3d.quaternion * glm::vec3(0.0f, 0.0f, 1.0f);
+            glm::vec3 const view_dir = cam_transform_3d.rotation * glm::vec3(0.0f, 0.0f, 1.0f);
             glm::vec3 const projected_view_dir = glm::vec3(view_dir.x, 0.0f, view_dir.z);
             glm::quat const rot_applied_velocity = glm::quatLookAt(projected_view_dir, glm::vec3(0.0f, 1.0f, 0.0f));
 
@@ -138,7 +138,7 @@ namespace Component
             );
             glm::vec2 const target_dir_horizontal = glm::vec2(target_dir.x, target_dir.z);
 
-            glm::vec3 const player_view_vec = player_transform_3d.quaternion * glm::vec3(0.0f, 0.0f, -1.0f);
+            glm::vec3 const player_view_vec = player_transform_3d.rotation * glm::vec3(0.0f, 0.0f, -1.0f);
             glm::vec3 const player_right_vec = glm::cross(player_view_vec, glm::vec3(0.0f, 1.0f, 0.0f));
 
             float const rightness = glm::dot(
