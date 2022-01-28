@@ -721,18 +721,19 @@ namespace Sandbox
 			{
 				Entity const rb_entity = rb_data.m_index_entities[i];
 				Transform rb_transform = rb_entity.GetComponent<Transform>();
-				glm::vec3 position = rb_transform.GetLocalPosition();
-				glm::vec3 scale = rb_transform.GetLocalScale();
-				float const max_scale = glm::compMax(scale);
+				auto rb_world_transform = rb_transform.ComputeWorldTransform();
+				glm::vec3 rb_world_position = rb_world_transform.position;
+				glm::vec3 rb_world_scale = rb_world_transform.scale;
+				float const max_scale = glm::compMax(rb_world_scale);
 				float const sphere_radius = max_scale * 0.5f;
 
 				// Perform line-sphere intersection test
 				float const A = glm::length2(ray_world_end - ray_world_start);
 				float const B = 2.0f * glm::dot(
 					ray_world_end - ray_world_start, 
-					ray_world_start - position
+					ray_world_start - rb_world_position
 				);
-				float const C = glm::length2(ray_world_start) + glm::length2(position) - 2 * glm::dot(ray_world_start, position) - sphere_radius * sphere_radius;
+				float const C = glm::length2(ray_world_start) + glm::length2(rb_world_position) - 2 * glm::dot(ray_world_start, rb_world_position) - sphere_radius * sphere_radius;
 
 				float const discriminant = B * B - 4.0f * A * C;
 				if (discriminant >= 0.0f)
@@ -747,7 +748,7 @@ namespace Sandbox
 					rb_mgr.ApplyForce(
 						i,
 						ray_direction * std::clamp(holddown_timer * 500.0f, 0.0f, 1000.0f),
-						world_intersection_point - position
+						world_intersection_point - rb_world_position
 					);
 				}
 			}
