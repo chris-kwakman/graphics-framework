@@ -41,7 +41,7 @@ namespace Physics {
 
 			glm::vec3 const omega = world_inv_tensor * _angular_moments[i];
 			glm::quat const q_dot = 0.5f * glm::quat(0.0f, omega.x, omega.y, omega.z) * _rotations[i];
-			_rotations[i] += q_dot * _dt;
+			_rotations[i] = glm::normalize(_rotations[i] + q_dot * _dt);
 		}
 	}
 
