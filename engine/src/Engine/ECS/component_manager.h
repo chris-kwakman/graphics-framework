@@ -1,8 +1,8 @@
 #ifndef ENGINE_ECS_COMPONENT_MANAGER_H
 #define ENGINE_ECS_COMPONENT_MANAGER_H
 
+#include <Engine/Serialisation/common.h>
 #include <Engine/Utils/singleton.h>
-#include <Engine/Serialisation/scene.h>
 #include "entity.h"
 #include <vector>
 

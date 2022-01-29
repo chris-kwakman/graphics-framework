@@ -10,6 +10,8 @@
 #include <ImGui/imgui_impl_opengl3.h>
 #include <ImGuizmo/ImGuizmo.h>
 
+#include <Engine/Editor/EditorCameraController.h>
+
 namespace Engine {
 namespace Editor {
 
@@ -136,6 +138,11 @@ namespace Editor {
 	void Editor::ProcessSDLEvent(SDL_Event* _event)
 	{
 		ImGui_ImplSDL2_ProcessEvent(_event);
+	}
+
+	void Editor::Update(float const _dt)
+	{
+		Singleton<Component::EditorCameraControllerManager>().UpdateActiveEditorCamera(_dt);
 	}
 
 	void Editor::NewFrame()

@@ -11,6 +11,7 @@
 #include "CurveInterpolator.h"
 #include "CurveFollower.h"
 #include "Rigidbody.h"
+#include <Engine/Editor/EditorCameraController.h>
 
 void Component::InitializeEngineComponentManagers()
 {

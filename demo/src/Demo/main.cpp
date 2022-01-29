@@ -51,23 +51,20 @@ void load_scene(fs::path _scene_path)
 	{
 		if (scene_file.is_open())
 		{
-			scene_file.unsetf(std::ios::skipws);
-
-			std::streampos file_size;
-			scene_file.seekg(0, std::ios::end);
-			file_size = scene_file.tellg();
-			scene_file.seekg(0, std::ios::beg);
-
-			std::vector<uint8_t> binary_data;
-			binary_data.reserve(file_size);
-
-			binary_data.insert(
-				binary_data.begin(),
-				std::istream_iterator<uint8_t>(scene_file),
-				std::istream_iterator<uint8_t>()
-			);
-
-			scene_json = nlohmann::json::from_ubjson(binary_data);
+			//scene_file.unsetf(std::ios::skipws);
+			//std::streampos file_size;
+			//scene_file.seekg(0, std::ios::end);
+			//file_size = scene_file.tellg();
+			//scene_file.seekg(0, std::ios::beg);
+			//std::vector<uint8_t> binary_data;
+			//binary_data.reserve(file_size);
+			//binary_data.insert(
+			//	binary_data.begin(),
+			//	std::istream_iterator<uint8_t>(scene_file),
+			//	std::istream_iterator<uint8_t>()
+			//);
+			//scene_json = nlohmann::json::from_ubjson(binary_data);
+			scene_file >> scene_json;
 		}
 		Engine::Serialisation::DeserialiseScene(scene_json);
 	}
@@ -143,8 +140,9 @@ void menu_bar()
 			{
 				nlohmann::json scene_json;
 				Engine::Serialisation::SerialiseScene(scene_json);
-				auto binary_data = nlohmann::json::to_ubjson(scene_json, false, false);
-				scene_file.write((char*)&binary_data.front(), binary_data.size());
+				//auto binary_data = nlohmann::json::to_ubjson(scene_json, false, false);
+				//scene_file.write((char*)&binary_data.front(), binary_data.size());
+				scene_file << scene_json;
 			}
 			ImGui::CloseCurrentPopup();
 		}
@@ -187,6 +185,7 @@ void update_loop()
 
 		//TODO: Use frame rate controller DT
 		float const TEMP_DT = 1.0f / 60.0f;
+		Singleton<Engine::Editor::Editor>().Update(TEMP_DT);
 		Singleton<Component::CurveFollowerManager>().UpdateFollowers(TEMP_DT);
 		Singleton<Component::SkeletonAnimatorManager>().UpdateAnimatorInstances(TEMP_DT);
 		Singleton<Component::RigidBodyManager>().Integrate(TEMP_DT);

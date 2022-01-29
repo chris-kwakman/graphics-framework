@@ -374,114 +374,6 @@ namespace Sandbox
 	}
 
 	unsigned int frame_counter = 0;
-	float const CAM_MOVE_SPEED = 20.0f;
-	float const CAM_MOV_SHIFT_MULT = 4.0f;
-	float const CAM_ROTATE_SPEED = MATH_PI * 0.75f;
-	float const MOUSE_SENSITIVITY = 0.05f;
-	bool camera_invert = false;
-
-	void control_camera()
-	{
-		if (!Singleton<Engine::Editor::Editor>().EditorCameraEntity.Alive())
-			return;
-
-		auto& input_manager = Singleton<Engine::Managers::InputManager>();
-		using button_state = Engine::Managers::InputManager::button_state;
-
-		Engine::ECS::Entity camera_entity = Singleton<Engine::Editor::Editor>().EditorCameraEntity;
-
-		float const DT = (1.0f / 60.0f);
-
-		float accum_rotate_horizontal = 0.0f, accum_rotate_vertical = 0.0f;
-
-		button_state rotate_up, rotate_down, rotate_left, rotate_right;
-		rotate_up = input_manager.GetKeyboardButtonState(SDL_SCANCODE_UP);
-		rotate_down = input_manager.GetKeyboardButtonState(SDL_SCANCODE_DOWN);
-		rotate_left = input_manager.GetKeyboardButtonState(SDL_SCANCODE_LEFT);
-		rotate_right = input_manager.GetKeyboardButtonState(SDL_SCANCODE_RIGHT);
-		// Arrow key control rotation accumulation
-		accum_rotate_horizontal += 1.0f * (rotate_left == button_state::eDown);
-		accum_rotate_horizontal -= 1.0f * (rotate_right == button_state::eDown);
-		accum_rotate_vertical += 1.0f * (rotate_up == button_state::eDown);
-		accum_rotate_vertical -= 1.0f * (rotate_down == button_state::eDown);
-
-		// Mouse button control rotation accumulation
-		button_state left_mouse_down = input_manager.GetMouseButtonState(0);
-		if (left_mouse_down == button_state::eDown)
-		{
-			glm::ivec2 const mouse_delta = input_manager.GetMouseDelta();
-			glm::vec2 mouse_rotation_delta = MOUSE_SENSITIVITY * glm::vec2(mouse_delta);
-			accum_rotate_horizontal -= mouse_rotation_delta.x;
-			accum_rotate_vertical -= mouse_rotation_delta.y;
-			if (camera_invert)
-			{
-				accum_rotate_horizontal *= -1.0f;
-				accum_rotate_vertical *= -1.0f;
-			}
-		}
-
-		glm::quat const quat_identity(1.0f, 0.0f, 0.0f, 0.0f);
-		glm::quat quat_rotate_around_y = glm::rotate(
-			quat_identity,
-			accum_rotate_horizontal * CAM_ROTATE_SPEED * DT, 
-			glm::vec3(0.0f, 1.0f, 0.0f)
-		);
-
-		auto camera_transform_comp = camera_entity.GetComponent<Component::Transform>();
-		auto cam_transform = camera_transform_comp.GetLocalTransform();
-		cam_transform.rotation = quat_rotate_around_y * cam_transform.rotation;
-
-		glm::vec3 const cam_dir = glm::rotate(cam_transform.rotation, glm::vec3(0.0f, 0.0f, -1.0f));
-		// Project camera direction vector onto horizontal plane & normalize.
-		glm::vec3 const proj_cam_dir(cam_dir.x, 0.0f, cam_dir.z);
-		glm::vec3 const perp_proj_cam_dir = glm::normalize(glm::cross(proj_cam_dir, glm::vec3(0.0f, 1.0f, 0.0f)));
-
-		glm::quat const quat_rotate_around_right_vector = glm::rotate(
-			quat_identity,
-			accum_rotate_vertical * CAM_ROTATE_SPEED * DT, 
-			perp_proj_cam_dir
-		);
-		cam_transform.rotation = quat_rotate_around_right_vector * cam_transform.rotation;
-
-		float accum_move_forward_backward = 0.0f, accum_move_left_right = 0.0f, accum_move_up_down = 0.0f;
-
-		button_state move_left, move_right, move_forward, move_backward, move_up, move_down;
-		move_left = input_manager.GetKeyboardButtonState(SDL_SCANCODE_A);
-		move_right = input_manager.GetKeyboardButtonState(SDL_SCANCODE_D);
-		move_forward = input_manager.GetKeyboardButtonState(SDL_SCANCODE_W);
-		move_backward = input_manager.GetKeyboardButtonState(SDL_SCANCODE_S);
-		move_up = input_manager.GetKeyboardButtonState(SDL_SCANCODE_Q);
-		move_down = input_manager.GetKeyboardButtonState(SDL_SCANCODE_E);
-
-
-		if (input_manager.GetKeyboardButtonState(SDL_SCANCODE_LCTRL) == button_state::eUp)
-		{
-			accum_move_left_right += 1.0f * (move_right == button_state::eDown);
-			accum_move_left_right -= 1.0f * (move_left == button_state::eDown);
-			accum_move_forward_backward += 1.0f * (move_forward == button_state::eDown);
-			accum_move_forward_backward -= 1.0f * (move_backward == button_state::eDown);
-			accum_move_up_down += 1.0f * (move_up == button_state::eDown);
-			accum_move_up_down -= 1.0f * (move_down == button_state::eDown);
-		}
-
-		float const move_speed_mult = input_manager.GetKeyboardButtonState(SDL_SCANCODE_LSHIFT) == button_state::eDown ?
-			CAM_MOV_SHIFT_MULT : 1.0f;
-
-		cam_transform.position.y += DT * CAM_MOVE_SPEED * move_speed_mult * accum_move_up_down;
-		cam_transform.position += DT * CAM_MOVE_SPEED * move_speed_mult * accum_move_forward_backward * cam_dir;
-		cam_transform.position += DT * CAM_MOVE_SPEED * move_speed_mult * accum_move_left_right * perp_proj_cam_dir;
-
-		camera_transform_comp.SetLocalTransform(cam_transform);
-
-		if (input_manager.GetKeyboardButtonState(SDL_SCANCODE_V) == button_state::eDown)
-			camera_transform_comp.SetLocalTransform(s_camera_default_transform);
-
-		// Set camera aspect ratio every frame
-		SDL_Surface const* surface = Singleton<Engine::sdl_manager>().m_surface;
-		float const ar = (float)surface->w / (float)surface->h;
-		auto camera_entity_component = camera_entity.GetComponent<Component::Camera>();
-		camera_entity_component.SetAspectRatio(ar);
-	}
 
 	bool show_demo_window = false;
 
@@ -795,8 +687,6 @@ namespace Sandbox
 		if (input_manager.GetKeyboardButtonState(SDL_SCANCODE_LCTRL) == button_state::eDown && input_manager.GetKeyboardButtonState(SDL_SCANCODE_Q) == button_state::ePress)
 			Singleton<Engine::sdl_manager>().m_want_quit = true;
 
-
-		control_camera();
 		frame_counter++;
 
 		GameplayLogic();

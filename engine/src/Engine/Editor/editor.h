@@ -15,6 +15,7 @@ namespace Editor {
 
 		void Initialise();
 		void ProcessSDLEvent(SDL_Event* _event);
+		void Update(float const _dt);
 		void NewFrame();
 		void Render();
 		void Shutdown();
