@@ -6,6 +6,20 @@
 namespace Engine {
 namespace Physics {
 
+	// Helper function
+	convex_hull::half_edge_idx get_previous_edge(convex_hull const& _hull, convex_hull::half_edge_idx _idx)
+	{
+		convex_hull::half_edge_idx edge_idx_iterator = _idx;
+		convex_hull::half_edge iterator_edge = _hull.m_edges[edge_idx_iterator];
+		do
+		{
+			edge_idx_iterator = iterator_edge.m_next_edge;
+			iterator_edge = _hull.m_edges[edge_idx_iterator];
+		} while (iterator_edge.m_next_edge != _idx);
+		return edge_idx_iterator;
+	}
+
+
 	convex_hull construct_convex_hull(
 		glm::vec3 const * _vertices,		size_t _vertex_count, 
 		glm::uvec3 const * _face_indices,	size_t _face_count
@@ -16,10 +30,18 @@ namespace Physics {
 
 		struct vertex_pair
 		{
-			uint16_t idx1, idx2;
+			vertex_pair(convex_hull::vertex_idx _idx1, convex_hull::vertex_idx _idx2) :
+				idx1(std::min(_idx1, _idx2)), idx2(std::max(_idx1, _idx2))
+			{}
+
+			convex_hull::vertex_idx idx1, idx2;
 			bool operator==(vertex_pair const& _p) const
 			{
-				return (idx1 == _p.idx1 && idx2 == _p.idx2) || (idx1 == _p.idx2 && idx2 == _p.idx1);
+				return (idx1 == _p.idx1) && (idx2 == _p.idx2);
+			}
+			bool operator<(vertex_pair const& _p) const
+			{
+				return (idx1 == _p.idx1) ? idx2 > _p.idx2 : idx1 < _p.idx1;
 			}
 		};
 
@@ -65,12 +87,16 @@ namespace Physics {
 		Find twin edges
 		*/
 
-		std::map<convex_hull::vertex_idx, std::vector<convex_hull::half_edge_idx>> vertex_edge_map;
+		std::map<vertex_pair, std::vector<convex_hull::half_edge_idx>> vertex_edge_map;
 
 		// First pass to put edges belonging to same vertices in vectors belonging to those vertices.
 		for (uint16_t e = 0; e < naive_edges.size(); ++e)
 		{
-			vertex_edge_map[naive_edges[e].m_vertex].emplace_back(e);
+			vertex_pair edge_vertex_pair(
+				naive_edges[e].m_vertex, 
+				naive_edges[naive_edges[e].m_next_edge].m_vertex
+			);
+			vertex_edge_map[edge_vertex_pair].emplace_back(e);
 		}
 
 		// For each vertex in the map, take the set of outgoing edges:
@@ -86,21 +112,14 @@ namespace Physics {
 			// Set each half-edge as having the other half-edge as their twin (i.e. edge is adjacent to two faces)
 			if (vertex_half_edges.size() == 2)
 			{
-				// Take second outgoing edge and find previous edge.
-				// The previous edge is the first edge's twin edge, and vice versa.
-
-				convex_hull::half_edge_idx edge_iterator = naive_edges[vertex_half_edges[1]].m_next_edge;
-				while (vertex_half_edges[1] != naive_edges[edge_iterator].m_next_edge)
-					edge_iterator = naive_edges[edge_iterator].m_next_edge;
-
-				// Take second's edge previous edge, and mark its twin as the first edge. Vice versa.
-				naive_edges[vertex_half_edges[0]].m_twin_edge = edge_iterator;
-				naive_edges[edge_iterator].m_twin_edge = vertex_half_edges[0];
+				naive_edges[vertex_half_edges[0]].m_twin_edge = vertex_half_edges[1];
+				naive_edges[vertex_half_edges[1]].m_twin_edge = vertex_half_edges[0];
 			}
 		}
 
 		new_hull.m_edges = std::move(naive_edges);
 
+		//// Face Merging
 		
 		// Second pass to merge coplanar faces.
 		// The resulting face must be CONVEX.
@@ -126,47 +145,98 @@ namespace Physics {
 
 		for (convex_hull::half_edge_idx edge_index = 0; edge_index < existing_edges.size(); edge_index++)
 		{
-			convex_hull::half_edge const& edge = new_hull.m_edges[edge_index];
-			convex_hull::face_idx const edge_face_index = edge.m_edge_face;
+			convex_hull::half_edge const& current_edge = new_hull.m_edges[edge_index];
+			convex_hull::face_idx const curr_edge_face_index = current_edge.m_edge_face;
 
 			// Skip current iteration if edge has been deleted OR current edge has no twin edge.
-			if (!existing_edges[edge_index] || edge.m_twin_edge == convex_hull::half_edge::INVALID_EDGE)
+			if (!existing_edges[edge_index] || current_edge.m_twin_edge == convex_hull::half_edge::INVALID_EDGE)
 				continue;
 
 			// Go over twin edge's closed loop.
 			// Check if twin edge's face is coplanar.
 			// If so, join face vertices and remove current edge and its twin.
-			convex_hull::half_edge const& twin_edge = new_hull.m_edges[edge.m_twin_edge];
+			convex_hull::half_edge const& twin_edge = new_hull.m_edges[current_edge.m_twin_edge];
 			
 			// If normalized normals do not point in same direction, they cannot be merged.
-			if (glm::all(glm::epsilonNotEqual(
+			if (!glm::all(glm::epsilonEqual(
 				face_normals[twin_edge.m_edge_face],
-				face_normals[edge_face_index], 
+				face_normals[curr_edge_face_index], 
 				0.00001f
 			)))
 				continue;
 
 			// Mark edges as deleted
 			existing_edges[edge_index] = false;
-			existing_edges[edge.m_twin_edge] = false;
+			existing_edges[current_edge.m_twin_edge] = false;
 
 			// Mark twin edge's face as deleted
 			existing_faces[twin_edge.m_edge_face] = false;
 
-			// Update vertices belonging to current face.
-			// ...
+			// Get current edge's face, and get iterator to vertex index list
+			convex_hull::face& current_face = new_hull.m_faces[current_edge.m_edge_face];
+			auto face_vtx_iter = std::find(current_face.m_vertices.begin(), current_face.m_vertices.end(), current_edge.m_vertex);
 
-			convex_hull::vertex_idx const edge_destination_vertex = new_hull.m_edges[edge.m_vertex].m_vertex;
-			convex_hull::half_edge_idx edge_iterator = edge.m_twin_edge;
-			convex_hull::half_edge_idx previous_edge_index = convex_hull::half_edge::INVALID_EDGE;
-			size_t edges_traversed = 0;
-			do
+			// Insert all vertices past current edge's origin vertex until current edge's destination vertex into
+			// current face's vertex list.
+			convex_hull::half_edge_idx const twin_next_edge = new_hull.m_edges[current_edge.m_twin_edge].m_next_edge;
+			convex_hull::half_edge_idx edge_iter = twin_next_edge;
+			new_hull.m_edges[edge_iter].m_edge_face = current_edge.m_edge_face;
+			// Iterate over twin edge face until we find edge leading to current edge vertex
+			while (new_hull.m_edges[edge_iter].m_next_edge != current_edge.m_twin_edge)
 			{
-				previous_edge_index = edge_iterator;
-				edge_iterator = new_hull.m_edges[edge_iterator].m_next_edge;
-				edges_traversed += 1;
-			} while (new_hull.m_edges[edge_iterator].m_vertex == edge_destination_vertex);
+				edge_iter = new_hull.m_edges[edge_iter].m_next_edge;
+				new_hull.m_edges[edge_iter].m_edge_face = current_edge.m_edge_face;
+				face_vtx_iter = current_face.m_vertices.insert(face_vtx_iter+1, new_hull.m_edges[edge_iter].m_vertex) + 1;
+			}
+
+			convex_hull::half_edge_idx previous_edge_idx = get_previous_edge(new_hull, edge_index);
+			// Set each edge's previous edge's next edge to next edge of their corresponding twin edge.
+			// (Very edgy)
+			// AKA join loop formed by both face's edges, and remove edges between these two faces.
+			new_hull.m_edges[previous_edge_idx].m_next_edge = twin_next_edge;
+			new_hull.m_edges[edge_iter].m_next_edge = current_edge.m_next_edge;
 		}
+
+		// Erase faces and edges that are marked for deletion.
+		// This also involves updating all indices referring to them.
+
+		// Generate an index to subtraction value map from indices that are going to be removed.
+		std::vector<unsigned int> edge_index_substraction_map(existing_edges.size());
+		edge_index_substraction_map[0] = (unsigned int)!existing_edges[0];
+		for (size_t i = 1; i < edge_index_substraction_map.size(); i++)
+			edge_index_substraction_map[i] = edge_index_substraction_map[i - 1] + (unsigned int)!existing_edges[i];
+
+		std::vector<unsigned int> face_index_substraction_map(existing_faces.size());
+		face_index_substraction_map[0] = (unsigned int)!existing_faces[0];
+		for (size_t i = 1; i < face_index_substraction_map.size(); i++)
+			face_index_substraction_map[i] = face_index_substraction_map[i - 1] + (unsigned int)!existing_faces[i];
+
+		// New edges & faces array where indices marked for deletion are erased.
+		decltype(new_hull.m_edges) new_edges;
+		new_edges.reserve(existing_edges.size() - edge_index_substraction_map.back());
+		decltype(new_hull.m_faces) new_faces;
+		new_faces.reserve(existing_faces.size() - face_index_substraction_map.back());
+
+		for (size_t i = 0; i < existing_edges.size(); i++)
+		{
+			if (existing_edges[i])
+			{
+				auto new_edge = new_hull.m_edges[i];
+				new_edge.m_edge_face -= face_index_substraction_map[new_edge.m_edge_face];
+				if(new_edge.m_twin_edge != convex_hull::half_edge::INVALID_EDGE)
+					new_edge.m_twin_edge -= edge_index_substraction_map[new_edge.m_twin_edge];
+				new_edge.m_next_edge -= edge_index_substraction_map[new_edge.m_next_edge];
+				new_edges.emplace_back(new_edge);
+			}
+		}
+		for (size_t i = 0; i < existing_faces.size(); i++)
+		{
+			if (existing_faces[i])
+				new_faces.emplace_back(new_hull.m_faces[i]);
+		}
+
+		new_hull.m_edges = std::move(new_edges);
+		new_hull.m_faces = std::move(new_faces);
 
 		return new_hull;
 	}
