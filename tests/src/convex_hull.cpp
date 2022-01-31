@@ -184,3 +184,36 @@ TEST(ConvexHull, CubeConstruction)
 	test_convex_hull_loops(new_hull, 4);
 	test_face_vertices(new_hull);
 }
+
+TEST(ConvexHull, LongSharedEdge)
+{
+	glm::vec3 const vertices[] = {
+		glm::vec3(-1.0f, -1.0f, 0.0f),
+		glm::vec3(1.0f, -1.0f, 0.0f),
+		glm::vec3(1.0f, 1.0f, 0.0f),
+		glm::vec3(0.0f, 1.0f, 0.0f),
+		glm::vec3(-1.0f, 1.0f, 0.0f),
+		glm::vec3(0.0f, 3.0f, 0.0f),
+	};
+
+	glm::uvec3 const face_vertex_indices[] =
+	{
+		glm::uvec3(0,3,4),
+		glm::uvec3(0,1,3),
+		glm::uvec3(1,2,3),
+		glm::uvec3(4,3,5),
+		glm::uvec3(3,2,5)
+	};
+
+	convex_hull new_hull = construct_convex_hull(
+		vertices, sizeof(vertices) / sizeof(glm::vec3),
+		face_vertex_indices, sizeof(face_vertex_indices) / sizeof(glm::uvec3)
+	);
+
+	EXPECT_EQ(new_hull.m_edges.size(), 5);
+	EXPECT_EQ(new_hull.m_faces.size(), 1);
+	EXPECT_EQ(new_hull.m_vertices.size(), 6);
+
+	test_convex_hull_loops(new_hull, 5);
+	test_face_vertices(new_hull);
+}

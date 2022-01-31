@@ -41,4 +41,5 @@ target_link_libraries(
 install(TARGETS ${PROJECT_NAME} DESTINATION ${PROJECT_SOURCE_DIR}/bin/${CMAKE_BUILD_TYPE}/)
 
 include(GoogleTest)
-gtest_add_tests(${PROJECT_NAME} ${TESTS_CPP})
+#gtest_add_tests(${PROJECT_NAME} ${TESTS_CPP})
+gtest_discover_tests(${PROJECT_NAME})

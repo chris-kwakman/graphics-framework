@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 
+enable_testing()
+
 project(root)
 
 # Ensure we use proper C++ standard
