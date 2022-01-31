@@ -138,6 +138,7 @@ namespace Physics {
 		// Indicates whether a face / an edge still exists.
 		std::vector<bool> existing_faces(new_hull.m_faces.size(), true);
 		std::vector<bool> existing_edges(new_hull.m_edges.size(), true);
+		std::vector<bool> existing_vertices(new_hull.m_vertices.size(), false);
 		auto const& vertices = new_hull.m_vertices; // Define shorthand
 
 		// Pre-calculate face normals to make my life easier.
@@ -241,6 +242,45 @@ namespace Physics {
 			new_hull.m_edges[edge_iter].m_next_edge = new_hull.m_edges[edges_sharing_face.back()].m_next_edge;
 		}
 
+		//// Co-linear edge merging
+
+		// Pre-compute edge directions
+		std::vector<glm::vec3> edge_normalized_dirs(new_hull.m_edges.size());
+		for (half_edge_idx edge_idx = 0; edge_idx < new_hull.m_edges.size(); edge_idx++)
+		{
+			if (!existing_edges[edge_idx])
+				continue;
+
+			edge_normalized_dirs[edge_idx] = glm::normalize(
+				vertices[new_hull.m_edges[get_next_index(edge_idx)].m_vertex] - vertices[new_hull.m_edges[edge_idx].m_vertex]
+			);
+		}
+		// For each edge, check if the next edge has (approximately) the same direction. If so,
+		// merge the two edges and mark the next edge as deleted.
+		for (half_edge_idx edge_idx = 0; edge_idx < new_hull.m_edges.size(); edge_idx++)
+		{
+			if (!existing_edges[edge_idx]) 
+				continue;
+
+			half_edge_idx & next_idx = get_next_index(edge_idx);
+			half_edge_idx const next_next_idx = get_next_index(edge_idx);
+			
+			if (glm::all(glm::epsilonEqual(edge_normalized_dirs[edge_idx], edge_normalized_dirs[next_idx], 0.001f)))
+			{
+				existing_edges[next_idx] = false;
+				next_idx = next_next_idx;
+			}
+		}
+		// Mark all vertices found in existing edges as existing.
+		for (half_edge_idx edge_idx = 0; edge_idx < new_hull.m_edges.size(); edge_idx++)
+		{
+			if (!existing_edges[edge_idx])
+				continue;
+
+			existing_vertices[new_hull.m_edges[edge_idx].m_vertex] = true;
+		}
+
+
 		// Erase faces and edges that are marked for deletion.
 		// This also involves updating all indices referring to them.
 
@@ -255,11 +295,18 @@ namespace Physics {
 		for (size_t i = 1; i < face_index_substraction_map.size(); i++)
 			face_index_substraction_map[i] = face_index_substraction_map[i - 1] + (unsigned int)!existing_faces[i];
 
+		std::vector<unsigned int> vertex_index_substraction_map(existing_vertices.size());
+		vertex_index_substraction_map[0] = (unsigned int)!existing_vertices[0];
+		for (size_t i = 1; i < vertex_index_substraction_map.size(); i++)
+			vertex_index_substraction_map[i] = vertex_index_substraction_map[i - 1] + (unsigned int)!existing_vertices[i];
+
 		// New edges & faces array where indices marked for deletion are erased.
 		decltype(new_hull.m_edges) new_edges;
 		new_edges.reserve(existing_edges.size() - edge_index_substraction_map.back());
 		decltype(new_hull.m_faces) new_faces;
 		new_faces.reserve(existing_faces.size() - face_index_substraction_map.back());
+		decltype(new_hull.m_vertices) new_vertices;
+		new_vertices.reserve(existing_vertices.size() - vertex_index_substraction_map.back());
 
 		for (size_t i = 0; i < existing_edges.size(); i++)
 		{
@@ -267,6 +314,7 @@ namespace Physics {
 			{
 				auto new_edge = new_hull.m_edges[i];
 				new_edge.m_edge_face -= face_index_substraction_map[new_edge.m_edge_face];
+				new_edge.m_vertex -= vertex_index_substraction_map[new_edge.m_vertex];
 				if(new_edge.m_twin_edge != convex_hull::half_edge::INVALID_EDGE)
 					new_edge.m_twin_edge -= edge_index_substraction_map[new_edge.m_twin_edge];
 				new_edge.m_next_edge -= edge_index_substraction_map[new_edge.m_next_edge];
@@ -276,11 +324,24 @@ namespace Physics {
 		for (size_t i = 0; i < existing_faces.size(); i++)
 		{
 			if (existing_faces[i])
-				new_faces.emplace_back(new_hull.m_faces[i]);
+			{
+				auto new_face = new_hull.m_faces[i];
+				for (convex_hull::vertex_idx i = 0; i < new_face.m_vertices.size(); i++)
+					new_face.m_vertices[i] -= vertex_index_substraction_map[i];
+				new_faces.emplace_back(new_face);
+			}
+		}
+		for (size_t i = 0; i < existing_vertices.size(); i++)
+		{
+			if (existing_vertices[i])
+			{
+				new_vertices.emplace_back(new_hull.m_vertices[i]);
+			}
 		}
 
 		new_hull.m_edges = std::move(new_edges);
 		new_hull.m_faces = std::move(new_faces);
+		new_hull.m_vertices = std::move(new_vertices);
 
 		return new_hull;
 	}
