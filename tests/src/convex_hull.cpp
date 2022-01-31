@@ -110,12 +110,15 @@ TEST(ConvexHull, TriangleConstruction)
 		face_vertex_indices,	sizeof(face_vertex_indices) / sizeof(glm::uvec3)
 	);
 
-	ASSERT_EQ(new_hull.m_vertices.size(), 3);
-	ASSERT_EQ(new_hull.m_faces.size(), 1);
-	ASSERT_EQ(new_hull.m_edges.size(), 3);
+	EXPECT_EQ(new_hull.m_vertices.size(), 3);
+	EXPECT_EQ(new_hull.m_faces.size(), 1);
+	EXPECT_EQ(new_hull.m_edges.size(), 3);
 
 	test_convex_hull_loops(new_hull, 3);
 	test_face_vertices(new_hull);
+
+	EXPECT_EQ(new_hull.m_vertices.size(), 3);
+	EXPECT_EQ(new_hull.m_edges.size(), 3);
 }
 
 TEST(ConvexHull, SquareConstruction)

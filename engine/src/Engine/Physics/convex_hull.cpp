@@ -53,17 +53,6 @@ namespace Physics {
 		new_hull.m_vertices.resize(_vertex_count);
 		memcpy(&new_hull.m_vertices.front(), _vertices, sizeof(glm::vec3)* _vertex_count);
 
-		// Copy input faces into new hull
-		new_hull.m_faces.reserve(_face_count);
-		for (uint16_t face_index = 0; face_index < _face_count; ++face_index)
-		{
-			face new_face;
-			new_face.m_vertices.resize(3);
-			for (int vertex_index = 0; vertex_index < 3; ++vertex_index)
-				new_face.m_vertices[vertex_index] = _face_indices[face_index][vertex_index];
-			new_hull.m_faces.emplace_back(new_face);
-		}
-
 		/*
 		Create half-edges for each face.
 		*/
@@ -136,20 +125,20 @@ namespace Physics {
 		// the input data will result in convex faces.
 
 		// Indicates whether a face / an edge still exists.
-		std::vector<bool> existing_faces(new_hull.m_faces.size(), true);
+		std::vector<bool> existing_faces(_face_count, true);
 		std::vector<bool> existing_edges(new_hull.m_edges.size(), true);
 		std::vector<bool> existing_vertices(new_hull.m_vertices.size(), false);
 		auto const& vertices = new_hull.m_vertices; // Define shorthand
 
 		// Pre-calculate face normals to make my life easier.
 		// Assume face vertices are defined in CCW order!
-		std::vector<glm::vec3> face_normals(new_hull.m_faces.size());
-		for (size_t i = 0; i < new_hull.m_faces.size(); ++i)
+		std::vector<glm::vec3> face_normals(_face_count);
+		for (size_t i = 0; i < _face_count; ++i)
 		{
-			auto const& face_vtx_indices = new_hull.m_faces[i].m_vertices;
+			auto const& face_vtx_indices = _face_indices[i];
 			face_normals[i] = glm::normalize(glm::cross(
-				vertices[face_vtx_indices[1]] - vertices[face_vtx_indices[0]],
-				vertices[face_vtx_indices[2]] - vertices[face_vtx_indices[1]]
+				_vertices[face_vtx_indices[2]] - _vertices[face_vtx_indices[0]],
+				_vertices[face_vtx_indices[1]] - _vertices[face_vtx_indices[0]]
 			));
 		}
 
@@ -218,10 +207,6 @@ namespace Physics {
 			// Mark twin edge's face as deleted
 			existing_faces[get_face_index(get_twin_index(edges_sharing_face.front()))] = false;
 
-			// Get current edge's face, and get iterator to vertex index list
-			convex_hull::face& current_face = new_hull.m_faces[current_edge.m_edge_face];
-			auto face_vtx_iter = std::find(current_face.m_vertices.begin(), current_face.m_vertices.end(), current_edge.m_vertex);
-
 			// Insert all vertices past current edge's origin vertex until we find edge whose twin is the back element in the edge sequence.
 			convex_hull::half_edge_idx const twin_next_edge = new_hull.m_edges[current_edge.m_twin_edge].m_next_edge;
 			convex_hull::half_edge_idx edge_iter = twin_next_edge;
@@ -231,7 +216,6 @@ namespace Physics {
 			{
 				edge_iter = new_hull.m_edges[edge_iter].m_next_edge;
 				new_hull.m_edges[edge_iter].m_edge_face = current_edge.m_edge_face;
-				face_vtx_iter = current_face.m_vertices.insert(face_vtx_iter+1, new_hull.m_edges[edge_iter].m_vertex) + 1;
 			}
 
 			convex_hull::half_edge_idx previous_edge_idx = get_previous_edge(new_hull, edge_index);
@@ -262,13 +246,12 @@ namespace Physics {
 			if (!existing_edges[edge_idx]) 
 				continue;
 
-			half_edge_idx & next_idx = get_next_index(edge_idx);
-			half_edge_idx const next_next_idx = get_next_index(edge_idx);
+			half_edge_idx const next_idx = get_next_index(edge_idx);
 			
 			if (glm::all(glm::epsilonEqual(edge_normalized_dirs[edge_idx], edge_normalized_dirs[next_idx], 0.001f)))
 			{
 				existing_edges[next_idx] = false;
-				next_idx = next_next_idx;
+				new_hull.m_edges[edge_idx].m_next_edge = get_next_index(next_idx);
 			}
 		}
 		// Mark all vertices found in existing edges as existing.
@@ -303,10 +286,9 @@ namespace Physics {
 		// New edges & faces array where indices marked for deletion are erased.
 		decltype(new_hull.m_edges) new_edges;
 		new_edges.reserve(existing_edges.size() - edge_index_substraction_map.back());
-		decltype(new_hull.m_faces) new_faces;
-		new_faces.reserve(existing_faces.size() - face_index_substraction_map.back());
 		decltype(new_hull.m_vertices) new_vertices;
 		new_vertices.reserve(existing_vertices.size() - vertex_index_substraction_map.back());
+		new_hull.m_faces.resize(existing_faces.size() - face_index_substraction_map.back());
 
 		for (size_t i = 0; i < existing_edges.size(); i++)
 		{
@@ -321,16 +303,6 @@ namespace Physics {
 				new_edges.emplace_back(new_edge);
 			}
 		}
-		for (size_t i = 0; i < existing_faces.size(); i++)
-		{
-			if (existing_faces[i])
-			{
-				auto new_face = new_hull.m_faces[i];
-				for (convex_hull::vertex_idx i = 0; i < new_face.m_vertices.size(); i++)
-					new_face.m_vertices[i] -= vertex_index_substraction_map[i];
-				new_faces.emplace_back(new_face);
-			}
-		}
 		for (size_t i = 0; i < existing_vertices.size(); i++)
 		{
 			if (existing_vertices[i])
@@ -340,8 +312,22 @@ namespace Physics {
 		}
 
 		new_hull.m_edges = std::move(new_edges);
-		new_hull.m_faces = std::move(new_faces);
 		new_hull.m_vertices = std::move(new_vertices);
+
+		// Last pass to add vertices and edges to respective faces
+		std::vector<bool> edges_processed(new_hull.m_edges.size(), false);
+		for (half_edge_idx edge = 0; edge < new_hull.m_edges.size(); edge++)
+		{
+			half_edge_idx edge_iterator = edge;
+			face& edge_face = new_hull.m_faces[new_hull.m_edges[edge_iterator].m_edge_face];
+			while (!edges_processed[edge_iterator])
+			{
+				edge_face.m_edges.emplace_back(edge_iterator);
+				edge_face.m_vertices.emplace_back(new_hull.m_edges[edge_iterator].m_vertex);
+				edges_processed[edge_iterator] = true;
+				edge_iterator = get_next_index(edge_iterator);
+			}
+		}
 
 		return new_hull;
 	}

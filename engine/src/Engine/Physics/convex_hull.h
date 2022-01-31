@@ -35,6 +35,7 @@ namespace Physics {
 			// refer to it through an offset and a length (i.e. a bufferview)
 
 			// Stored in counter-clockwise order.
+			std::vector<half_edge_idx> m_edges;
 			std::vector<vertex_idx>	m_vertices;
 		};
 
