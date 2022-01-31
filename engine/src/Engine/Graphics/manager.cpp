@@ -898,6 +898,67 @@ namespace Graphics {
 		return m_mesh_primitives_map.at(_mesh);
 	}
 
+	/*
+	* Register mesh and its primitive list into manager
+	* @param	mesh_primitive_list			List of primitives to register under mesh
+	* @param	std::string					Name of new mesh in manager.
+	*										If not provided, finding mesh is not possible.
+	* @return	mesh_handle					Handle to registered mesh
+	*/
+	mesh_handle	ResourceManager::RegisterMeshPrimitives(
+		mesh_primitive_list const& _list, 
+		std::string _name
+	)
+	{
+		if (_list.empty())
+			return 0;
+
+		mesh_handle const new_handle = m_mesh_handle_counter++;
+
+		if (!_name.empty())
+		{
+			mesh_handle const find_named_mesh_result = FindMesh(_name.c_str());
+			assert(find_named_mesh_result == 0);
+
+			m_named_mesh_map.emplace(_name, new_handle);
+			m_mesh_name_map.emplace(new_handle, _name);
+		}
+
+		m_mesh_primitives_map.emplace(new_handle, _list);
+		return new_handle;
+	}
+
+
+	/*
+	* Register OpenGL buffer in manager
+	* @param	buffer_info		Buffer information
+	* @return	buffer_handle	Handle to registered buffer
+	*/
+	buffer_handle ResourceManager::RegisterBuffer(buffer_info _buffer_info)
+	{
+		buffer_handle const new_handle = m_buffer_handle_counter++;
+		m_buffer_info_map.emplace(new_handle, _buffer_info);
+		return new_handle;
+	}
+
+	/*
+	* Register OpenGL index buffer in manager
+	* @param	buffer_info			Buffer information
+	* @param	index_buffer_info	Additional buffer information specific to IBO
+	* @return	buffer_handle		Handle to both regular and IBO buffer information
+	*/
+	buffer_handle ResourceManager::RegisterIndexBuffer(buffer_info _buffer_info, index_buffer_info _idx_buffer_info)
+	{
+		assert(_idx_buffer_info.m_index_count != 0);
+		assert(_idx_buffer_info.m_type >= GL_BYTE && _idx_buffer_info.m_type <= GL_UNSIGNED_INT);
+		buffer_handle const new_handle = RegisterBuffer(_buffer_info);
+		if (new_handle != 0)
+		{
+			m_index_buffer_info_map.emplace(new_handle, _idx_buffer_info);
+		}
+		return new_handle;
+	}
+
 	//////////////////////////////////////////////////////////////////
 	//					Material Methods
 	//////////////////////////////////////////////////////////////////
