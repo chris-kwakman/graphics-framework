@@ -185,6 +185,8 @@ namespace Graphics {
 		material_handle		m_material_handle_counter = 1;
 		std::unordered_map<material_handle, material_data>	m_material_data_map;
 
+		material_handle RegisterMaterial(material_data _mat_data);
+
 		//////////////////////////////////////////////////////
 		//					Texture Data
 		//////////////////////////////////////////////////////

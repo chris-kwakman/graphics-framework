@@ -964,6 +964,18 @@ namespace Graphics {
 	//////////////////////////////////////////////////////////////////
 
 	/*
+	* Register new material in manager
+	* @param	material_data		Material data to register
+	* @return	material_handle		Handle to material data map
+	*/
+	material_handle ResourceManager::RegisterMaterial(material_data _mat_data)
+	{
+		material_handle const new_handle = m_material_handle_counter++;
+		m_material_data_map.emplace(new_handle, _mat_data);
+		return new_handle;
+	}
+
+	/*
 	* Get material corresponding to handle.
 	* @param	material_handle		Handle to material
 	* @return	material_data		Data of material

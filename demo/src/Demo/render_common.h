@@ -111,6 +111,8 @@ namespace Sandbox
 
 	extern unsigned int joint_index_count, bone_index_count;
 
+	extern Engine::Graphics::mesh_handle s_cube_mesh_handle;
+
 	void setup_render_common();
 	void shutdown_render_common();
 

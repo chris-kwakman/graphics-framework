@@ -3,6 +3,8 @@
 #include <glm/geometric.hpp>
 #include <glm/gtc/epsilon.hpp>
 
+#include <Engine/Utils/singleton.h>
+
 #include <deque>
 
 namespace Engine {
@@ -330,6 +332,24 @@ namespace Physics {
 		}
 
 		return new_hull;
+	}
+
+	ConvexHullManager::convex_hull_info const* ConvexHullManager::GetConvexHullInfo(convex_hull_handle _handle) const
+	{
+		auto iter = m_map.find(_handle);
+		return (iter == m_map.end()) ? nullptr : &iter->second;
+	}
+
+	convex_hull_handle ConvexHullManager::RegisterConvexHull(convex_hull&& _hull, std::string _name)
+	{
+		convex_hull_info entry;
+		entry.m_data = std::move(_hull);
+		entry.m_name = _name;
+
+		convex_hull_handle const new_handle = m_handle_counter++;
+		m_map.emplace(new_handle, std::move(entry));
+
+		return new_handle;
 	}
 
 }

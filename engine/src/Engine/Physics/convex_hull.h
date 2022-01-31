@@ -5,8 +5,12 @@
 #include <vector>
 #include <limits>
 
+#include <unordered_map>
+
 namespace Engine {
 namespace Physics {
+
+	typedef uint16_t convex_hull_handle;
 
 	/*
 	* Specifications:
@@ -56,6 +60,26 @@ namespace Physics {
 		glm::vec3 const * _vertices,		size_t _vertex_count,
 		glm::uvec3 const * _face_indices,	size_t _face_count
 	);
+
+	class ConvexHullManager
+	{
+		struct convex_hull_info;
+
+		convex_hull_handle m_handle_counter = 1;
+
+	public:
+
+		std::unordered_map<convex_hull_handle, convex_hull_info> m_map;
+
+		struct convex_hull_info
+		{
+			convex_hull m_data;
+			std::string m_name;
+		};
+
+		convex_hull_info const * GetConvexHullInfo(convex_hull_handle _handle) const;
+		convex_hull_handle RegisterConvexHull(convex_hull&& _hull, std::string _name);
+	};
 
 }
 }

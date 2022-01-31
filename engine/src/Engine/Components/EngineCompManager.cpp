@@ -12,6 +12,7 @@
 #include "CurveFollower.h"
 #include "Rigidbody.h"
 #include <Engine/Editor/EditorCameraController.h>
+#include <Engine/Physics/Collider.h>
 
 void Component::InitializeEngineComponentManagers()
 {

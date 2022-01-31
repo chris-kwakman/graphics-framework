@@ -1,16 +1,16 @@
-#include <engine/Graphics/manager.h>
+#pragma once
+
+#include <Engine/Graphics/manager.h>
+#include <Engine/Physics/convex_hull.h>
 
 namespace Engine {
-namespace Physics
-{
-	struct Engine::Physics::convex_hull;
-}
 namespace Graphics {
 namespace Misc
 {
-	using namespace Engine::Graphics;
-
-	mesh_handle create_convex_hull_mesh(Physics::convex_hull const& _ch);
+	Engine::Graphics::mesh_handle create_convex_hull_mesh(
+		Engine::Physics::convex_hull_handle _ch_handle, 
+		std::string _name = ""
+	);
 }
 }
 }
