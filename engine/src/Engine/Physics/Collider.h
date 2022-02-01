@@ -24,16 +24,21 @@ namespace Component
 		{
 			struct ch_debug_render_data
 			{
-				unsigned int m_ref_count;
-				Engine::Graphics::mesh_handle m_ch_mesh;
+				~ch_debug_render_data();
+
+				unsigned int m_ref_count = 0;
+				Engine::Graphics::mesh_handle m_ch_face_mesh;
+				Engine::Graphics::mesh_handle m_ch_edge_mesh;
+				int m_highlight_face_index = -1;
+				int m_highlight_edge_index = -1;
 			};
 
 			std::unordered_map<Entity, Engine::Physics::convex_hull_handle, Entity::hash> m_entity_map;
-			std::unordered_set<Entity, Entity::hash> m_renderables;
-
 			std::unordered_map<Engine::Physics::convex_hull_handle, ch_debug_render_data> m_ch_debug_meshes;
 
-			NLOHMANN_DEFINE_TYPE_INTRUSIVE(manager_data, m_entity_map, m_renderables);
+			bool m_render_debug_face_mesh = true, m_render_debug_edge_mesh = true;
+
+			NLOHMANN_DEFINE_TYPE_INTRUSIVE(manager_data, m_entity_map, m_render_debug_face_mesh, m_render_debug_edge_mesh);
 		};
 
 	public:

@@ -193,7 +193,7 @@ namespace Sandbox
 		default_fb_texture_params.m_min_filter = GL_LINEAR;
 		default_fb_texture_params.m_mag_filter = GL_LINEAR;
 		resource_manager.AllocateTextureStorage2D(s_fb_texture_depth, GL_DEPTH_COMPONENT32F, surface_size, default_fb_texture_params);
-		resource_manager.AllocateTextureStorage2D(s_fb_texture_base_color, GL_RGB8, surface_size, default_fb_texture_params);
+		resource_manager.AllocateTextureStorage2D(s_fb_texture_base_color, GL_RGBA8, surface_size, default_fb_texture_params);
 		resource_manager.AllocateTextureStorage2D(s_fb_texture_metallic_roughness, GL_RGB8, surface_size, default_fb_texture_params);
 		resource_manager.AllocateTextureStorage2D(s_fb_texture_normal, GL_RGB8, surface_size, default_fb_texture_params);
 		resource_manager.AllocateTextureStorage2D(s_fb_texture_light_color, GL_RGB16F, surface_size, default_fb_texture_params);
@@ -388,7 +388,6 @@ namespace Sandbox
 		);
 
 		s_cube_convex_hull_handle = Singleton<Engine::Physics::ConvexHullManager>().RegisterConvexHull(std::move(new_hull), "Cube Hull");
-		s_cube_mesh_handle = Engine::Graphics::Misc::create_convex_hull_mesh(s_cube_convex_hull_handle, "Cube Hull");
 
 		// Load glTF model Sponza by default, other if specified in commandline argument.
 		if (!s_scene_reset)

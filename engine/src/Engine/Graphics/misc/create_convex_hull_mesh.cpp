@@ -7,8 +7,10 @@ namespace Graphics {
 namespace Misc {
 
 	using namespace Engine::Physics;
+	using namespace Engine::Graphics;
+	using RM = ResourceManager;
 
-	Engine::Graphics::mesh_handle create_convex_hull_mesh(Engine::Physics::convex_hull_handle _ch_handle, std::string _name)
+	mesh_handle create_convex_hull_face_mesh(convex_hull_handle _ch_handle, std::string _name)
 	{
 		auto ch_info = Singleton<Engine::Physics::ConvexHullManager>().GetConvexHullInfo(_ch_handle);
 		if (ch_info == nullptr)
@@ -45,9 +47,6 @@ namespace Misc {
 				mesh_vertices.push_back(ch.m_vertices[face.m_vertices[i+1]]);
 			}
 		}
-		
-		using namespace Engine::Graphics;
-		using RM = ResourceManager;
 
 		auto & rm = Singleton<RM>();
 
@@ -56,7 +55,7 @@ namespace Misc {
 		std::vector<GLuint> new_gl_buffer_arr;
 		new_gl_buffer_arr.resize(2);
 		GLuint mesh_vao = 0;
-		glGenVertexArrays(1, &mesh_vao);
+		glCreateVertexArrays(1, &mesh_vao);
 		glCreateBuffers(new_gl_buffer_arr.size(), &new_gl_buffer_arr.front());
 
 		GLuint mesh_buffer_vertices = new_gl_buffer_arr[0];
@@ -94,18 +93,12 @@ namespace Misc {
 		glBindVertexArray(0);
 
 		RM::buffer_info buffer_attr_vertices, buffer_attr_face_indices;
-		//buffer_ibo.m_gl_id = mesh_ibo;
-		//buffer_ibo.m_target = GL_ELEMENT_ARRAY_BUFFER;
 
 		buffer_attr_vertices.m_gl_id = mesh_buffer_vertices;
 		buffer_attr_vertices.m_target = GL_ARRAY_BUFFER;
 
 		buffer_attr_face_indices.m_gl_id = mesh_buffer_face_indices;
 		buffer_attr_face_indices.m_target = GL_ARRAY_BUFFER;
-
-		//RM::index_buffer_info ib_info;
-		//ib_info.m_type = GL_UNSIGNED_SHORT;
-		//ib_info.m_index_count = triangle_vertex_indices.size();
 
 		// Register previous buffers into manager.
 		//buffer_handle const buffer_handle_ibo = rm.RegisterIndexBuffer(buffer_ibo, ib_info);
@@ -142,7 +135,113 @@ namespace Misc {
 		return new_mesh_handle;
 	}
 
+	mesh_handle create_convex_hull_edge_mesh(
+		convex_hull_handle _ch_handle,
+		std::string _name)
+	{
+		auto ch_info = Singleton<ConvexHullManager>().GetConvexHullInfo(_ch_handle);
+		if (ch_info == nullptr)
+			return 0;
+		auto const& ch = ch_info->m_data;
 
+		auto& rm = Singleton<RM>();
+
+		std::vector<glm::vec3> line_vertices;
+		std::vector<convex_hull::vertex_idx> line_edge_indices;
+
+		size_t half_edge_count = 0;
+		for (size_t face_idx = 0; face_idx < ch.m_faces.size(); face_idx++)
+		{
+			convex_hull::face const& face = ch.m_faces[face_idx];
+			for (size_t i = 0; i < face.m_vertices.size() - 1; i++)
+			{
+				line_vertices.emplace_back(ch.m_vertices[face.m_vertices[i]]);
+				line_vertices.emplace_back(ch.m_vertices[face.m_vertices[i + 1]]);
+			}
+			line_vertices.emplace_back(ch.m_vertices[face.m_vertices.back()]);
+			line_vertices.emplace_back(ch.m_vertices[face.m_vertices.front()]);
+			for (size_t i = 0; i < face.m_edges.size(); i++)
+			{
+				line_edge_indices.emplace_back(face.m_edges[i]);
+				line_edge_indices.emplace_back(face.m_edges[i]);
+			}
+		}
+
+		GLuint mesh_vao, mesh_buffer_vertices, mesh_buffer_edge_indices;
+		glCreateVertexArrays(1, &mesh_vao);
+		glBindVertexArray(mesh_vao);
+
+		glCreateBuffers(1, &mesh_buffer_vertices);
+		glCreateBuffers(1, &mesh_buffer_edge_indices);
+
+		glBindBuffer(GL_ARRAY_BUFFER, mesh_buffer_vertices);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * line_vertices.size(), &line_vertices.front(), GL_STATIC_DRAW);
+		glEnableVertexArrayAttrib(mesh_vao, 0);
+		glVertexAttribPointer(
+			0,
+			3,
+			GL_FLOAT,
+			false,
+			0,
+			(GLvoid*)(0)
+		);
+
+		glBindBuffer(GL_ARRAY_BUFFER, mesh_buffer_edge_indices);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(convex_hull::half_edge_idx) * line_edge_indices.size(), &line_edge_indices.front(), GL_STATIC_DRAW);
+		glEnableVertexArrayAttrib(mesh_vao, 1);
+		glVertexAttribPointer(
+			1,
+			1,
+			GL_UNSIGNED_SHORT,
+			false,
+			0,
+			(GLvoid*)(0)
+		);
+
+		glBindVertexArray(0);
+
+
+		RM::pbr_metallic_roughness_data pbr_data;
+		pbr_data.m_base_color_factor = glm::vec4(1.0f, 1.0f, 0.0f, 1.0f);
+		pbr_data.m_metallic_factor = 0.0f;
+		pbr_data.m_roughness_factor = 0.0f;
+		pbr_data.m_texture_base_color = 0;
+		pbr_data.m_texture_metallic_roughness = 0;
+		RM::material_data mat_data;
+		mat_data.m_alpha_mode = RM::material_data::alpha_mode::eOPAQUE;
+		mat_data.m_double_sided = false;
+		mat_data.m_texture_normal = 0;
+		mat_data.m_texture_emissive = 0;
+		mat_data.m_texture_occlusion = 0;
+		mat_data.m_pbr_metallic_roughness = pbr_data;
+
+		RM::mesh_primitive_data primitive;
+		primitive.m_vao_gl_id = mesh_vao;
+		primitive.m_material_handle = rm.RegisterMaterial(mat_data);
+		primitive.m_index_buffer_handle = 0;
+		primitive.m_index_byte_offset = 0;
+		primitive.m_vertex_count = line_vertices.size();
+		primitive.m_render_mode = GL_LINES;
+
+
+		RM::mesh_primitive_list const prim_list = RM::mesh_primitive_list{ primitive };
+
+		RM::buffer_info buffer_vertices_info, buffer_edge_indices_info;
+		buffer_vertices_info.m_gl_id = mesh_buffer_vertices;
+		buffer_vertices_info.m_target = GL_ARRAY_BUFFER;
+		buffer_edge_indices_info.m_gl_id = mesh_buffer_edge_indices;
+		buffer_edge_indices_info.m_target = GL_ARRAY_BUFFER;
+
+		buffer_handle const buffer_handle_vertices = rm.RegisterBuffer(buffer_vertices_info);
+		buffer_handle const buffer_handle_edge_indices = rm.RegisterBuffer(buffer_edge_indices_info);
+
+		material_handle const mesh_mat_handle = rm.RegisterMaterial(mat_data);
+		mesh_handle const mesh_handle = rm.RegisterMeshPrimitives(prim_list, _name);
+
+		assert(mesh_handle != 0);
+
+		return mesh_handle;
+	}
 }
 }
 }

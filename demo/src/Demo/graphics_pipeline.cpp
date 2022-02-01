@@ -794,11 +794,13 @@ namespace Sandbox
 			using namespace Engine::Physics;
 			auto const & collider_mgr = Singleton<Component::ColliderManager>();
 
-			glDepthMask(GL_FALSE);
+			glDepthMask(GL_TRUE);
+			glEnable(GL_DEPTH_TEST);
 			glDepthFunc(GL_LESS);
 			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-			for (Entity const e : collider_mgr.m_data.m_renderables)
+			for (auto [e, ch_handle] : collider_mgr.m_data.m_entity_map)
 			{
 				Component::Transform transform = e.GetComponent<Component::Transform>();
 				Engine::Math::transform3D world_transform = transform.ComputeWorldTransform();
@@ -808,14 +810,40 @@ namespace Sandbox
 				if (ch_handle == 0)
 					continue;
 
-				auto debug_render_data = collider_mgr.m_data.m_ch_debug_meshes.at(ch_handle);
+				auto it = collider_mgr.m_data.m_ch_debug_meshes.find(ch_handle);
+				if (it == collider_mgr.m_data.m_ch_debug_meshes.end())
+					continue;
 
-				auto & primitive_list = res_mgr.GetMeshPrimitives(debug_render_data.m_ch_mesh);
+				auto debug_render_data = it->second;
+				res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, matrix_vp * world_transform.GetMatrix());
+				int const LOC_HIGHLIGHT_INDEX = res_mgr.FindBoundProgramUniformLocation("u_highlight_index");
 
-				res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, matrix_vp* world_transform.GetMatrix());
-				for (auto & primitive : primitive_list)
+				if (collider_mgr.m_data.m_render_debug_face_mesh)
 				{
-					render_primitive(primitive);
+					auto& primitive_list = res_mgr.GetMeshPrimitives(debug_render_data.m_ch_face_mesh);
+					for (auto& primitive : primitive_list)
+					{
+						res_mgr.SetBoundProgramUniform(
+							LOC_BASE_COLOR_FACTOR,
+							res_mgr.GetMaterial(primitive.m_material_handle).m_pbr_metallic_roughness.m_base_color_factor
+						);
+						res_mgr.SetBoundProgramUniform(LOC_HIGHLIGHT_INDEX, debug_render_data.m_highlight_face_index);
+						render_primitive(primitive);
+					}
+				}
+				if (collider_mgr.m_data.m_render_debug_edge_mesh)
+				{
+					glLineWidth(4.0f);
+					auto& primitive_list = res_mgr.GetMeshPrimitives(debug_render_data.m_ch_edge_mesh);
+					for (auto& primitive : primitive_list)
+					{
+						res_mgr.SetBoundProgramUniform(
+							LOC_BASE_COLOR_FACTOR,
+							res_mgr.GetMaterial(primitive.m_material_handle).m_pbr_metallic_roughness.m_base_color_factor
+						);
+						res_mgr.SetBoundProgramUniform(LOC_HIGHLIGHT_INDEX, debug_render_data.m_highlight_edge_index);
+						render_primitive(primitive);
+					}
 				}
 			}
 		}

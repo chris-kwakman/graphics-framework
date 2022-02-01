@@ -32,7 +32,8 @@ namespace Component
 			if (debug_mesh_iter == m_data.m_ch_debug_meshes.end())
 			{
 				manager_data::ch_debug_render_data render_data;
-				render_data.m_ch_mesh = Engine::Graphics::Misc::create_convex_hull_mesh(_ch_handle);
+				render_data.m_ch_face_mesh = Engine::Graphics::Misc::create_convex_hull_face_mesh(_ch_handle);
+				render_data.m_ch_edge_mesh = Engine::Graphics::Misc::create_convex_hull_edge_mesh(_ch_handle);
 				render_data.m_ref_count = 0;
 				m_data.m_ch_debug_meshes.emplace(_ch_handle, std::move(render_data));
 			}
@@ -55,11 +56,8 @@ namespace Component
 		{
 			Entity const destroy_entity = _entities[i];
 			auto map_iter = m_data.m_entity_map.find(destroy_entity);
-			if (map_iter != m_data.m_entity_map.end())
-			{
-				m_data.m_renderables.erase(destroy_entity);
-				m_data.m_entity_map.erase(map_iter);
-			}
+			SetColliderConvexHull(destroy_entity, 0);
+			m_data.m_entity_map.erase(destroy_entity);
 		}
 	}
 	bool ColliderManager::impl_component_owned_by_entity(Entity _entity) const
@@ -72,15 +70,6 @@ namespace Component
 
 		auto& ch_mgr = Singleton<ConvexHullManager>();
 
-		auto renderable_iter = m_data.m_renderables.find(_entity);
-		bool is_rendered = (renderable_iter != m_data.m_renderables.end());
-		if (ImGui::Checkbox("Debug Render", &is_rendered))
-		{
-			if (!is_rendered)
-				m_data.m_renderables.erase(renderable_iter);
-			else
-				m_data.m_renderables.emplace(_entity);
-		}
 		auto info = ch_mgr.GetConvexHullInfo(m_data.m_entity_map.at(_entity));
 		std::string show_name = "No Collider";
 		if (info != nullptr)
@@ -88,6 +77,9 @@ namespace Component
 			show_name = info->m_name;
 		}
 		ImGui::InputText("Collider Handle", &show_name, ImGuiInputTextFlags_ReadOnly);
+
+		ImGui::Checkbox("Enable Debug Face Rendering", &m_data.m_render_debug_face_mesh);
+		ImGui::Checkbox("Enable Debug Edge Rendering", &m_data.m_render_debug_edge_mesh);
 
 		if (ImGui::Button("Set Collider"))
 			ImGui::OpenPopup("convex_hull_list");
@@ -111,6 +103,32 @@ namespace Component
 
 			ImGui::EndPopup();
 		}
+
+		convex_hull_handle const current_ch_handle = m_data.m_entity_map.at(_entity);
+		if (current_ch_handle != 0)
+		{
+			if (auto it = m_data.m_ch_debug_meshes.find(current_ch_handle); it != m_data.m_ch_debug_meshes.end())
+			{
+				auto& debug_render_data = it->second;
+				auto const & face_prim_list = Singleton<Engine::Graphics::ResourceManager>().GetMeshPrimitives(debug_render_data.m_ch_face_mesh);
+				auto const & edge_prim_list = Singleton<Engine::Graphics::ResourceManager>().GetMeshPrimitives(debug_render_data.m_ch_edge_mesh);
+				auto const & ch_data = Singleton<Engine::Physics::ConvexHullManager>().GetConvexHullInfo(current_ch_handle);
+				ImGui::Separator();
+				ImGui::SliderInt("Highlight Face Index",
+					&debug_render_data.m_highlight_face_index, -1,
+					ch_data->m_data.m_faces.size()-1,
+					"%d",
+					ImGuiSliderFlags_AlwaysClamp
+				);
+				ImGui::SliderInt("Highlight Edge Index",
+					&debug_render_data.m_highlight_edge_index, -1,
+					ch_data->m_data.m_edges.size() - 1,
+					"%d",
+					ImGuiSliderFlags_AlwaysClamp
+				);
+			}
+
+		}
 	}
 	void ColliderManager::impl_deserialize_data(nlohmann::json const& _j)
 	{
@@ -119,11 +137,35 @@ namespace Component
 		{
 			m_data = _j["m_data"];
 		}
+
+		// Create meshes for convex hulls if they do not exist yet.
+		std::unordered_map<Engine::Physics::convex_hull_handle, unsigned int> map_ch_refcount;
+		for (auto [e, ch_handle] : m_data.m_entity_map)
+		{
+			map_ch_refcount.try_emplace(ch_handle, 0);
+			map_ch_refcount.at(ch_handle)++;
+		}
+		for (auto [ch_handle, refcount] : map_ch_refcount)
+		{
+			manager_data::ch_debug_render_data ch_debug_data;
+			ch_debug_data.m_ref_count = refcount;
+			ch_debug_data.m_ch_edge_mesh = Engine::Graphics::Misc::create_convex_hull_edge_mesh(ch_handle);
+			ch_debug_data.m_ch_face_mesh = Engine::Graphics::Misc::create_convex_hull_face_mesh(ch_handle);
+			m_data.m_ch_debug_meshes.emplace(ch_handle, ch_debug_data);
+		}
 	}
 	void ColliderManager::impl_serialize_data(nlohmann::json& _j) const
 	{
 		_j["serializer_version"] = 1;
 
 		_j["m_data"] = m_data;
+	}
+
+	ColliderManager::manager_data::ch_debug_render_data::~ch_debug_render_data()
+	{
+		using namespace Engine::Graphics;
+		auto& rm = Singleton<ResourceManager>();
+
+		// Delete graphics resources.
 	}
 }
