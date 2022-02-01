@@ -3,6 +3,8 @@
 #include <engine/ECS/component_manager.h>
 #include <Engine/Physics/convex_hull.h>
 
+#include <Engine/Graphics/manager.h>
+
 #include <unordered_map>
 #include <nlohmann/json.hpp>
 
@@ -20,19 +22,29 @@ namespace Component
 	{
 		struct manager_data
 		{
+			struct ch_debug_render_data
+			{
+				unsigned int m_ref_count;
+				Engine::Graphics::mesh_handle m_ch_mesh;
+			};
+
 			std::unordered_map<Entity, Engine::Physics::convex_hull_handle, Entity::hash> m_entity_map;
 			std::unordered_set<Entity, Entity::hash> m_renderables;
+
+			std::unordered_map<Engine::Physics::convex_hull_handle, ch_debug_render_data> m_ch_debug_meshes;
 
 			NLOHMANN_DEFINE_TYPE_INTRUSIVE(manager_data, m_entity_map, m_renderables);
 		};
 
-		manager_data m_data;
-
 	public:
+
+		manager_data m_data;
 
 		// Inherited via TCompManager
 		virtual const char* GetComponentTypeName() const override;
+		void SetColliderConvexHull(Entity _e, Engine::Physics::convex_hull_handle _ch_handle);
 
+	private:
 
 		virtual void impl_clear() override;
 		virtual bool impl_create(Entity _e) override;

@@ -104,6 +104,8 @@ namespace Sandbox
 			"data/shaders/write_csm.vert",
 			"data/shaders/write_csm.frag",
 			"data/shaders/primitive.frag",
+			"data/shaders/draw_collider_debug.vert",
+			"data/shaders/draw_collider_debug.frag"
 		};
 		std::vector<Engine::Graphics::ResourceManager::shader_handle> output_shader_handles;
 		output_shader_handles = system_resource_manager.LoadShaders(shader_paths);
@@ -126,6 +128,7 @@ namespace Sandbox
 		program_shader_path_list const draw_postprocessing_shaders = { "data/shaders/display_framebuffer.vert", "data/shaders/postprocessing.frag" };
 		program_shader_path_list const directional_light_shaders = { "data/shaders/dirlight_shadowmap.vert", "data/shaders/dirlight_shadowmap.frag" };
 		program_shader_path_list const write_csm_shaders = { "data/shaders/write_csm.vert", "data/shaders/write_csm.frag" };
+		program_shader_path_list const draw_collider_debug_shaders = { "data/shaders/draw_collider_debug.vert", "data/shaders/draw_collider_debug.frag" };
 
 
 		system_resource_manager.LoadShaderProgram("draw_infinite_grid", draw_infinite_grid_shaders);
@@ -144,6 +147,7 @@ namespace Sandbox
 		system_resource_manager.LoadShaderProgram("postprocessing", draw_postprocessing_shaders);
 		system_resource_manager.LoadShaderProgram("dirlight_shadowmap", directional_light_shaders);
 		system_resource_manager.LoadShaderProgram("write_csm", write_csm_shaders);
+		system_resource_manager.LoadShaderProgram("draw_collider_debug", draw_collider_debug_shaders);
 	}
 
 	void setup_framebuffer()

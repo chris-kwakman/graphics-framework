@@ -1,4 +1,5 @@
 #include "Collider.h"
+#include <Engine/Graphics/misc/create_convex_hull_mesh.h>
 
 #include <ImGui/imgui_stdlib.h>
 
@@ -7,6 +8,36 @@ namespace Component
 	const char* ColliderManager::GetComponentTypeName() const
 	{
 		return "Collider";
+	}
+	void ColliderManager::SetColliderConvexHull(Entity _e, Engine::Physics::convex_hull_handle _ch_handle)
+	{
+		auto& ch_mgr = Singleton<Engine::Physics::ConvexHullManager>();
+
+		if (!ComponentOwnedByEntity(_e))
+			return;
+
+		auto map_iter = m_data.m_entity_map.find(_e);
+		Engine::Physics::convex_hull_handle const old_handle = map_iter->second;
+		if (old_handle != 0)
+		{
+			auto debug_mesh_iter = m_data.m_ch_debug_meshes.find(old_handle);
+			debug_mesh_iter->second.m_ref_count--;
+			if (debug_mesh_iter->second.m_ref_count == 0)
+				m_data.m_ch_debug_meshes.erase(debug_mesh_iter);
+		}
+		map_iter->second = _ch_handle;
+		if (_ch_handle != 0)
+		{
+			auto debug_mesh_iter = m_data.m_ch_debug_meshes.find(_ch_handle);
+			if (debug_mesh_iter == m_data.m_ch_debug_meshes.end())
+			{
+				manager_data::ch_debug_render_data render_data;
+				render_data.m_ch_mesh = Engine::Graphics::Misc::create_convex_hull_mesh(_ch_handle);
+				render_data.m_ref_count = 0;
+				m_data.m_ch_debug_meshes.emplace(_ch_handle, std::move(render_data));
+			}
+			m_data.m_ch_debug_meshes.at(_ch_handle).m_ref_count++;
+		}
 	}
 	void ColliderManager::impl_clear()
 	{
@@ -59,9 +90,9 @@ namespace Component
 		ImGui::InputText("Collider Handle", &show_name, ImGuiInputTextFlags_ReadOnly);
 
 		if (ImGui::Button("Set Collider"))
-			ImGui::OpenPopup("#convex_hull_list");
+			ImGui::OpenPopup("convex_hull_list");
 
-		if (ImGui::BeginPopupContextWindow("#convex_hull_list"))
+		if (ImGui::BeginPopupContextItem("convex_hull_list"))
 		{
 			Engine::Physics::convex_hull_handle new_handle = 0;
 			auto map_iter = ch_mgr.m_map.begin();
@@ -76,8 +107,7 @@ namespace Component
 				map_iter++;
 			}
 
-			if (new_handle != 0)
-				m_data.m_entity_map.at(_entity) = new_handle;
+			SetColliderConvexHull(_entity, new_handle);
 
 			ImGui::EndPopup();
 		}

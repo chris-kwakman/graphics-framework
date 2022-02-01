@@ -18,6 +18,8 @@
 #include <Engine/Components/Renderable.h>
 #include <Engine/Components/SkeletonAnimator.h>
 #include <Engine/Components/Transform.h>
+#include <Engine/Physics/Collider.h>
+#include <Engine/Physics/convex_hull.h>
 
 // GLM
 #include <glm/gtx/transform.hpp>
@@ -685,10 +687,10 @@ namespace Sandbox
 								}
 								else
 								{
-									node_modified += curve.m_nodes[i + 1];
-									// Add nodes to line mesh for rendering lines between positional nodes and tangent / intermediate nodes.
-									line_mesh.emplace_back(curve.m_nodes[i + 1]);
-									line_mesh.emplace_back(node_modified);
+								node_modified += curve.m_nodes[i + 1];
+								// Add nodes to line mesh for rendering lines between positional nodes and tangent / intermediate nodes.
+								line_mesh.emplace_back(curve.m_nodes[i + 1]);
+								line_mesh.emplace_back(node_modified);
 								}
 
 							}
@@ -701,7 +703,7 @@ namespace Sandbox
 						glm::mat4 const matrix_mv = camera_view_matrix * mesh_model_matrix;
 						glm::mat4 const matrix_t_inv_mv = glm::transpose(glm::inverse(matrix_mv));
 
-						res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, matrix_vp * mesh_model_matrix);
+						res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, matrix_vp* mesh_model_matrix);
 						res_mgr.SetBoundProgramUniform(LOC_MAT_MV, matrix_mv);
 						res_mgr.SetBoundProgramUniform(LOC_MAT_MV_T_INV, matrix_t_inv_mv);
 
@@ -719,7 +721,7 @@ namespace Sandbox
 					glm::mat4 const matrix_t_inv_mv = glm::transpose(glm::inverse(matrix_mv));
 
 					res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
-					res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, matrix_vp * mesh_model_matrix);
+					res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, matrix_vp* mesh_model_matrix);
 					res_mgr.SetBoundProgramUniform(LOC_MAT_MV, matrix_mv);
 					res_mgr.SetBoundProgramUniform(LOC_MAT_MV_T_INV, matrix_t_inv_mv);
 
@@ -782,6 +784,42 @@ namespace Sandbox
 				}
 			}
 		}
+
+		{
+			res_mgr.UseProgram(res_mgr.FindShaderProgram("draw_collider_debug"));
+		
+			set_bound_program_uniform_locations();
+
+			// Debug convex hull rendering for physics objects
+			using namespace Engine::Physics;
+			auto const & collider_mgr = Singleton<Component::ColliderManager>();
+
+			glDepthMask(GL_FALSE);
+			glDepthFunc(GL_LESS);
+			glEnable(GL_BLEND);
+
+			for (Entity const e : collider_mgr.m_data.m_renderables)
+			{
+				Component::Transform transform = e.GetComponent<Component::Transform>();
+				Engine::Math::transform3D world_transform = transform.ComputeWorldTransform();
+
+				convex_hull_handle const ch_handle = collider_mgr.m_data.m_entity_map.at(e);
+
+				if (ch_handle == 0)
+					continue;
+
+				auto debug_render_data = collider_mgr.m_data.m_ch_debug_meshes.at(ch_handle);
+
+				auto & primitive_list = res_mgr.GetMeshPrimitives(debug_render_data.m_ch_mesh);
+
+				res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, matrix_vp* world_transform.GetMatrix());
+				for (auto & primitive : primitive_list)
+				{
+					render_primitive(primitive);
+				}
+			}
+		}
+
 
 		// # 
 		// # Cascading Shadow Map Rendering
