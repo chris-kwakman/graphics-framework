@@ -1,12 +1,36 @@
 #include "resource_manager.h"
 #include <algorithm>
 #include <cassert>
+#include <filesystem>
 
 namespace Engine {
 namespace Managers {
 
+	void resource_manager_data::reset()
+	{
+		// Unload all resources
+		while (!m_map_resource_id_to_data.empty())
+		{
+			auto resource_iter = m_map_resource_id_to_data.begin();
+			unload_resource(resource_iter->first);
+		}
+
+		// Hard-reset on data.
+
+		m_map_path_to_resource_id.clear();
+		m_map_extension_to_resource_type.clear();
+		m_map_resource_id_to_data.clear();
+		m_map_resource_type_to_collection.clear();
+
+		m_id_counter = 1;
+		m_type_counter = 1;
+	}
+
 	resource_id resource_manager_data::load_resource(fs::path _path, resource_type _type)
 	{
+		// Get path of resource relative to executable's working directory.
+		_path = std::filesystem::relative(std::filesystem::path(_path), std::filesystem::current_path());
+
 		// Check if type actually exists
 		auto type_iter = m_map_resource_type_to_collection.find(_type);
 		if (type_iter == m_map_resource_type_to_collection.end())
@@ -22,10 +46,10 @@ namespace Managers {
 		if (resource_path_iter != m_map_path_to_resource_id.end())
 		{
 			// Check if resources corresponding to path are of type input type.
-			for (resource_id const path_resource_id : resource_path_iter->second)
+			for (resource_typeid const path_resource_typeid : resource_path_iter->second)
 			{
-				if (get_resource_type(path_resource_id) == _type)
-					return path_resource_id;
+				if (get_resource_type(path_resource_typeid.m_id) == _type)
+					return path_resource_typeid.m_id;
 			}
 		}
 
@@ -34,7 +58,7 @@ namespace Managers {
 			return 0;
 
 		resource_id const new_resource_id = register_resource(resource_handle, _type);
-		m_map_path_to_resource_id[_path].emplace(new_resource_id);
+		m_map_path_to_resource_id[_path].emplace(new_resource_id, _type);
 		m_map_resource_id_to_data.at(new_resource_id).m_path = _path;
 		return new_resource_id;
 	}
@@ -111,6 +135,19 @@ namespace Managers {
 			return resource_iter->second.m_type;
 	}
 
+	resource_type resource_manager_data::find_named_type(const char* _name) const
+	{
+		assert(_name != nullptr);
+		auto type_iter = m_map_resource_type_to_collection.begin();
+		while (type_iter != m_map_resource_type_to_collection.end())
+		{
+			if (strcmp(type_iter->second.m_name.c_str(), _name) == 0)
+				return type_iter->first;
+			++type_iter;
+		}
+		return 0;
+	}
+
 	resource_type resource_manager_data::register_type(std::string const _name, fn_resource_loader const _loader, fn_resource_unloader const _unloader)
 	{
 		// Check if any type with input name already exists.
@@ -171,6 +208,7 @@ namespace Managers {
 		return m_map_resource_type_to_collection.at(_type);
 	}
 
+
 	resource_id resource_manager_data::get_new_id()
 	{
 		resource_id id_iterator = m_id_counter-1;
@@ -183,20 +221,44 @@ namespace Managers {
 		return id_iterator;
 	}
 
+	bool resource_typeid::operator<(resource_typeid const& _l) const
+	{
+		if (m_type == _l.m_type)
+			return m_id < _l.m_id;
+		return m_type < _l.m_type;
+	}
+
+	resource_typeid& resource_typeid::operator=(resource_typeid const& _l)
+	{
+		assert(m_type == _l.m_type);
+		m_id = _l.m_id;
+		return *this;
+	}
+
+	bool resource_typeid::operator==(resource_typeid const& _l) const
+	{
+		return m_type_and_id == _l.m_type_and_id;
+	}
+
+	bool resource_typeid::operator!=(resource_typeid const& _l) const
+	{
+		return m_type_and_id != _l.m_type_and_id;
+	}
+
 	bool resource_reference::operator==(resource_reference const& _l) const
 	{
-		return (m_resource_type_and_id == _l.m_resource_type_and_id) && (m_resource_handle == _l.m_resource_handle);
+		return (m_resource_typeid == _l.m_resource_typeid) && (m_resource_handle == _l.m_resource_handle);
 	}
 
 	bool resource_reference::operator!=(resource_reference const& _l) const
 	{
-		return m_resource_type_and_id == _l.m_resource_type_and_id;
+		return m_resource_typeid == _l.m_resource_typeid;
 	}
 
 	resource_reference& resource_reference::operator=(resource_reference const& _l)
 	{
-		assert(m_resource_type == _l.m_resource_type);  
-		m_resource_id = _l.m_resource_id; 
+		assert(m_resource_typeid.m_type == _l.m_resource_typeid.m_type);  
+		m_resource_typeid = _l.m_resource_typeid;
 		m_resource_handle = _l.m_resource_handle; 
 		return *this;
 	}

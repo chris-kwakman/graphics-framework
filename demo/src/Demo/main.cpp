@@ -12,6 +12,8 @@
 #include <Engine/Components/CurveFollower.h>
 #include <Engine/Components/Rigidbody.h>
 
+#include <Engine/Managers/resource_manager.h>
+
 #include "Demo/sandbox.h"
 #include "Demo/Components/SandboxCompManager.h"
 
@@ -122,11 +124,12 @@ void menu_bar()
 		ImGui::OpenPopup("Save Scene");
 		ImGui::SetNextWindowPos(glm::vec2(io.DisplaySize) * 0.5f, ImGuiCond_Appearing, glm::vec2(0.5f, 0.5f));
 		memset(file_name_buffer, 0, sizeof(file_name_buffer));
+		popup_scene_save = false;
 	}
 
 	glm::vec2 const screen_size = Singleton<Engine::sdl_manager>().get_window_size();
 
-	if (ImGui::BeginPopupContextWindow("Save Scene", ImGuiPopupFlags_None))
+	if (ImGui::BeginPopup("Save Scene", ImGuiPopupFlags_None))
 	{
 		bool pressed_enter = ImGui::InputText("File Name", file_name_buffer, sizeof(file_name_buffer), ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_EnterReturnsTrue);
 		ImGui::SetItemDefaultFocus();
@@ -150,12 +153,36 @@ void menu_bar()
 	}
 }
 
+void register_resource_loaders()
+{
+	using resource_type = Engine::Managers::resource_type;
+
+	auto& resource_manager = Singleton<Engine::Managers::ResourceManager>();
+
+	auto dummy_loader = [](fs::path const& _path)->uint32_t {return 1; };
+	auto dummy_unloader = [](uint32_t _handle) {};
+
+	resource_type const type_texture = resource_manager.register_type("Texture", dummy_loader, dummy_unloader);
+	resource_type const type_model = resource_manager.register_type("Model", dummy_loader, dummy_unloader);
+	resource_type const type_convex_hull = resource_manager.register_type("Convex Hull", dummy_loader, dummy_unloader);
+
+	resource_manager.register_type_extension(type_texture, ".png");
+	resource_manager.register_type_extension(type_texture, ".jpeg");
+
+	resource_manager.register_type_extension(type_model, ".gltf");
+	resource_manager.register_type_extension(type_model, ".obj");
+
+	resource_manager.register_type_extension(type_convex_hull, ".obj");
+}
+
 void update_loop()
 {
 	auto frame_start = std::chrono::high_resolution_clock::now();
 	frametime = ms(0);
 
 	Engine::sdl_manager& sdl_manager = Singleton<Engine::sdl_manager>();
+
+	register_resource_loaders();
 
 	while (true)
 	{
@@ -175,6 +202,9 @@ void update_loop()
 
 		sdl_manager.update();
 
+		if (sdl_manager.is_file_dropped())
+			Singleton<Engine::Managers::ResourceManager>().TryDragDropFile(sdl_manager.get_dropped_file());
+
 		char window_title[128];
 		snprintf(window_title, sizeof(window_title), "c.kwakman | FPS: %.2f", 1000.0f / (float)frametime.count());
 		SDL_SetWindowTitle(sdl_manager.m_window, window_title);
@@ -185,7 +215,10 @@ void update_loop()
 
 		//TODO: Use frame rate controller DT
 		float const TEMP_DT = 1.0f / 60.0f;
+		
 		Singleton<Engine::Editor::Editor>().Update(TEMP_DT);
+
+
 		Singleton<Component::CurveFollowerManager>().UpdateFollowers(TEMP_DT);
 		Singleton<Component::SkeletonAnimatorManager>().UpdateAnimatorInstances(TEMP_DT);
 		Singleton<Component::RigidBodyManager>().Integrate(TEMP_DT);
@@ -195,6 +228,8 @@ void update_loop()
 
 		Singleton<Engine::ECS::EntityManager>().FreeQueuedEntities();
 
+
+		Singleton<Engine::Managers::ResourceManager>().DisplayEditorWidget();
 		menu_bar();
 		Singleton<Engine::Editor::Editor>().Render();
 
@@ -205,6 +240,8 @@ void update_loop()
 		if (sdl_manager.m_want_quit || sdl_manager.m_want_restart)
 			break;
 	}
+
+	Singleton<Engine::Managers::ResourceManager>().reset();
 }
 
 void import_default_resources()

@@ -818,7 +818,7 @@ namespace Sandbox
 				res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, matrix_vp * world_transform.GetMatrix());
 				int const LOC_HIGHLIGHT_INDEX = res_mgr.FindBoundProgramUniformLocation("u_highlight_index");
 
-				if (collider_mgr.m_data.m_render_debug_face_mesh)
+				if (collider_mgr.m_data.m_render_debug_face_mesh && debug_render_data.m_ch_face_mesh)
 				{
 					auto& primitive_list = res_mgr.GetMeshPrimitives(debug_render_data.m_ch_face_mesh);
 					for (auto& primitive : primitive_list)
@@ -831,7 +831,7 @@ namespace Sandbox
 						render_primitive(primitive);
 					}
 				}
-				if (collider_mgr.m_data.m_render_debug_edge_mesh)
+				if (collider_mgr.m_data.m_render_debug_edge_mesh && debug_render_data.m_ch_edge_mesh)
 				{
 					glLineWidth(4.0f);
 					auto& primitive_list = res_mgr.GetMeshPrimitives(debug_render_data.m_ch_edge_mesh);

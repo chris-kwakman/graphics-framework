@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "..\..\engine\src\Engine\Managers\resource_manager_data.h"
+#include <Engine/Managers/resource_manager_data.h>
 #include <unordered_map>
 
 using namespace Engine::Managers;
@@ -116,7 +116,7 @@ TEST(ResourceManager, LoadResource)
 	resource_id const example1_resource = res_mgr_data.load_resource("example1.png", texture_type);
 	ASSERT_EQ(loaded_paths.size(), 1);
 	auto it = loaded_paths.find("example1.png");
-	auto it2 = loaded_resources.find(res_mgr_data.get_resource_reference(example1_resource).m_resource_id);
+	auto it2 = loaded_resources.find(res_mgr_data.get_resource_reference(example1_resource).m_resource_typeid.m_id);
 	ASSERT_TRUE(it != loaded_paths.end());
 	ASSERT_TRUE(it2 != loaded_resources.end());
 
@@ -125,7 +125,7 @@ TEST(ResourceManager, LoadResource)
 
 	res_mgr_data.unload_resource(example1_resource);
 	it = loaded_paths.find("example1.png");
-	it2 = loaded_resources.find(res_mgr_data.get_resource_reference(example1_resource).m_resource_id);
+	it2 = loaded_resources.find(res_mgr_data.get_resource_reference(example1_resource).m_resource_typeid.m_id);
 	ASSERT_FALSE(it != loaded_paths.end());
 	ASSERT_FALSE(it2 != loaded_resources.end());
 }

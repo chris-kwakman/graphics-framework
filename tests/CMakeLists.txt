@@ -37,6 +37,7 @@ target_link_libraries(
   Engine
   opengl32 glew32 SDL2 SDL2main
 )
+target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
 
 install(TARGETS ${PROJECT_NAME} DESTINATION ${PROJECT_SOURCE_DIR}/bin/${CMAKE_BUILD_TYPE}/)
 

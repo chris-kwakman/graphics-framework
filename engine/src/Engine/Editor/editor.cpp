@@ -148,7 +148,6 @@ namespace Editor {
 	void Editor::NewFrame()
 	{
 		imgui_new_frame();
-		Singleton<Engine::Managers::ResourceManager>().DisplayEditorWidget();
 	}
 
 	void Editor::Render()

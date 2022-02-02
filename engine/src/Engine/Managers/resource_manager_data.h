@@ -13,23 +13,35 @@ namespace Managers
 
 	class ResourceManager;
 
+	union resource_typeid
+	{
+		resource_typeid(resource_id _id, resource_type _type) :
+			m_id(_id),
+			m_type(_type)
+		{}
+
+		uint32_t const m_type_and_id;
+		struct
+		{
+			resource_id mutable m_id : 24;		// ID of resource in resource manager.
+			resource_type const m_type : 8;	// Type of resource in resource manager.
+		};
+
+		resource_typeid& operator=(resource_typeid const& _l);
+
+		bool operator<(resource_typeid const& _l) const;
+		bool operator==(resource_typeid const& _l) const;
+		bool operator!=(resource_typeid const& _l) const;
+	};
+
 	struct resource_reference
 	{
 		resource_reference(resource_id _id, resource_type _type, uint32_t _resource_handle) :
-			m_resource_id(_id),
-			m_resource_type(_type),
+			m_resource_typeid(_id,_type),
 			m_resource_handle(_resource_handle)
 		{}
 
-		union
-		{
-			uint32_t const m_resource_type_and_id;
-			struct
-			{
-				uint32_t mutable m_resource_id : 24;	// ID of resource in resource manager.
-				uint8_t const m_resource_type : 8;		// Type of resource in resource manager.
-			};
-		};
+		resource_typeid m_resource_typeid;
 		uint32_t mutable m_resource_handle;	// Handle to resource data of arbitrary type.
 
 		bool operator==(resource_reference const& _l) const;
@@ -75,7 +87,7 @@ namespace Managers
 
 		// Serialized
 		// A path can have multiple resources (i.e. .obj to convex hull and graphics mesh)
-		std::unordered_map<fs::path, std::set<resource_id>, path_hash>		m_map_path_to_resource_id;
+		std::unordered_map<fs::path, std::set<resource_typeid>, path_hash>	m_map_path_to_resource_id;
 		std::unordered_map<fs::path, std::set<resource_type>, path_hash>	m_map_extension_to_resource_type;
 
 		// Not serialized
@@ -84,6 +96,8 @@ namespace Managers
 
 		resource_id		m_id_counter = 1;
 		resource_type	m_type_counter = 1;
+
+		void				reset();
 
 		resource_reference	get_resource_reference(resource_id const _id) const;
 		fs::path const&		get_resource_path(resource_id const _id) const;
@@ -98,6 +112,8 @@ namespace Managers
 		std::set<resource_type> 		get_extension_type(fs::path const& _extension) const;
 
 		resource_type_data& get_resource_type_data(resource_type _type);
+
+		resource_type		find_named_type(const char* _name) const;
 
 	private:
 

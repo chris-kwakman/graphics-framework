@@ -700,12 +700,6 @@ namespace Sandbox
 		auto& res_mgr = Singleton<Engine::Graphics::ResourceManager>();
 		auto& input_manager = Singleton<Engine::Managers::InputManager>();
 
-		if (Singleton<sdl_manager>().is_file_dropped())
-		{
-			std::string const dropped_file_dir = Singleton<sdl_manager>().get_dropped_file();
-			res_mgr.ImportModel_GLTF(dropped_file_dir.c_str());
-		}
-
 		//// Apply gravitational force to all objects
 		//auto& rb_data = Singleton<Component::RigidBodyManager>().m_rigidbodies_data;
 		//for (size_t i = 0; i < rb_data.size(); i++)
