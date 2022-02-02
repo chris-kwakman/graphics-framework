@@ -41,15 +41,39 @@ static fs::path s_load_scene_at_path;
 
 void load_scene(fs::path _scene_path)
 {
-	if (_scene_path.extension() != ".scene")
+	if (!fs::exists(_scene_path) || _scene_path.extension() != ".scene")
 		return;
 
-	std::ifstream scene_file(_scene_path);
-	if (scene_file.is_open())
+	std::ifstream scene_file(_scene_path, std::ios::binary);
+	nlohmann::json scene_json;
+
+	try
 	{
-		nlohmann::json scene_json;
-		scene_file >> scene_json;
+		if (scene_file.is_open())
+		{
+			//scene_file.unsetf(std::ios::skipws);
+			//std::streampos file_size;
+			//scene_file.seekg(0, std::ios::end);
+			//file_size = scene_file.tellg();
+			//scene_file.seekg(0, std::ios::beg);
+			//std::vector<uint8_t> binary_data;
+			//binary_data.reserve(file_size);
+			//binary_data.insert(
+			//	binary_data.begin(),
+			//	std::istream_iterator<uint8_t>(scene_file),
+			//	std::istream_iterator<uint8_t>()
+			//);
+			//scene_json = nlohmann::json::from_ubjson(binary_data);
+			scene_file >> scene_json;
+		}
 		Engine::Serialisation::DeserialiseScene(scene_json);
+	}
+	catch (nlohmann::json::parse_error & e)
+	{
+		std::cout
+			<< "[load_scene] Failed to deserialize scene: " << e.what() << "\n"
+			<< "Exception ID: " << e.id << "\n"
+			<< "Byte position of error: " << e.byte << std::endl;
 	}
 }
 
@@ -111,12 +135,14 @@ void menu_bar()
 			fs::path const const scene_file_name = std::string(file_name_buffer) + ".scene";
 			fs::path const const scene_file_path = scene_directory / scene_file_name;
 
-			std::ofstream scene_file(scene_file_path);
+			std::ofstream scene_file(scene_file_path, std::ios::binary);
 			if (scene_file.is_open())
 			{
 				nlohmann::json scene_json;
 				Engine::Serialisation::SerialiseScene(scene_json);
-				scene_file << std::setw(4) << scene_json;
+				//auto binary_data = nlohmann::json::to_ubjson(scene_json, false, false);
+				//scene_file.write((char*)&binary_data.front(), binary_data.size());
+				scene_file << scene_json;
 			}
 			ImGui::CloseCurrentPopup();
 		}
@@ -159,6 +185,7 @@ void update_loop()
 
 		//TODO: Use frame rate controller DT
 		float const TEMP_DT = 1.0f / 60.0f;
+		Singleton<Engine::Editor::Editor>().Update(TEMP_DT);
 		Singleton<Component::CurveFollowerManager>().UpdateFollowers(TEMP_DT);
 		Singleton<Component::SkeletonAnimatorManager>().UpdateAnimatorInstances(TEMP_DT);
 		Singleton<Component::RigidBodyManager>().Integrate(TEMP_DT);

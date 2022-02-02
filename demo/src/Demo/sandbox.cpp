@@ -37,6 +37,8 @@
 #include <fstream>
 
 #include <glm/gtx/string_cast.hpp>
+#include <Engine/Physics/convex_hull.h>
+#include <Engine/Graphics/misc/create_convex_hull_mesh.h>
 
 Engine::Graphics::texture_handle		s_display_gbuffer_texture = 0;
 
@@ -102,6 +104,8 @@ namespace Sandbox
 			"data/shaders/write_csm.vert",
 			"data/shaders/write_csm.frag",
 			"data/shaders/primitive.frag",
+			"data/shaders/draw_collider_debug.vert",
+			"data/shaders/draw_collider_debug.frag"
 		};
 		std::vector<Engine::Graphics::ResourceManager::shader_handle> output_shader_handles;
 		output_shader_handles = system_resource_manager.LoadShaders(shader_paths);
@@ -124,6 +128,7 @@ namespace Sandbox
 		program_shader_path_list const draw_postprocessing_shaders = { "data/shaders/display_framebuffer.vert", "data/shaders/postprocessing.frag" };
 		program_shader_path_list const directional_light_shaders = { "data/shaders/dirlight_shadowmap.vert", "data/shaders/dirlight_shadowmap.frag" };
 		program_shader_path_list const write_csm_shaders = { "data/shaders/write_csm.vert", "data/shaders/write_csm.frag" };
+		program_shader_path_list const draw_collider_debug_shaders = { "data/shaders/draw_collider_debug.vert", "data/shaders/draw_collider_debug.frag" };
 
 
 		system_resource_manager.LoadShaderProgram("draw_infinite_grid", draw_infinite_grid_shaders);
@@ -142,6 +147,7 @@ namespace Sandbox
 		system_resource_manager.LoadShaderProgram("postprocessing", draw_postprocessing_shaders);
 		system_resource_manager.LoadShaderProgram("dirlight_shadowmap", directional_light_shaders);
 		system_resource_manager.LoadShaderProgram("write_csm", write_csm_shaders);
+		system_resource_manager.LoadShaderProgram("draw_collider_debug", draw_collider_debug_shaders);
 	}
 
 	void setup_framebuffer()
@@ -187,7 +193,7 @@ namespace Sandbox
 		default_fb_texture_params.m_min_filter = GL_LINEAR;
 		default_fb_texture_params.m_mag_filter = GL_LINEAR;
 		resource_manager.AllocateTextureStorage2D(s_fb_texture_depth, GL_DEPTH_COMPONENT32F, surface_size, default_fb_texture_params);
-		resource_manager.AllocateTextureStorage2D(s_fb_texture_base_color, GL_RGB8, surface_size, default_fb_texture_params);
+		resource_manager.AllocateTextureStorage2D(s_fb_texture_base_color, GL_RGBA8, surface_size, default_fb_texture_params);
 		resource_manager.AllocateTextureStorage2D(s_fb_texture_metallic_roughness, GL_RGB8, surface_size, default_fb_texture_params);
 		resource_manager.AllocateTextureStorage2D(s_fb_texture_normal, GL_RGB8, surface_size, default_fb_texture_params);
 		resource_manager.AllocateTextureStorage2D(s_fb_texture_light_color, GL_RGB16F, surface_size, default_fb_texture_params);
@@ -339,6 +345,8 @@ namespace Sandbox
 		ResetEditorCamera();
 	}
 
+	Engine::Physics::convex_hull_handle s_cube_convex_hull_handle;
+
 	bool Initialize(int argc, char* argv[])
 	{
 		setup_render_common();
@@ -348,6 +356,38 @@ namespace Sandbox
 
 		SetupGraphicsPipelineRender();
 		ResetEditorCamera();
+
+		glm::vec3 const vertices[] = {
+			glm::vec3(-0.5,-0.5,-0.5),
+			glm::vec3(-0.5, -0.5,0.5),
+			glm::vec3(-0.5, 0.5, 0.5),
+			glm::vec3(-0.5, 0.5, -0.5),
+			glm::vec3(0.5,-0.5,-0.5),
+			glm::vec3(0.5, -0.5,0.5),
+			glm::vec3(0.5, 0.5, 0.5),
+			glm::vec3(0.5, 0.5, -0.5)
+		};
+		glm::uvec3 const face_vertex_indices[] = {
+			glm::uvec3(0, 1, 2),
+			glm::uvec3(0, 2, 3),
+			glm::uvec3(5, 4, 6),
+			glm::uvec3(7, 6, 4),
+			glm::uvec3(1,5,6),
+			glm::uvec3(1,6,2),
+			glm::uvec3(4,0,3),
+			glm::uvec3(4,3,7),
+			glm::uvec3(0,5,1),
+			glm::uvec3(0,4,5),
+			glm::uvec3(3,2,6),
+			glm::uvec3(3,6,7)
+		};
+
+		Engine::Physics::convex_hull new_hull = Engine::Physics::construct_convex_hull(
+			vertices, sizeof(vertices) / sizeof(glm::vec3),
+			face_vertex_indices, sizeof(face_vertex_indices) / sizeof(glm::uvec3)
+		);
+
+		s_cube_convex_hull_handle = Singleton<Engine::Physics::ConvexHullManager>().RegisterConvexHull(std::move(new_hull), "Cube Hull");
 
 		// Load glTF model Sponza by default, other if specified in commandline argument.
 		if (!s_scene_reset)
@@ -374,114 +414,6 @@ namespace Sandbox
 	}
 
 	unsigned int frame_counter = 0;
-	float const CAM_MOVE_SPEED = 20.0f;
-	float const CAM_MOV_SHIFT_MULT = 4.0f;
-	float const CAM_ROTATE_SPEED = MATH_PI * 0.75f;
-	float const MOUSE_SENSITIVITY = 0.05f;
-	bool camera_invert = false;
-
-	void control_camera()
-	{
-		if (!Singleton<Engine::Editor::Editor>().EditorCameraEntity.Alive())
-			return;
-
-		auto& input_manager = Singleton<Engine::Managers::InputManager>();
-		using button_state = Engine::Managers::InputManager::button_state;
-
-		Engine::ECS::Entity camera_entity = Singleton<Engine::Editor::Editor>().EditorCameraEntity;
-
-		float const DT = (1.0f / 60.0f);
-
-		float accum_rotate_horizontal = 0.0f, accum_rotate_vertical = 0.0f;
-
-		button_state rotate_up, rotate_down, rotate_left, rotate_right;
-		rotate_up = input_manager.GetKeyboardButtonState(SDL_SCANCODE_UP);
-		rotate_down = input_manager.GetKeyboardButtonState(SDL_SCANCODE_DOWN);
-		rotate_left = input_manager.GetKeyboardButtonState(SDL_SCANCODE_LEFT);
-		rotate_right = input_manager.GetKeyboardButtonState(SDL_SCANCODE_RIGHT);
-		// Arrow key control rotation accumulation
-		accum_rotate_horizontal += 1.0f * (rotate_left == button_state::eDown);
-		accum_rotate_horizontal -= 1.0f * (rotate_right == button_state::eDown);
-		accum_rotate_vertical += 1.0f * (rotate_up == button_state::eDown);
-		accum_rotate_vertical -= 1.0f * (rotate_down == button_state::eDown);
-
-		// Mouse button control rotation accumulation
-		button_state left_mouse_down = input_manager.GetMouseButtonState(0);
-		if (left_mouse_down == button_state::eDown)
-		{
-			glm::ivec2 const mouse_delta = input_manager.GetMouseDelta();
-			glm::vec2 mouse_rotation_delta = MOUSE_SENSITIVITY * glm::vec2(mouse_delta);
-			accum_rotate_horizontal -= mouse_rotation_delta.x;
-			accum_rotate_vertical -= mouse_rotation_delta.y;
-			if (camera_invert)
-			{
-				accum_rotate_horizontal *= -1.0f;
-				accum_rotate_vertical *= -1.0f;
-			}
-		}
-
-		glm::quat const quat_identity(1.0f, 0.0f, 0.0f, 0.0f);
-		glm::quat quat_rotate_around_y = glm::rotate(
-			quat_identity,
-			accum_rotate_horizontal * CAM_ROTATE_SPEED * DT, 
-			glm::vec3(0.0f, 1.0f, 0.0f)
-		);
-
-		auto camera_transform_comp = camera_entity.GetComponent<Component::Transform>();
-		auto cam_transform = camera_transform_comp.GetLocalTransform();
-		cam_transform.rotation = quat_rotate_around_y * cam_transform.rotation;
-
-		glm::vec3 const cam_dir = glm::rotate(cam_transform.rotation, glm::vec3(0.0f, 0.0f, -1.0f));
-		// Project camera direction vector onto horizontal plane & normalize.
-		glm::vec3 const proj_cam_dir(cam_dir.x, 0.0f, cam_dir.z);
-		glm::vec3 const perp_proj_cam_dir = glm::normalize(glm::cross(proj_cam_dir, glm::vec3(0.0f, 1.0f, 0.0f)));
-
-		glm::quat const quat_rotate_around_right_vector = glm::rotate(
-			quat_identity,
-			accum_rotate_vertical * CAM_ROTATE_SPEED * DT, 
-			perp_proj_cam_dir
-		);
-		cam_transform.rotation = quat_rotate_around_right_vector * cam_transform.rotation;
-
-		float accum_move_forward_backward = 0.0f, accum_move_left_right = 0.0f, accum_move_up_down = 0.0f;
-
-		button_state move_left, move_right, move_forward, move_backward, move_up, move_down;
-		move_left = input_manager.GetKeyboardButtonState(SDL_SCANCODE_A);
-		move_right = input_manager.GetKeyboardButtonState(SDL_SCANCODE_D);
-		move_forward = input_manager.GetKeyboardButtonState(SDL_SCANCODE_W);
-		move_backward = input_manager.GetKeyboardButtonState(SDL_SCANCODE_S);
-		move_up = input_manager.GetKeyboardButtonState(SDL_SCANCODE_Q);
-		move_down = input_manager.GetKeyboardButtonState(SDL_SCANCODE_E);
-
-
-		if (input_manager.GetKeyboardButtonState(SDL_SCANCODE_LCTRL) == button_state::eUp)
-		{
-			accum_move_left_right += 1.0f * (move_right == button_state::eDown);
-			accum_move_left_right -= 1.0f * (move_left == button_state::eDown);
-			accum_move_forward_backward += 1.0f * (move_forward == button_state::eDown);
-			accum_move_forward_backward -= 1.0f * (move_backward == button_state::eDown);
-			accum_move_up_down += 1.0f * (move_up == button_state::eDown);
-			accum_move_up_down -= 1.0f * (move_down == button_state::eDown);
-		}
-
-		float const move_speed_mult = input_manager.GetKeyboardButtonState(SDL_SCANCODE_LSHIFT) == button_state::eDown ?
-			CAM_MOV_SHIFT_MULT : 1.0f;
-
-		cam_transform.position.y += DT * CAM_MOVE_SPEED * move_speed_mult * accum_move_up_down;
-		cam_transform.position += DT * CAM_MOVE_SPEED * move_speed_mult * accum_move_forward_backward * cam_dir;
-		cam_transform.position += DT * CAM_MOVE_SPEED * move_speed_mult * accum_move_left_right * perp_proj_cam_dir;
-
-		camera_transform_comp.SetLocalTransform(cam_transform);
-
-		if (input_manager.GetKeyboardButtonState(SDL_SCANCODE_V) == button_state::eDown)
-			camera_transform_comp.SetLocalTransform(s_camera_default_transform);
-
-		// Set camera aspect ratio every frame
-		SDL_Surface const* surface = Singleton<Engine::sdl_manager>().m_surface;
-		float const ar = (float)surface->w / (float)surface->h;
-		auto camera_entity_component = camera_entity.GetComponent<Component::Camera>();
-		camera_entity_component.SetAspectRatio(ar);
-	}
 
 	bool show_demo_window = false;
 
@@ -721,18 +653,19 @@ namespace Sandbox
 			{
 				Entity const rb_entity = rb_data.m_index_entities[i];
 				Transform rb_transform = rb_entity.GetComponent<Transform>();
-				glm::vec3 position = rb_transform.GetLocalPosition();
-				glm::vec3 scale = rb_transform.GetLocalScale();
-				float const max_scale = glm::compMax(scale);
+				auto rb_world_transform = rb_transform.ComputeWorldTransform();
+				glm::vec3 rb_world_position = rb_world_transform.position;
+				glm::vec3 rb_world_scale = rb_world_transform.scale;
+				float const max_scale = glm::compMax(rb_world_scale);
 				float const sphere_radius = max_scale * 0.5f;
 
 				// Perform line-sphere intersection test
 				float const A = glm::length2(ray_world_end - ray_world_start);
 				float const B = 2.0f * glm::dot(
 					ray_world_end - ray_world_start, 
-					ray_world_start - position
+					ray_world_start - rb_world_position
 				);
-				float const C = glm::length2(ray_world_start) + glm::length2(position) - 2 * glm::dot(ray_world_start, position) - sphere_radius * sphere_radius;
+				float const C = glm::length2(ray_world_start) + glm::length2(rb_world_position) - 2 * glm::dot(ray_world_start, rb_world_position) - sphere_radius * sphere_radius;
 
 				float const discriminant = B * B - 4.0f * A * C;
 				if (discriminant >= 0.0f)
@@ -747,7 +680,7 @@ namespace Sandbox
 					rb_mgr.ApplyForce(
 						i,
 						ray_direction * std::clamp(holddown_timer * 500.0f, 0.0f, 1000.0f),
-						world_intersection_point - position
+						world_intersection_point - rb_world_position
 					);
 				}
 			}
@@ -794,8 +727,6 @@ namespace Sandbox
 		if (input_manager.GetKeyboardButtonState(SDL_SCANCODE_LCTRL) == button_state::eDown && input_manager.GetKeyboardButtonState(SDL_SCANCODE_Q) == button_state::ePress)
 			Singleton<Engine::sdl_manager>().m_want_quit = true;
 
-
-		control_camera();
 		frame_counter++;
 
 		GameplayLogic();

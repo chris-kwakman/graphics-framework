@@ -62,6 +62,7 @@ namespace Sandbox
 
 	unsigned int s_gl_line_vao, s_gl_line_vbo, s_gl_line_ibo;
 
+	Engine::Graphics::mesh_handle s_cube_mesh_handle = 0;
 
 	void setup_render_common()
 	{

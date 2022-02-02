@@ -3,6 +3,8 @@
 #include <Engine/Serialisation/common.h>
 #include <Engine/Components/Nameable.h>
 
+#include <Engine/Serialisation/compress.h>
+
 #include "component_manager.h"
 
 #include <cassert>
@@ -12,32 +14,68 @@ namespace ECS {
 
 	Entity const Entity::InvalidEntity;
 
+	typedef unsigned long long compacted_type;
+	unsigned int const compacted_type_bits = sizeof(compacted_type) * 8;
+
 	void EntityManager::Deserialize(nlohmann::json const& _j)
 	{
+		using namespace Engine::Serialisation;
 		int const serializer_version = _j["serializer_version"];
 		if (serializer_version == 1)
 		{
-			std::vector<bool> transformed_bitset = _j["m_entity_in_use_flag"];
-			for (size_t i = 0; i < transformed_bitset.size(); i++)
-				m_entity_in_use_flag[i] = transformed_bitset[i];
+			std::vector<bool> transformed_bit_set = _j["m_entity_in_use_flag"];
+			for (size_t i = 0; i < m_entity_in_use_flag.size(); i++)
+			{
+				m_entity_in_use_flag[i] = transformed_bit_set[i];
+			}
 			m_entity_counters = _j["m_entity_counters"];
+			m_entity_id_iter = _j["m_entity_id_iter"];
+		}
+		if (serializer_version == 2)
+		{
+			{
+				auto compressed_use_flags = _j["m_entity_in_use_flag"].get<std::vector<compressed_type>>();
+				std::vector<bool> decompressed_use_flags = decompress_data_vector<bool>(compressed_use_flags, m_entity_in_use_flag.size());
+				for (size_t i = 0; i < m_entity_in_use_flag.size(); i++)
+					m_entity_in_use_flag[i] = decompressed_use_flags[i];
+			}
+			{
+				auto compressed_counters = _j["m_entity_counters"].get<std::vector<compressed_type>>();
+				auto decompressed_counters = decompress_data_vector<decltype(m_entity_counters)::value_type>(compressed_counters, m_entity_counters.size());
+				for (size_t i = 0; i < m_entity_counters.size(); i++)
+					m_entity_counters[i] = decompressed_counters[i];
+			}
+
 			m_entity_id_iter = _j["m_entity_id_iter"];
 		}
 	}
 
 	void EntityManager::Serialize(nlohmann::json& _j) const
 	{
-		_j["serializer_version"] = 1;
+		using namespace Engine::Serialisation;
 
-		// nlohmann::json does not have a way to
-		// serialize bitsets directly. Must transform it
-		// to a vector of bools first.
-		std::vector<bool> transformed_bitset(m_entity_in_use_flag.size(), false);
-		for (size_t i = 0; i < m_entity_in_use_flag.size(); i++)
-			transformed_bitset[i] = m_entity_in_use_flag[i];
+		_j["serializer_version"] = 2;
 
-		_j["m_entity_in_use_flag"] = transformed_bitset;
-		_j["m_entity_counters"] = m_entity_counters;
+		//// nlohmann::json does not have a way to
+		//// serialize bitsets directly. Must transform it
+		//// to a vector of bools first.
+		//std::vector<bool> transformed_bitset(m_entity_in_use_flag.size(), false);
+		//for (size_t i = 0; i < m_entity_in_use_flag.size(); i++)
+		//	transformed_bitset[i] = m_entity_in_use_flag[i];
+
+		{
+			std::vector<bool> decompressed_use_flags(m_entity_in_use_flag.size(), false);
+			for (size_t i = 0; i < m_entity_in_use_flag.size(); i++)
+				decompressed_use_flags[i] = m_entity_in_use_flag[i];
+			_j["m_entity_in_use_flag"] = compress_data_vector(decompressed_use_flags);
+		}
+		{
+			std::vector<decltype(m_entity_counters)::value_type> decompressed_counters(m_entity_counters.size(), 0);
+			for (size_t i = 0; i < m_entity_counters.size(); i++)
+				decompressed_counters[i] = m_entity_counters[i];
+			_j["m_entity_counters"] = compress_data_vector(decompressed_counters);
+		}
+
 		_j["m_entity_id_iter"] = m_entity_id_iter;
 	}
 

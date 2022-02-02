@@ -9,17 +9,30 @@ namespace Component
 
 	void NameableManager::impl_deserialize_data(nlohmann::json const& _j)
 	{
-		m_entity_index_map = _j["m_entity_index_map"].get<decltype(m_entity_index_map)>();
-		m_index_entities = _j["m_index_entities"].get<decltype(m_index_entities)>();
-		m_index_names = _j["m_index_names"].get<decltype(m_index_names)>();
+		int const serializer_version = _j["serializer_version"];
+		if (serializer_version)
+		{
+			m_entity_index_map = _j["m_entity_index_map"].get<decltype(m_entity_index_map)>();
+			m_index_entities = _j["m_index_entities"].get<decltype(m_index_entities)>();
+
+			std::vector<std::string> string_array = _j["m_index_names"];
+			m_index_names.resize(string_array.size());
+			for (size_t i = 0; i < m_index_names.size(); i++)
+				set_index_name(i, string_array[i].c_str());
+		}
 	}
 
 	void NameableManager::impl_serialize_data(nlohmann::json& _j) const
 	{
+		_j["serializer_version"] = 1;
+
 		_j["m_entity_index_map"] = m_entity_index_map;
 		_j["m_index_entities"] = m_index_entities;
-		_j["m_index_names"] = m_index_names;
-		_j["serializer_version"] = 1;
+
+		std::vector<std::string> string_array(m_index_names.size());
+		for (size_t i = 0; i < m_index_names.size(); i++)
+			string_array[i] = std::string(&m_index_names[i][0]);
+		_j["m_index_names"] = string_array;
 	}
 
 	void NameableManager::impl_clear()

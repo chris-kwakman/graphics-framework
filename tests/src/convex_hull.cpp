@@ -63,12 +63,12 @@ void test_face_vertices(convex_hull const& _hull)
 		// Use this over the previous method since it returns a UV coordinate that
 		// we can use to check if vertices are defined CCW within face.
 		// Orthonormal vectors
-		 glm::vec3 const t = glm::normalize(average_point - _hull.m_vertices[face_vertex_indices[0]]);
-		 glm::vec3 const n = glm::normalize(glm::cross(t, average_point - _hull.m_vertices[face_vertex_indices[1]]));
+		 glm::vec3 const t = glm::normalize(_hull.m_vertices[face_vertex_indices[0]] - average_point);
+		 glm::vec3 const n = glm::normalize(glm::cross(t, _hull.m_vertices[face_vertex_indices[1]] - average_point));
 		 glm::vec3 const b = glm::normalize(glm::cross(n, t));
 		 
-		 ASSERT_TRUE(glm::epsilonEqual(glm::dot(t, n), 0.0f, 0.000000001f));
-		 ASSERT_TRUE(glm::epsilonEqual(glm::dot(b, n), 0.0f, 0.000000001f));
+		 EXPECT_FLOAT_EQ(glm::dot(t, n), 0.0f);
+		 EXPECT_FLOAT_EQ(glm::dot(b, n), 0.0f);
 		 
 		 // Inverse of orthonormal matrix is transpose.
 		 glm::mat3 const mat = glm::transpose(glm::mat3(t, b, n));
@@ -77,9 +77,9 @@ void test_face_vertices(convex_hull const& _hull)
 		 // Test if all vertices of face belong to same plane.
 		 for (convex_hull::vertex_idx vtx_index_iterator = 0; vtx_index_iterator < face_vertex_indices.size(); ++vtx_index_iterator)
 		 {
-		 	glm::vec3 const coordinates = mat * _hull.m_vertices[face_vertex_indices[vtx_index_iterator]];
+		 	glm::vec3 const coordinates = mat * (_hull.m_vertices[face_vertex_indices[vtx_index_iterator]] - average_point);
 			vtx_uv_coordinates[vtx_index_iterator] = glm::vec2(coordinates.x, coordinates.y);
-		 	ASSERT_TRUE(glm::epsilonEqual(coordinates.z, 0.0f, 0.0000001f));
+		 	EXPECT_FLOAT_EQ(coordinates.z, 0.0f);
 		 }
 
 		 // Check if vertices are ordered CCW.
@@ -90,7 +90,7 @@ void test_face_vertices(convex_hull const& _hull)
 			 glm::vec2 const v1 = vtx_uv_coordinates[i], v2 = vtx_uv_coordinates[(i+1)%vtx_uv_coordinates.size()];
 			 accumulator += (v2.x - v1.x) * (v2.y + v1.y);
 		 }
-		 ASSERT_LT(accumulator, 0.0f);
+		 EXPECT_LE(accumulator, 0.0f);
 	}
 }
 
@@ -110,12 +110,15 @@ TEST(ConvexHull, TriangleConstruction)
 		face_vertex_indices,	sizeof(face_vertex_indices) / sizeof(glm::uvec3)
 	);
 
-	ASSERT_EQ(new_hull.m_vertices.size(), 3);
-	ASSERT_EQ(new_hull.m_faces.size(), 1);
-	ASSERT_EQ(new_hull.m_edges.size(), 3);
+	EXPECT_EQ(new_hull.m_vertices.size(), 3);
+	EXPECT_EQ(new_hull.m_faces.size(), 1);
+	EXPECT_EQ(new_hull.m_edges.size(), 3);
 
 	test_convex_hull_loops(new_hull, 3);
 	test_face_vertices(new_hull);
+
+	EXPECT_EQ(new_hull.m_vertices.size(), 3);
+	EXPECT_EQ(new_hull.m_edges.size(), 3);
 }
 
 TEST(ConvexHull, SquareConstruction)
@@ -143,4 +146,101 @@ TEST(ConvexHull, SquareConstruction)
 
 	test_convex_hull_loops(new_hull, 4);
 	test_face_vertices(new_hull);
+}
+
+TEST(ConvexHull, CubeConstruction)
+{
+	glm::vec3 const vertices[] = {
+		glm::vec3(-1,-1,-1),
+		glm::vec3(-1, -1,1),
+		glm::vec3(-1, 1, 1),
+		glm::vec3(-1, 1, -1),
+		glm::vec3(1,-1,-1),
+		glm::vec3(1, -1,1),
+		glm::vec3(1, 1, 1),
+		glm::vec3(1, 1, -1)
+	};
+	glm::uvec3 const face_vertex_indices[] = {
+		glm::uvec3(0, 1, 2),
+		glm::uvec3(0, 2, 3),
+		glm::uvec3(5, 4, 6),
+		glm::uvec3(7, 6, 4),
+		glm::uvec3(1,5,6),
+		glm::uvec3(1,6,2),
+		glm::uvec3(4,0,3),
+		glm::uvec3(4,3,7),
+		glm::uvec3(0,5,1),
+		glm::uvec3(0,4,5),
+		glm::uvec3(3,2,6),
+		glm::uvec3(3,6,7)
+	};
+
+	convex_hull new_hull = construct_convex_hull(
+		vertices, sizeof(vertices) / sizeof(glm::vec3),
+		face_vertex_indices, sizeof(face_vertex_indices) / sizeof(glm::uvec3)
+	);
+
+	EXPECT_EQ(new_hull.m_edges.size(), 4 * 6);
+	EXPECT_EQ(new_hull.m_faces.size(), 6);
+	EXPECT_EQ(new_hull.m_vertices.size(), 8);
+
+	test_convex_hull_loops(new_hull, 4);
+	test_face_vertices(new_hull);
+}
+
+TEST(ConvexHull, LongSharedEdge)
+{
+	glm::vec3 const vertices[] = {
+		glm::vec3(-1.0f, -1.0f, 0.0f),
+		glm::vec3(1.0f, -1.0f, 0.0f),
+		glm::vec3(1.0f, 1.0f, 0.0f),
+		glm::vec3(0.0f, 1.0f, 0.0f),
+		glm::vec3(-1.0f, 1.0f, 0.0f),
+		glm::vec3(0.0f, 3.0f, 0.0f),
+	};
+
+	glm::uvec3 const face_vertex_indices[] =
+	{
+		glm::uvec3(0,3,4),
+		glm::uvec3(0,1,3),
+		glm::uvec3(1,2,3),
+		glm::uvec3(4,3,5),
+		glm::uvec3(3,2,5)
+	};
+
+	convex_hull new_hull = construct_convex_hull(
+		vertices, sizeof(vertices) / sizeof(glm::vec3),
+		face_vertex_indices, sizeof(face_vertex_indices) / sizeof(glm::uvec3)
+	);
+
+	EXPECT_EQ(new_hull.m_edges.size(), 5);
+	EXPECT_EQ(new_hull.m_faces.size(), 1);
+	EXPECT_LE(new_hull.m_vertices.size(), 6);
+
+	test_convex_hull_loops(new_hull, 5);
+	test_face_vertices(new_hull);
+}
+
+TEST(ConvexHull, MergeColinearEdges)
+{
+	glm::vec3 const vertices[] = {
+		glm::vec3(-1.0f, 0.0f, 0.0f),
+		glm::vec3(0.0f, 0.0f, 0.0f),
+		glm::vec3(1.0f, 0.0f, 0.0f),
+		glm::vec3(0.0f, 1.0f, 0.0f)
+	};
+
+	glm::uvec3 const face_vertex_indices[] = {
+		glm::uvec3(0,1,3),
+		glm::uvec3(1,2,3)
+	};
+
+	convex_hull new_hull = construct_convex_hull(
+		vertices, sizeof(vertices) / sizeof(glm::vec3),
+		face_vertex_indices, sizeof(face_vertex_indices) / sizeof(glm::uvec3)
+	);
+
+	EXPECT_EQ(new_hull.m_faces.size(), 1);
+	EXPECT_EQ(new_hull.m_edges.size(), 3);
+	EXPECT_EQ(new_hull.m_vertices.size(), 3);
 }

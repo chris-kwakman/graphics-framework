@@ -136,6 +136,9 @@ namespace Graphics {
 		std::unordered_map<buffer_handle, buffer_info>			m_buffer_info_map;
 		std::unordered_map<buffer_handle, index_buffer_info>	m_index_buffer_info_map;
 
+		mesh_handle	RegisterMeshPrimitives(mesh_primitive_list const& _list, std::string _name = "");
+		buffer_handle RegisterBuffer(buffer_info _buffer_info);
+		buffer_handle RegisterIndexBuffer(buffer_info _buffer_info, index_buffer_info _idx_buffer_info);
 
 		//////////////////////////////////////////////////////
 		//					Material Data
@@ -181,6 +184,8 @@ namespace Graphics {
 
 		material_handle		m_material_handle_counter = 1;
 		std::unordered_map<material_handle, material_data>	m_material_data_map;
+
+		material_handle RegisterMaterial(material_data _mat_data);
 
 		//////////////////////////////////////////////////////
 		//					Texture Data
