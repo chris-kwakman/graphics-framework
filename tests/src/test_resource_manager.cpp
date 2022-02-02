@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
-#define TESTING
-#include "..\..\engine\src\Engine\Managers\resource_manager.h"
+#include "..\..\engine\src\Engine\Managers\resource_manager_data.h"
 #include <unordered_map>
 
 using namespace Engine::Managers;

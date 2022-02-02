@@ -1,205 +1,94 @@
+
 #include "resource_manager.h"
-#include <algorithm>
-#include <cassert>
+
+#include <ImGui/imgui.h>
 
 namespace Engine {
 namespace Managers {
 
-	resource_id resource_manager_data::load_resource(fs::path _path, resource_type _type)
+void ResourceManager::DisplayEditorWidget()
+{
+	static std::string path_filter = "";
+	static resource_type type_filter = 0;
+	static std::vector<std::pair<resource_id, fs::path>> precomputed_filtered_items;
+
+	bool update_filters = false;
+	if (ImGui::IsWindowAppearing())
+		update_filters = true;
+
+	std::string type_filter_name;
+	if (type_filter == 0)
+		type_filter_name = "All Types";
+	else
+		type_filter_name = get_resource_type_data(type_filter).m_name;
+
+	if (ImGui::BeginCombo("Type Filter", type_filter_name.c_str()))
 	{
-		// Check if type actually exists
-		auto type_iter = m_map_resource_type_to_collection.find(_type);
-		if (type_iter == m_map_resource_type_to_collection.end())
-			return 0;
-
-		// Check if path extension matches one of the extensions covered by input type.
-		auto const& extensions = type_iter->second.m_type_extensions;
-		if (auto extension_iter = extensions.find(_path.extension()); extension_iter == extensions.end())
-			return 0;
-
-		// Check if path has already been loaded for the given type.
-		auto resource_path_iter = m_map_path_to_resource_id.find(_path);
-		if (resource_path_iter != m_map_path_to_resource_id.end())
+		if (type_filter != 0 && ImGui::MenuItem("Disable Filter"))
 		{
-			// Check if resources corresponding to path are of type input type.
-			for (resource_id const path_resource_id : resource_path_iter->second)
+			type_filter = 0;
+			update_filters = true;
+		}
+		auto type_iter = m_map_resource_type_to_collection.begin();
+		while (type_iter != m_map_resource_type_to_collection.end())
+		{
+			if (type_filter != type_iter->first && ImGui::MenuItem(type_iter->second.m_name.c_str()))
 			{
-				if (get_resource_type(path_resource_id) == _type)
-					return path_resource_id;
+				type_filter = type_iter->first;
+				update_filters = true;
+			}
+			type_iter++;
+		}
+		ImGui::EndCombo();
+	}
+
+	char buffer[64];
+	if (ImGui::InputText("Name Filter", buffer, sizeof(buffer)))
+	{
+		path_filter = buffer;
+		update_filters = true;
+	}
+
+	if (update_filters)
+	{
+		update_filters = false;
+		precomputed_filtered_items.clear();
+
+		if (type_filter != 0)
+		{
+			auto const& type_data = get_resource_type_data(type_filter);
+			auto resource_iter = type_data.m_type_resources.begin();
+			while (resource_iter != type_data.m_type_resources.end())
+			{
+				decltype(precomputed_filtered_items)::value_type pair;
+				pair.first = *resource_iter;
+				pair.second = get_resource_path(*resource_iter);
+				precomputed_filtered_items.emplace_back(std::move(pair));
+				resource_iter++;
 			}
 		}
-
-		uint32_t const resource_handle = type_iter->second.m_loader(_path);
-		if (resource_handle == 0)
-			return 0;
-
-		resource_id const new_resource_id = register_resource(resource_handle, _type);
-		m_map_path_to_resource_id[_path].emplace(new_resource_id);
-		m_map_resource_id_to_data.at(new_resource_id).m_path = _path;
-		return new_resource_id;
 	}
 
-	resource_id resource_manager_data::register_resource(uint32_t const _handle, resource_type const _type)
+	if (ImGui::BeginTable("Resources", 2, ImGuiTableFlags_Borders))
 	{
-		if (_type == 0 || _handle == 0)
-			return 0;
-
-		resource_metadata res_md;
-		res_md.m_resource_handle = _handle;
-		res_md.m_path = "";
-		res_md.m_type = _type;
-
-		resource_id const new_id = get_new_id();
-		m_map_resource_id_to_data.emplace(new_id, res_md);
-		auto & type_data = get_resource_type_data(_type);
-		type_data.m_type_resources.insert(
-			std::upper_bound(
-				type_data.m_type_resources.begin(),
-				type_data.m_type_resources.end(),
-				new_id
-			),
-			new_id
-		);
-		return new_id;
-	}
-
-	bool resource_manager_data::unload_resource(resource_id const _id)
-	{
-		if (_id == 0)
-			return false;
-		auto resource_iter = m_map_resource_id_to_data.find(_id);
-		if(resource_iter == m_map_resource_id_to_data.end())
-			return false;
-
-		auto& type_data = m_map_resource_type_to_collection.at(resource_iter->second.m_type);
-
-		if(type_data.m_unloader)
-			type_data.m_unloader(resource_iter->second.m_resource_handle);
-
-		if (!resource_iter->second.m_path.empty())
-			m_map_path_to_resource_id.erase(resource_iter->second.m_path);
-
-		auto type_resource_list_iter = std::lower_bound(type_data.m_type_resources.begin(), type_data.m_type_resources.end(), _id);
-		type_data.m_type_resources.erase(type_resource_list_iter);
-		m_map_resource_id_to_data.erase(resource_iter);
-		return true;
-	}
-
-	resource_reference resource_manager_data::get_resource_reference(resource_id const _id) const
-	{
-		resource_metadata const* md = find_resource_data(_id);
-		if (md == nullptr)
-			return resource_reference(0, 0, 0);
-		
-		return resource_reference(_id, md->m_type, md->m_resource_handle);
-	}
-
-	fs::path const& resource_manager_data::get_resource_path(resource_id const _id) const
-	{
-		assert(_id != 0 && "NULL resource ID");
-		resource_metadata const* data = find_resource_data(_id);
-		assert(data && "Invalid resource ID");
-		return data->m_path;
-	}
-
-	resource_type resource_manager_data::get_resource_type(resource_id const _id) const
-	{
-		auto resource_iter = m_map_resource_id_to_data.find(_id);
-		if (resource_iter == m_map_resource_id_to_data.end())
-			return 0;
-		else
-			return resource_iter->second.m_type;
-	}
-
-	resource_type resource_manager_data::register_type(std::string const _name, fn_resource_loader const _loader, fn_resource_unloader const _unloader)
-	{
-		// Check if any type with input name already exists.
-		for (auto iter : m_map_resource_type_to_collection)
+		ImGui::NextColumn();
+		ImGui::TableSetupColumn("Path");
+		for (size_t i = 0; i < precomputed_filtered_items.size(); i++)
 		{
-			auto const& data = iter.second;
-			assert(data.m_name != _name);
+			ImGui::TableNextRow();
+			ImGui::Text(precomputed_filtered_items[i].second.string().c_str());
 		}
-
-		resource_type const new_type_id = m_type_counter++;
-		resource_type_data const type_data(_name, _loader, _unloader);
-		m_map_resource_type_to_collection.emplace(new_type_id, type_data);
-		return new_type_id;
-	}
-
-	void resource_manager_data::register_type_extension(resource_type const _type, fs::path const& _extension)
-	{
-		auto & data = get_resource_type_data(_type);
-
-		// Break out early if extension is already registered.
-		for (auto const & ext : data.m_type_extensions)
+		ImGui::NextColumn();
+		ImGui::TableSetupColumn("Type");
+		for (size_t i = 0; i < precomputed_filtered_items.size(); i++)
 		{
-			if (ext == _extension)
-				return;
+			resource_type const res_id_type = get_resource_type(precomputed_filtered_items[i].first);
+			ImGui::TableNextRow();
+			ImGui::Text(get_resource_type_data(res_id_type).m_name.c_str());
 		}
-		data.m_type_extensions.emplace(_extension);
-		m_map_extension_to_resource_type[_extension].emplace(_type);
 	}
-
-	std::set<resource_type> resource_manager_data::get_extension_type(fs::path const& _extension) const
-	{
-		auto ext_iter = m_map_extension_to_resource_type.find(_extension);
-		if (ext_iter == m_map_extension_to_resource_type.end())
-			return {};
-		else
-			return ext_iter->second;
-	}
-
-	resource_metadata * resource_manager_data::find_resource_data(resource_id const _id)
-	{
-		auto it = m_map_resource_id_to_data.find(_id);
-		if (it != m_map_resource_id_to_data.end())
-			return &it->second;
-		else
-			return nullptr;
-	}
-	
-	resource_metadata const* resource_manager_data::find_resource_data(resource_id const _id) const
-	{
-		if (auto it = m_map_resource_id_to_data.find(_id); it != m_map_resource_id_to_data.end())
-			return &it->second;
-		else
-			return nullptr;
-	}
-
-	resource_type_data& resource_manager_data::get_resource_type_data(resource_type _type)
-	{
-		return m_map_resource_type_to_collection.at(_type);
-	}
-
-	resource_id resource_manager_data::get_new_id()
-	{
-		resource_id id_iterator = m_id_counter-1;
-		decltype(m_map_resource_id_to_data)::iterator iter;
-		do
-		{
-			id_iterator++;
-			iter = m_map_resource_id_to_data.find(id_iterator);
-		} while (iter != m_map_resource_id_to_data.end());
-		return id_iterator;
-	}
-
-	bool resource_reference::operator==(resource_reference const& _l) const
-	{
-		return (m_resource_type_and_id == _l.m_resource_type_and_id) && (m_resource_handle == _l.m_resource_handle);
-	}
-
-	bool resource_reference::operator!=(resource_reference const& _l) const
-	{
-		return m_resource_type_and_id == _l.m_resource_type_and_id;
-	}
-
-	resource_reference& resource_reference::operator=(resource_reference const& _l)
-	{
-		assert(m_resource_type == _l.m_resource_type);  
-		m_resource_id = _l.m_resource_id; 
-		m_resource_handle = _l.m_resource_handle; 
-		return *this;
-	}
+	ImGui::EndTable();
+}
 
 }
 }

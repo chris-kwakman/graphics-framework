@@ -3,12 +3,15 @@
 #include <Engine/Utils/singleton.h>
 #include <Engine/Graphics/sdl_window.h>
 
+#include <engine/Managers/resource_manager.h>
+
 #include <GL/glew.h>
 #include <ImGui/imgui.h>
 #include <ImGui/imgui_internal.h>
 #include <ImGui/imgui_impl_sdl.h>
 #include <ImGui/imgui_impl_opengl3.h>
 #include <ImGuizmo/ImGuizmo.h>
+
 
 namespace Engine {
 namespace Editor {
@@ -141,6 +144,7 @@ namespace Editor {
 	void Editor::NewFrame()
 	{
 		imgui_new_frame();
+		Singleton<Engine::Managers::ResourceManager>().DisplayEditorWidget();
 	}
 
 	void Editor::Render()
