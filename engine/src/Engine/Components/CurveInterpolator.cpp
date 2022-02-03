@@ -143,7 +143,8 @@ namespace Component
 
 			nodes = curve.m_nodes;
 			std::string type_name = std::string(s_curve_type_names.at(curve.m_type));
-			std::transform(type_name.begin(), type_name.end(), type_name.begin(), std::tolower);
+			for (char & c : type_name)
+				c = std::tolower(c);
 			type = type_name;
 
 			ImGui::SetClipboardText(curve_json.dump(4).c_str());
