@@ -249,7 +249,8 @@ namespace Managers {
 
 	resource_typeid& resource_typeid::operator=(resource_typeid const& _l)
 	{
-		assert(!((m_type == 0) != (_l.m_type == 0)));
+		bool const equal = (m_type != 0) && (m_type == _l.m_type);
+		assert(equal || ((m_type == 0) != (_l.m_type == 0)));
 		m_id = _l.m_id;
 		m_type = _l.m_type;
 		return *this;
