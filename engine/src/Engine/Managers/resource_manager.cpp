@@ -50,7 +50,73 @@ namespace Managers {
 		}
 	}
 
-void ResourceManager::DisplayEditorWidget()
+	void ResourceManager::ImportSceneResources(nlohmann::json const& _scene_resources)
+	{
+		int const serializer_version = _scene_resources["serializer_version"];
+
+		if (serializer_version == 1)
+		{
+			std::vector<std::pair<std::string, std::set<resource_typeid>>> path_resource_typeid = _scene_resources["path_typeids"];
+			std::vector<std::pair<resource_type, std::string>> named_types = _scene_resources["type_names"];
+
+			std::unordered_map<resource_type, resource_type> remap_to_internal_type_value;
+			for (auto const & pair : named_types)
+				remap_to_internal_type_value.emplace(pair.first, pair.first);
+
+			// Compare against currently registered type names.
+			// If loaded type value of loaded type name does not match internal type name's value,
+			// re-map loaded type value to internal type value.
+			for (auto loaded_type_name : named_types)
+			{
+				std::string const& type_name = loaded_type_name.second;
+				for (auto const & internal_type : m_map_resource_type_to_collection)
+				{
+					if (internal_type.second.m_name == type_name)
+						remap_to_internal_type_value[loaded_type_name.first] = internal_type.first;
+				}
+			}
+
+			// Remap resource ID types and named types.
+			for (auto& pair : path_resource_typeid)
+			{
+				for (auto & path_typeid : pair.second)
+				{
+					path_typeid.m_type = remap_to_internal_type_value.at(path_typeid.m_type);
+				}
+			}
+			for (auto& pair : named_types)
+				pair.first = remap_to_internal_type_value.at(pair.first);
+
+			// Load resources one by one.
+			for (auto const & pair : path_resource_typeid)
+			{
+				auto const & [path, path_resources] = pair;
+				for (auto resource : path_resources)
+				{
+					resource_id const result_id = load_resource_with_id(fs::path(path), resource.m_type, resource.m_id);
+					assert(result_id == resource.m_id && "Serialized resource ID and internal resource ID do not match.");
+				}
+			}
+		}
+	}
+
+	void ResourceManager::ExportSceneResources(nlohmann::json& _scene_resources)
+	{
+		_scene_resources["serializer_version"] = 1;
+
+		std::vector<std::pair<std::string, std::set<resource_typeid>>> path_resource_typeids;
+		std::vector<std::pair<resource_type, std::string>> type_name_list;
+
+		for (auto pair : m_map_path_to_resource_id)
+			path_resource_typeids.emplace_back(std::pair(pair.first.string(), pair.second));
+		_scene_resources["path_typeids"] = path_resource_typeids;
+
+		for (auto const & pair : m_map_resource_type_to_collection)
+			type_name_list.emplace_back(pair.first, pair.second.m_name);
+		_scene_resources["type_names"] = type_name_list;
+	}
+
+	void ResourceManager::DisplayEditorWidget()
 {
 	auto const & resource_manager = Singleton<ResourceManager>();
 
@@ -176,6 +242,16 @@ void ResourceManager::TryDragDropFile(fs::path _path)
 	{
 		m_drag_dropped_file_path = _path;
 	}
+}
+
+void from_json(nlohmann::json const& _j, Resource& _v)
+{
+	from_json(_j, static_cast<resource_typeid &>(_v));
+}
+
+void to_json(nlohmann::json& _j, Resource const& _v)
+{
+	to_json(_j, static_cast<resource_typeid const&>(_v));
 }
 
 void resource_dragdrop_source(Resource const _resource, const char* _type_name)

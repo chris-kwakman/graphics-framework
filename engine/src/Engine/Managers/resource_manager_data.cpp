@@ -28,6 +28,11 @@ namespace Managers {
 
 	resource_id resource_manager_data::load_resource(fs::path _path, resource_type _type)
 	{
+		return load_resource_with_id(_path, _type, 0);
+	}
+
+	resource_id resource_manager_data::load_resource_with_id(fs::path _path, resource_type _type, resource_id _id)
+	{
 		// Get path of resource relative to executable's working directory.
 		_path = std::filesystem::relative(std::filesystem::path(_path), std::filesystem::current_path());
 
@@ -53,17 +58,25 @@ namespace Managers {
 			}
 		}
 
+		// TODO: Only load resource AFTER we've guaranteed that we're able to register it.
 		uint32_t const resource_handle = type_iter->second.m_loader(_path);
 		if (resource_handle == 0)
 			return 0;
 
-		resource_id const new_resource_id = register_resource(resource_handle, _type);
-		m_map_path_to_resource_id[_path].emplace(new_resource_id, _type);
-		m_map_resource_id_to_data.at(new_resource_id).m_path = _path;
+		resource_id const new_resource_id = register_resource(resource_handle, _type, _id);
+		if (new_resource_id != 0)
+		{
+			m_map_path_to_resource_id[_path].emplace(new_resource_id, _type);
+			m_map_resource_id_to_data.at(new_resource_id).m_path = _path;
+		}
+		else
+		{
+			type_iter->second.m_unloader(resource_handle);
+		}
 		return new_resource_id;
 	}
 
-	resource_id resource_manager_data::register_resource(uint32_t const _handle, resource_type const _type)
+	resource_id resource_manager_data::register_resource(uint32_t const _handle, resource_type const _type, resource_id const _force_id)
 	{
 		if (_type == 0 || _handle == 0)
 			return 0;
@@ -73,7 +86,14 @@ namespace Managers {
 		res_md.m_path = "";
 		res_md.m_type = _type;
 
-		resource_id const new_id = get_new_id();
+		resource_id const new_id = _force_id == 0 ? get_new_id() : _force_id;
+		if (_force_id != 0)
+		{
+			auto it = m_map_resource_id_to_data.find(_force_id);
+			if (it != m_map_resource_id_to_data.end())
+				return 0;
+		}
+
 		m_map_resource_id_to_data.emplace(new_id, res_md);
 		auto & type_data = get_resource_type_data(_type);
 		type_data.m_type_resources.insert(
@@ -229,7 +249,7 @@ namespace Managers {
 
 	resource_typeid& resource_typeid::operator=(resource_typeid const& _l)
 	{
-		assert(m_type == 0 || (m_type != 0 && m_type == _l.m_type));
+		assert(!((m_type == 0) != (_l.m_type == 0)));
 		m_id = _l.m_id;
 		m_type = _l.m_type;
 		return *this;
@@ -243,6 +263,18 @@ namespace Managers {
 	bool resource_typeid::operator!=(resource_typeid const& _l) const
 	{
 		return m_type_and_id != _l.m_type_and_id;
+	}
+
+	void from_json(nlohmann::json const& _j, resource_typeid& _v)
+	{
+		_v.m_id = _j["id"].get<uint32_t>();
+		_v.m_type = _j["type"].get<uint8_t>();
+	}
+
+	void to_json(nlohmann::json& _j, resource_typeid const& _v)
+	{
+		_j["id"] = (uint32_t)_v.m_id;
+		_j["type"] = (uint8_t)_v.m_type;
 	}
 
 }

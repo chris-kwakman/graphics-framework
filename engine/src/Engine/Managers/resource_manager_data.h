@@ -38,9 +38,10 @@ namespace Managers
 		bool operator<(resource_typeid const& _l) const;
 		bool operator==(resource_typeid const& _l) const;
 		bool operator!=(resource_typeid const& _l) const;
-
-		NLOHMANN_DEFINE_TYPE_INTRUSIVE(resource_typeid, m_type_and_id);
 	};
+
+	void from_json(nlohmann::json const& _j, resource_typeid& _v);
+	void to_json(nlohmann::json & _j, resource_typeid const & _v);
 	
 	typedef uint32_t(*fn_resource_loader)(fs::path const& _path);
 	typedef void(*fn_resource_unloader)(uint32_t);
@@ -97,7 +98,7 @@ namespace Managers
 		resource_type		get_resource_type(resource_id const _id) const;
 
 		resource_id			load_resource(fs::path _path, resource_type _type);
-		resource_id			register_resource(uint32_t const _handle, resource_type const _type);
+		resource_id			register_resource(uint32_t const _handle, resource_type const _type, resource_id const _force_id = 0);
 		bool				unload_resource(resource_id const _id);
 
 		resource_type		register_type(std::string const _name, fn_resource_loader const _loader, fn_resource_unloader const _unloader);
@@ -107,6 +108,10 @@ namespace Managers
 		resource_type_data& get_resource_type_data(resource_type _type);
 
 		resource_type		find_named_type(const char* _name) const;
+
+	protected:
+
+		resource_id			load_resource_with_id(fs::path _path, resource_type _type, resource_id _id);
 
 	private:
 

@@ -70,6 +70,8 @@ void load_scene(fs::path _scene_path)
 			//scene_json = nlohmann::json::from_ubjson(binary_data);
 			scene_file >> scene_json;
 		}
+		if(scene_json.find("resources") != scene_json.end())
+			Singleton<Engine::Managers::ResourceManager>().ImportSceneResources(scene_json["resources"]);
 		Engine::Serialisation::DeserialiseScene(scene_json);
 	}
 	catch (nlohmann::json::parse_error & e)
@@ -144,10 +146,11 @@ void menu_bar()
 			if (scene_file.is_open())
 			{
 				nlohmann::json scene_json;
+				Singleton<Engine::Managers::ResourceManager>().ExportSceneResources(scene_json["resources"]);
 				Engine::Serialisation::SerialiseScene(scene_json);
 				//auto binary_data = nlohmann::json::to_ubjson(scene_json, false, false);
 				//scene_file.write((char*)&binary_data.front(), binary_data.size());
-				scene_file << scene_json;
+				scene_file << std::setw(4) << scene_json;
 			}
 			ImGui::CloseCurrentPopup();
 		}
@@ -183,8 +186,6 @@ void update_loop()
 	frametime = ms(0);
 
 	Engine::sdl_manager& sdl_manager = Singleton<Engine::sdl_manager>();
-
-	register_resource_loaders();
 
 	while (true)
 	{
@@ -274,6 +275,7 @@ int main(int argc, char* argv[])
 			Singleton<Engine::Editor::Editor>().Initialise();
 			Singleton<Engine::ECS::EntityManager>().Reset();
 			Singleton<Engine::Graphics::ResourceManager>().Reset();
+			register_resource_loaders();
 
 			load_scene(s_load_scene_at_path);
 

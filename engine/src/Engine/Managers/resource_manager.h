@@ -20,14 +20,22 @@ namespace Managers {
 		resource_type	Type() const { return m_type; }
 		std::string		Name() const;
 
-		NLOHMANN_DEFINE_TYPE_INTRUSIVE(Resource, m_type_and_id);
+		friend void from_json(nlohmann::json const& _j, Resource& _v);
+		friend void to_json(nlohmann::json& _j, Resource const& _v);
 	};
+
+	void from_json(nlohmann::json const& _j, Resource & _v);
+	void to_json(nlohmann::json& _j, Resource const& _v);
 
 	class ResourceManager : public resource_manager_data
 	{
 		friend struct Resource;
 
 	public:
+
+		// Should be ran AFTER registering resource types.
+		void ImportSceneResources(nlohmann::json const & _scene_resources);
+		void ExportSceneResources(nlohmann::json& _scene_resources);
 
 		void DisplayEditorWidget();
 		void TryDragDropFile(fs::path _path);
@@ -36,6 +44,7 @@ namespace Managers {
 		
 		bool m_new_resources = false;
 		fs::path m_drag_dropped_file_path;
+
 	};
 
 	void resource_dragdrop_source(Resource const _reference, const char* _type_name);
