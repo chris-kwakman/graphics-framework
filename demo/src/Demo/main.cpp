@@ -14,6 +14,8 @@
 
 #include <Engine/Managers/resource_manager.h>
 
+#include <Engine/Physics/convex_hull_loader.h>
+
 #include "Demo/sandbox.h"
 #include "Demo/Components/SandboxCompManager.h"
 
@@ -164,13 +166,13 @@ void register_resource_loaders()
 
 	resource_type const type_texture = resource_manager.register_type("Texture", dummy_loader, dummy_unloader);
 	resource_type const type_model = resource_manager.register_type("Model", dummy_loader, dummy_unloader);
-	resource_type const type_convex_hull = resource_manager.register_type("Convex Hull", dummy_loader, dummy_unloader);
+	resource_type const type_convex_hull = resource_manager.register_type("Collider", Engine::Physics::LoadConvexHull_OBJ, Engine::Physics::UnloadConvexHull_OBJ);
 
 	resource_manager.register_type_extension(type_texture, ".png");
 	resource_manager.register_type_extension(type_texture, ".jpeg");
 
 	resource_manager.register_type_extension(type_model, ".gltf");
-	resource_manager.register_type_extension(type_model, ".obj");
+	//resource_manager.register_type_extension(type_model, ".obj");
 
 	resource_manager.register_type_extension(type_convex_hull, ".obj");
 }

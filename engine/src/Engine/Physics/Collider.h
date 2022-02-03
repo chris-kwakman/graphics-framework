@@ -33,7 +33,7 @@ namespace Component
 				int m_highlight_edge_index = -1;
 			};
 
-			std::unordered_map<Entity, Engine::Physics::convex_hull_handle, Entity::hash> m_entity_map;
+			std::unordered_map<Entity, Engine::Managers::Resource, Entity::hash> m_entity_map;
 			std::unordered_map<Engine::Physics::convex_hull_handle, ch_debug_render_data> m_ch_debug_meshes;
 
 			bool m_render_debug_face_mesh = true, m_render_debug_edge_mesh = true;
@@ -47,7 +47,7 @@ namespace Component
 
 		// Inherited via TCompManager
 		virtual const char* GetComponentTypeName() const override;
-		void SetColliderConvexHull(Entity _e, Engine::Physics::convex_hull_handle _ch_handle);
+		void SetColliderResource(Entity _e, Engine::Managers::Resource _resource);
 
 	private:
 

@@ -352,5 +352,9 @@ namespace Physics {
 		return new_handle;
 	}
 
+	void ConvexHullManager::DeleteConvexHull(convex_hull_handle _handle)
+	{
+		m_map.erase(_handle);
+	}
 }
 }

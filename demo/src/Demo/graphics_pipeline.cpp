@@ -805,7 +805,7 @@ namespace Sandbox
 				Component::Transform transform = e.GetComponent<Component::Transform>();
 				Engine::Math::transform3D world_transform = transform.ComputeWorldTransform();
 
-				convex_hull_handle const ch_handle = collider_mgr.m_data.m_entity_map.at(e);
+				convex_hull_handle const ch_handle = collider_mgr.m_data.m_entity_map.at(e).Handle();
 
 				if (ch_handle == 0)
 					continue;

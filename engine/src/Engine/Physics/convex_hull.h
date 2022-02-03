@@ -7,6 +7,7 @@
 
 #include <unordered_map>
 
+
 namespace Engine {
 namespace Physics {
 
@@ -79,7 +80,7 @@ namespace Physics {
 
 		convex_hull_info const * GetConvexHullInfo(convex_hull_handle _handle) const;
 		convex_hull_handle RegisterConvexHull(convex_hull&& _hull, std::string _name);
+		void DeleteConvexHull(convex_hull_handle _handle);
 	};
-
 }
 }

@@ -3,6 +3,7 @@
 
 #include <Engine/Serialisation/common.h>
 #include <Engine/Utils/singleton.h>
+#include <Engine/Managers/resource_manager.h>
 #include "entity.h"
 #include <vector>
 

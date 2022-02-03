@@ -5,6 +5,8 @@
 #include <unordered_map>
 #include <set>
 
+#include <nlohmann/json.hpp>
+
 namespace Engine {
 namespace Managers
 {
@@ -13,18 +15,22 @@ namespace Managers
 
 	class ResourceManager;
 
-	union resource_typeid
+	struct resource_typeid
 	{
+		resource_typeid() : m_type_and_id(0) {}
 		resource_typeid(resource_id _id, resource_type _type) :
 			m_id(_id),
 			m_type(_type)
 		{}
 
-		uint32_t const m_type_and_id;
-		struct
+		union
 		{
-			resource_id mutable m_id : 24;		// ID of resource in resource manager.
-			resource_type const m_type : 8;	// Type of resource in resource manager.
+			uint32_t mutable m_type_and_id;
+			struct
+			{
+				resource_id mutable m_id : 24;		// ID of resource in resource manager.
+				resource_type mutable m_type : 8;	// Type of resource in resource manager.
+			};
 		};
 
 		resource_typeid& operator=(resource_typeid const& _l);
@@ -32,21 +38,8 @@ namespace Managers
 		bool operator<(resource_typeid const& _l) const;
 		bool operator==(resource_typeid const& _l) const;
 		bool operator!=(resource_typeid const& _l) const;
-	};
 
-	struct resource_reference
-	{
-		resource_reference(resource_id _id, resource_type _type, uint32_t _resource_handle) :
-			m_resource_typeid(_id,_type),
-			m_resource_handle(_resource_handle)
-		{}
-
-		resource_typeid m_resource_typeid;
-		uint32_t mutable m_resource_handle;	// Handle to resource data of arbitrary type.
-
-		bool operator==(resource_reference const& _l) const;
-		bool operator!=(resource_reference const& _l) const;
-		resource_reference& operator=(resource_reference const& _l);
+		NLOHMANN_DEFINE_TYPE_INTRUSIVE(resource_typeid, m_type_and_id);
 	};
 	
 	typedef uint32_t(*fn_resource_loader)(fs::path const& _path);
@@ -99,7 +92,7 @@ namespace Managers
 
 		void				reset();
 
-		resource_reference	get_resource_reference(resource_id const _id) const;
+		uint32_t 			get_resource_handle(resource_id const _id) const;
 		fs::path const&		get_resource_path(resource_id const _id) const;
 		resource_type		get_resource_type(resource_id const _id) const;
 
@@ -123,4 +116,15 @@ namespace Managers
 	};
 
 }
+}
+
+namespace std
+{
+	template<>
+	struct hash<Engine::Managers::resource_typeid> {
+		inline size_t operator()(Engine::Managers::resource_typeid const& _x) {
+			return std::hash<uint32_t>{}(_x.m_id);
+		}
+	};
+
 }

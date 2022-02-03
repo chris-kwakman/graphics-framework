@@ -56,13 +56,13 @@ TEST(ResourceManager, RegisterResource)
 	res_mgr_data.register_type_extension(texture_type, ".png");
 
 	resource_id const tex1_id = res_mgr_data.register_resource(1, texture_type);
-	EXPECT_EQ(res_mgr_data.get_resource_reference(tex1_id).m_resource_handle, 1);
+	EXPECT_EQ(res_mgr_data.get_resource_handle(tex1_id), 1);
 	resource_id const tex2_id = res_mgr_data.register_resource(2, texture_type);
-	EXPECT_EQ(res_mgr_data.get_resource_reference(tex1_id).m_resource_handle, 1);
-	EXPECT_EQ(res_mgr_data.get_resource_reference(tex2_id).m_resource_handle, 2);
+	EXPECT_EQ(res_mgr_data.get_resource_handle(tex1_id), 1);
+	EXPECT_EQ(res_mgr_data.get_resource_handle(tex2_id), 2);
 	EXPECT_TRUE(res_mgr_data.unload_resource(tex1_id));
 	//EXPECT_EQ(res_mgr_data.get_resource_handle(tex1_id), 0);
-	EXPECT_EQ(res_mgr_data.get_resource_reference(tex2_id).m_resource_handle, 2);
+	EXPECT_EQ(res_mgr_data.get_resource_handle(tex2_id), 2);
 	EXPECT_FALSE(res_mgr_data.unload_resource(tex1_id));
 	EXPECT_TRUE(res_mgr_data.unload_resource(tex2_id));
 	EXPECT_FALSE(res_mgr_data.unload_resource(tex2_id));
@@ -116,7 +116,7 @@ TEST(ResourceManager, LoadResource)
 	resource_id const example1_resource = res_mgr_data.load_resource("example1.png", texture_type);
 	ASSERT_EQ(loaded_paths.size(), 1);
 	auto it = loaded_paths.find("example1.png");
-	auto it2 = loaded_resources.find(res_mgr_data.get_resource_reference(example1_resource).m_resource_typeid.m_id);
+	auto it2 = loaded_resources.find(res_mgr_data.get_resource_handle(example1_resource));
 	ASSERT_TRUE(it != loaded_paths.end());
 	ASSERT_TRUE(it2 != loaded_resources.end());
 
@@ -125,7 +125,7 @@ TEST(ResourceManager, LoadResource)
 
 	res_mgr_data.unload_resource(example1_resource);
 	it = loaded_paths.find("example1.png");
-	it2 = loaded_resources.find(res_mgr_data.get_resource_reference(example1_resource).m_resource_typeid.m_id);
+	it2 = loaded_resources.find(res_mgr_data.get_resource_handle(example1_resource));
 	ASSERT_FALSE(it != loaded_paths.end());
 	ASSERT_FALSE(it2 != loaded_resources.end());
 }

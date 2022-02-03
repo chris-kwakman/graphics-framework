@@ -109,13 +109,12 @@ namespace Managers {
 		return true;
 	}
 
-	resource_reference resource_manager_data::get_resource_reference(resource_id const _id) const
+	uint32_t resource_manager_data::get_resource_handle(resource_id const _id) const
 	{
 		resource_metadata const* md = find_resource_data(_id);
 		if (md == nullptr)
-			return resource_reference(0, 0, 0);
-		
-		return resource_reference(_id, md->m_type, md->m_resource_handle);
+			return 0;
+		return md->m_resource_handle;
 	}
 
 	fs::path const& resource_manager_data::get_resource_path(resource_id const _id) const
@@ -230,8 +229,9 @@ namespace Managers {
 
 	resource_typeid& resource_typeid::operator=(resource_typeid const& _l)
 	{
-		assert(m_type == _l.m_type);
+		assert(m_type == 0 || (m_type != 0 && m_type == _l.m_type));
 		m_id = _l.m_id;
+		m_type = _l.m_type;
 		return *this;
 	}
 
@@ -243,24 +243,6 @@ namespace Managers {
 	bool resource_typeid::operator!=(resource_typeid const& _l) const
 	{
 		return m_type_and_id != _l.m_type_and_id;
-	}
-
-	bool resource_reference::operator==(resource_reference const& _l) const
-	{
-		return (m_resource_typeid == _l.m_resource_typeid) && (m_resource_handle == _l.m_resource_handle);
-	}
-
-	bool resource_reference::operator!=(resource_reference const& _l) const
-	{
-		return m_resource_typeid == _l.m_resource_typeid;
-	}
-
-	resource_reference& resource_reference::operator=(resource_reference const& _l)
-	{
-		assert(m_resource_typeid.m_type == _l.m_resource_typeid.m_type);  
-		m_resource_typeid = _l.m_resource_typeid;
-		m_resource_handle = _l.m_resource_handle; 
-		return *this;
 	}
 
 }

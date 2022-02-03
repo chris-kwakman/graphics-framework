@@ -9,15 +9,17 @@ namespace Component
 	{
 		return "Collider";
 	}
-	void ColliderManager::SetColliderConvexHull(Entity _e, Engine::Physics::convex_hull_handle _ch_handle)
+	void ColliderManager::SetColliderResource(Entity _e, Engine::Managers::Resource _resource)
 	{
 		auto& ch_mgr = Singleton<Engine::Physics::ConvexHullManager>();
 
 		if (!ComponentOwnedByEntity(_e))
 			return;
 
+		Engine::Physics::convex_hull_handle const input_resource_handle = _resource.Handle();
+
 		auto map_iter = m_data.m_entity_map.find(_e);
-		Engine::Physics::convex_hull_handle const old_handle = map_iter->second;
+		Engine::Physics::convex_hull_handle const old_handle = map_iter->second.Handle();
 		if (old_handle != 0)
 		{
 			auto debug_mesh_iter = m_data.m_ch_debug_meshes.find(old_handle);
@@ -25,19 +27,19 @@ namespace Component
 			if (debug_mesh_iter->second.m_ref_count == 0)
 				m_data.m_ch_debug_meshes.erase(debug_mesh_iter);
 		}
-		map_iter->second = _ch_handle;
-		if (_ch_handle != 0)
+		map_iter->second = _resource;
+		if (_resource.ID() != 0)
 		{
-			auto debug_mesh_iter = m_data.m_ch_debug_meshes.find(_ch_handle);
+			auto debug_mesh_iter = m_data.m_ch_debug_meshes.find(_resource.Handle());
 			if (debug_mesh_iter == m_data.m_ch_debug_meshes.end())
 			{
 				manager_data::ch_debug_render_data render_data;
-				render_data.m_ch_face_mesh = Engine::Graphics::Misc::create_convex_hull_face_mesh(_ch_handle);
-				render_data.m_ch_edge_mesh = Engine::Graphics::Misc::create_convex_hull_edge_mesh(_ch_handle);
+				render_data.m_ch_face_mesh = Engine::Graphics::Misc::create_convex_hull_face_mesh(input_resource_handle);
+				render_data.m_ch_edge_mesh = Engine::Graphics::Misc::create_convex_hull_edge_mesh(input_resource_handle);
 				render_data.m_ref_count = 0;
-				m_data.m_ch_debug_meshes.emplace(_ch_handle, std::move(render_data));
+				m_data.m_ch_debug_meshes.emplace(input_resource_handle, std::move(render_data));
 			}
-			m_data.m_ch_debug_meshes.at(_ch_handle).m_ref_count++;
+			m_data.m_ch_debug_meshes.at(input_resource_handle).m_ref_count++;
 		}
 	}
 	void ColliderManager::impl_clear()
@@ -46,7 +48,7 @@ namespace Component
 	}
 	bool ColliderManager::impl_create(Entity _e)
 	{
-		m_data.m_entity_map.emplace(_e, 0);
+		m_data.m_entity_map.emplace(_e, Engine::Managers::Resource());
 
 		return true;
 	}
@@ -56,7 +58,7 @@ namespace Component
 		{
 			Entity const destroy_entity = _entities[i];
 			auto map_iter = m_data.m_entity_map.find(destroy_entity);
-			SetColliderConvexHull(destroy_entity, 0);
+			SetColliderResource(destroy_entity, Engine::Managers::Resource());
 			m_data.m_entity_map.erase(destroy_entity);
 		}
 	}
@@ -70,7 +72,7 @@ namespace Component
 
 		auto& ch_mgr = Singleton<ConvexHullManager>();
 
-		auto info = ch_mgr.GetConvexHullInfo(m_data.m_entity_map.at(_entity));
+		auto info = ch_mgr.GetConvexHullInfo(m_data.m_entity_map.at(_entity).Handle());
 		std::string show_name = "No Collider";
 		if (info != nullptr)
 		{
@@ -81,30 +83,11 @@ namespace Component
 		ImGui::Checkbox("Enable Debug Face Rendering", &m_data.m_render_debug_face_mesh);
 		ImGui::Checkbox("Enable Debug Edge Rendering", &m_data.m_render_debug_edge_mesh);
 
-		if (ImGui::Button("Set Collider"))
-			ImGui::OpenPopup("convex_hull_list");
+		Engine::Managers::Resource current_resource = m_data.m_entity_map.at(_entity);
+		if (Engine::Managers::resource_dragdrop_target(current_resource, "Collider"))
+			SetColliderResource(_entity, current_resource);
 
-		if (ImGui::BeginPopupContextItem("convex_hull_list"))
-		{
-			Engine::Physics::convex_hull_handle new_handle = 0;
-			auto map_iter = ch_mgr.m_map.begin();
-			while (map_iter != ch_mgr.m_map.end())
-			{
-				if (ImGui::MenuItem(map_iter->second.m_name.c_str()))
-				{
-					new_handle = map_iter->first;
-					ImGui::CloseCurrentPopup();
-				}
-
-				map_iter++;
-			}
-
-			SetColliderConvexHull(_entity, new_handle);
-
-			ImGui::EndPopup();
-		}
-
-		convex_hull_handle const current_ch_handle = m_data.m_entity_map.at(_entity);
+		convex_hull_handle const current_ch_handle = m_data.m_entity_map.at(_entity).Handle();
 		if (current_ch_handle != 0)
 		{
 			if (auto it = m_data.m_ch_debug_meshes.find(current_ch_handle); it != m_data.m_ch_debug_meshes.end())
@@ -140,10 +123,11 @@ namespace Component
 
 		// Create meshes for convex hulls if they do not exist yet.
 		std::unordered_map<Engine::Physics::convex_hull_handle, unsigned int> map_ch_refcount;
-		for (auto [e, ch_handle] : m_data.m_entity_map)
+		for (auto [e, resource] : m_data.m_entity_map)
 		{
-			map_ch_refcount.try_emplace(ch_handle, 0);
-			map_ch_refcount.at(ch_handle)++;
+			Engine::Physics::convex_hull_handle const resource_handle = resource.Handle();
+			map_ch_refcount.try_emplace(resource_handle, 0);
+			map_ch_refcount.at(resource_handle)++;
 		}
 		for (auto [ch_handle, refcount] : map_ch_refcount)
 		{
