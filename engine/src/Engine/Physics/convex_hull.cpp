@@ -119,18 +119,19 @@ namespace Physics {
 		auto get_next_index = [&](half_edge_idx _edge)->half_edge_idx& {return new_hull.m_edges[_edge].m_next_edge; };
 		auto get_face_index = [&](half_edge_idx _edge)->face_idx& {return new_hull.m_edges[_edge].m_edge_face; };
 
-		//// Face Merging
-		
-		// Second pass to merge coplanar faces.
-		// The resulting face must be CONVEX.
-		// Rather than checking for convexity, we assume
-		// the input data will result in convex faces.
 
 		// Indicates whether a face / an edge still exists.
 		std::vector<bool> existing_faces(_face_count, true);
 		std::vector<bool> existing_edges(new_hull.m_edges.size(), true);
 		std::vector<bool> existing_vertices(new_hull.m_vertices.size(), false);
 		auto const& vertices = new_hull.m_vertices; // Define shorthand
+
+		//// Face Merging
+		
+		// Second pass to merge coplanar faces.
+		// The resulting face must be CONVEX.
+		// Rather than checking for convexity, we assume
+		// the input data will result in convex faces.
 
 		// Pre-calculate face normals to make my life easier.
 		// Assume face vertices are defined in CCW order!
@@ -230,6 +231,8 @@ namespace Physics {
 
 		//// Co-linear edge merging
 
+		bool edge_was_merged = false;
+
 		// Pre-compute edge directions
 		std::vector<glm::vec3> edge_normalized_dirs(new_hull.m_edges.size());
 		for (half_edge_idx edge_idx = 0; edge_idx < new_hull.m_edges.size(); edge_idx++)
@@ -241,21 +244,35 @@ namespace Physics {
 				vertices[new_hull.m_edges[get_next_index(edge_idx)].m_vertex] - vertices[new_hull.m_edges[edge_idx].m_vertex]
 			);
 		}
-		// For each edge, check if the next edge has (approximately) the same direction. If so,
-		// merge the two edges and mark the next edge as deleted.
+
+		// For each edge, check if the current and next edge each have the same face on their sides.
+		// Do the same for their twin edges.
 		for (half_edge_idx edge_idx = 0; edge_idx < new_hull.m_edges.size(); edge_idx++)
 		{
-			if (!existing_edges[edge_idx]) 
+			if (!existing_edges[edge_idx])
 				continue;
 
 			half_edge_idx const next_idx = get_next_index(edge_idx);
-			
-			if (glm::all(glm::epsilonEqual(edge_normalized_dirs[edge_idx], edge_normalized_dirs[next_idx], 0.001f)))
+
+			bool edges_colinear = glm::all(glm::epsilonEqual(edge_normalized_dirs[edge_idx], edge_normalized_dirs[next_idx], 0.001f));
+
+			half_edge_idx const twin_idx = get_twin_index(edge_idx);
+			half_edge_idx const next_twin_idx = get_twin_index(next_idx);
+			face_idx const twin_face = (twin_idx == half_edge::INVALID_EDGE) ? half_edge::INVALID_EDGE : get_face_index(twin_idx);
+			face_idx const next_twin_face = (next_twin_idx == half_edge::INVALID_EDGE) ? half_edge::INVALID_EDGE : get_face_index(next_twin_idx);
+
+			bool edges_share_face = get_face_index(edge_idx) == get_face_index(next_idx);
+			bool twin_edges_share_face = (twin_face == next_twin_face);
+				
+
+			if (edges_colinear && edges_share_face && twin_edges_share_face)
 			{
 				existing_edges[next_idx] = false;
 				new_hull.m_edges[edge_idx].m_next_edge = get_next_index(next_idx);
+				edge_was_merged = true;
 			}
 		}
+
 		// Mark all vertices found in existing edges as existing.
 		for (half_edge_idx edge_idx = 0; edge_idx < new_hull.m_edges.size(); edge_idx++)
 		{

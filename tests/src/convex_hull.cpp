@@ -244,3 +244,70 @@ TEST(ConvexHull, MergeColinearEdges)
 	EXPECT_EQ(new_hull.m_edges.size(), 3);
 	EXPECT_EQ(new_hull.m_vertices.size(), 3);
 }
+
+TEST(ConvexHull, MergeColinearEdges2)
+{
+	using v3 = glm::vec3;
+	using uv3 = glm::uvec3;
+	glm::vec3 const vertices[] = {
+		v3(-1,-1,0),
+		v3(1,-1,0),
+		v3(1,0,0),
+		v3(0,0,0),
+		v3(-1,0,0),
+		v3(-1,1,1),
+		v3(0,1,1),
+		v3(1,1,1)
+	};
+	glm::uvec3 const face_vertex_indices[] = {
+		uv3(0,1,2),
+		uv3(0,2,3),
+		uv3(0,3,4),
+		uv3(4,3,6),
+		uv3(4,6,5),
+		uv3(3,2,7),
+		uv3(3,7,6)
+	};
+
+	convex_hull new_hull = construct_convex_hull(
+		vertices, sizeof(vertices) / sizeof(glm::vec3),
+		face_vertex_indices, sizeof(face_vertex_indices) / sizeof(glm::uvec3)
+	);
+
+	EXPECT_EQ(new_hull.m_faces.size(), 2);
+	EXPECT_EQ(new_hull.m_edges.size(), 8);
+	EXPECT_EQ(new_hull.m_vertices.size(), 6);
+}
+
+TEST(ConvexHull, MergeColinearEdges3)
+{
+	using v3 = glm::vec3;
+	using uv3 = glm::uvec3;
+	glm::vec3 const vertices[] = {
+		v3(0,-1,0),
+		v3(1,-1,0),
+		v3(1,0,0),
+		v3(0,0,0),
+		v3(-1,0,0),
+		v3(-1,1,1),
+		v3(0,1,1),
+		v3(1,1,1)
+	};
+	glm::uvec3 const face_vertex_indices[] = {
+		uv3(0,1,2),
+		uv3(0,2,3),
+		uv3(4,3,6),
+		uv3(4,6,5),
+		uv3(3,2,7),
+		uv3(3,7,6)
+	};
+
+	convex_hull new_hull = construct_convex_hull(
+		vertices, sizeof(vertices) / sizeof(glm::vec3),
+		face_vertex_indices, sizeof(face_vertex_indices) / sizeof(glm::uvec3)
+	);
+
+	EXPECT_EQ(new_hull.m_faces.size(), 2);
+	EXPECT_EQ(new_hull.m_edges.size(), 9);
+	EXPECT_EQ(new_hull.m_vertices.size(), 7);
+}
