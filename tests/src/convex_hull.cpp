@@ -188,6 +188,37 @@ TEST(ConvexHull, CubeConstruction)
 	test_face_vertices(new_hull);
 }
 
+TEST(ConvexHull, DiscConstruction)
+{
+	unsigned int const RESOLUTION = 12;
+	float const RADIUS = 1.0f;
+	std::vector<glm::vec3> vertices;
+	std::vector<glm::uvec3> face_vertex_indices;
+
+	vertices.emplace_back(glm::vec3(0.0f));
+	for (unsigned int i = 0; i < RESOLUTION; ++i)
+	{
+		float const rads = (float(i) / float(RESOLUTION)) * 2.0f * 3.1415f;
+		vertices.emplace_back(cosf(rads) * RADIUS, 0.0f, sinf(rads) * RADIUS);
+	}
+	for (unsigned int i = 1; i <= RESOLUTION; ++i)
+	{
+		face_vertex_indices.emplace_back(0, i, (i % 12) + 1);
+	}
+
+	convex_hull new_hull = construct_convex_hull(
+		&vertices.front(), vertices.size(),
+		&face_vertex_indices.front(), face_vertex_indices.size()
+	);
+
+	EXPECT_EQ(new_hull.m_edges.size(), RESOLUTION);
+	EXPECT_EQ(new_hull.m_faces.size(), 1);
+	EXPECT_EQ(new_hull.m_vertices.size(), RESOLUTION);
+
+	test_convex_hull_loops(new_hull, RESOLUTION);
+	test_face_vertices(new_hull);
+}
+
 TEST(ConvexHull, LongSharedEdge)
 {
 	glm::vec3 const vertices[] = {
