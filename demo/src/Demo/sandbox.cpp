@@ -357,46 +357,6 @@ namespace Sandbox
 		SetupGraphicsPipelineRender();
 		ResetEditorCamera();
 
-		glm::vec3 const vertices[] = {
-			glm::vec3(-0.5,-0.5,-0.5),
-			glm::vec3(-0.5, -0.5,0.5),
-			glm::vec3(-0.5, 0.5, 0.5),
-			glm::vec3(-0.5, 0.5, -0.5),
-			glm::vec3(0.5,-0.5,-0.5),
-			glm::vec3(0.5, -0.5,0.5),
-			glm::vec3(0.5, 0.5, 0.5),
-			glm::vec3(0.5, 0.5, -0.5)
-		};
-		glm::uvec3 const face_vertex_indices[] = {
-			glm::uvec3(0, 1, 2),
-			glm::uvec3(0, 2, 3),
-			glm::uvec3(5, 4, 6),
-			glm::uvec3(7, 6, 4),
-			glm::uvec3(1,5,6),
-			glm::uvec3(1,6,2),
-			glm::uvec3(4,0,3),
-			glm::uvec3(4,3,7),
-			glm::uvec3(0,5,1),
-			glm::uvec3(0,4,5),
-			glm::uvec3(3,2,6),
-			glm::uvec3(3,6,7)
-		};
-
-		Engine::Physics::convex_hull new_hull = Engine::Physics::construct_convex_hull(
-			vertices, sizeof(vertices) / sizeof(glm::vec3),
-			face_vertex_indices, sizeof(face_vertex_indices) / sizeof(glm::uvec3)
-		);
-
-		s_cube_convex_hull_handle = Singleton<Engine::Physics::ConvexHullManager>().RegisterConvexHull(std::move(new_hull), "Cube Hull");
-
-		// Load glTF model Sponza by default, other if specified in commandline argument.
-		if (!s_scene_reset)
-		{
-			if (argc >= 2)
-				s_scene_loaded = argv[1];
-			else
-				s_scene_loaded = "data/scenes/sceneVolumetricFog.json";
-		}
 
 		if (argc >= 3)
 		{
