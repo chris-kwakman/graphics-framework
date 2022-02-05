@@ -37,8 +37,9 @@
 #include <fstream>
 
 #include <glm/gtx/string_cast.hpp>
-#include <Engine/Physics/convex_hull.h>
 #include <Engine/Graphics/misc/create_convex_hull_mesh.h>
+#include <Engine/Physics/intersection.h>
+#include <Engine/Physics/Collider.h>
 
 Engine::Graphics::texture_handle		s_display_gbuffer_texture = 0;
 
@@ -572,6 +573,7 @@ namespace Sandbox
 		static float holddown_timer = 0.0f;
 		auto& input_mgr = Singleton<InputManager>();
 		auto& rb_mgr = Singleton<RigidBodyManager>();
+		auto& collider_mgr = Singleton<ColliderManager>();
 
 		button_state mb_state = input_mgr.GetKeyboardButtonState(SDL_SCANCODE_F);
 		if (mb_state == button_state::eDown)
@@ -608,42 +610,73 @@ namespace Sandbox
 			glm::vec3 const & ray_world_end = ray_world_points[1] / ray_world_points[1].w;
 			glm::vec3 const& ray_direction = glm::normalize(ray_world_end - ray_world_start);
 
+			Engine::Physics::ray camera_ray;
+			camera_ray.origin = ray_world_start;
+			camera_ray.dir = glm::normalize(ray_world_end - ray_world_start);
+
 			auto const & rb_data = rb_mgr.m_rigidbodies_data;
-			for (size_t i = 0; i < rb_data.m_index_entities.size(); i++)
+			auto & col_data = collider_mgr.m_data;
+			for (auto const & entity_collider_pair : col_data.m_entity_map)
 			{
-				Entity const rb_entity = rb_data.m_index_entities[i];
-				Transform rb_transform = rb_entity.GetComponent<Transform>();
-				auto rb_world_transform = rb_transform.ComputeWorldTransform();
-				glm::vec3 rb_world_position = rb_world_transform.position;
-				glm::vec3 rb_world_scale = rb_world_transform.scale;
-				float const max_scale = glm::compMax(rb_world_scale);
-				float const sphere_radius = max_scale * 0.5f;
+				using namespace Engine::Physics;
+				convex_hull_handle const ch_handle = entity_collider_pair.second.Handle();
 
-				// Perform line-sphere intersection test
-				float const A = glm::length2(ray_world_end - ray_world_start);
-				float const B = 2.0f * glm::dot(
-					ray_world_end - ray_world_start, 
-					ray_world_start - rb_world_position
-				);
-				float const C = glm::length2(ray_world_start) + glm::length2(rb_world_position) - 2 * glm::dot(ray_world_start, rb_world_position) - sphere_radius * sphere_radius;
-
-				float const discriminant = B * B - 4.0f * A * C;
-				if (discriminant >= 0.0f)
+				auto ch_info = Singleton<ConvexHullManager>().GetConvexHullInfo(ch_handle);
+				if (ch_info)
 				{
-					float const sqrt_discriminant = glm::sqrt(discriminant);
-					float t0 = (-B - sqrt_discriminant)/(2.0f*A);
-					float t1 = (-B + sqrt_discriminant)/(2.0f * A);
+					Entity const rb_entity = entity_collider_pair.first;
+					Transform rb_transform = rb_entity.GetComponent<Transform>();
+					Engine::Math::transform3D const rb_world_transform = rb_transform.ComputeWorldTransform();
+					glm::vec3 const rb_world_position = rb_world_transform.position;
 
-					float t_intersect = glm::min(t0, t1);
-					glm::vec3 world_intersection_point = ray_world_start + t_intersect * (ray_world_end - ray_world_start);
+					intersection_result result = intersect_ray_convex_hull(camera_ray, ch_info->m_data, rb_world_transform);
 
-					rb_mgr.ApplyForce(
-						i,
-						ray_direction * std::clamp(holddown_timer * 500.0f, 0.0f, 1000.0f),
-						world_intersection_point - rb_world_position
-					);
+					if (result.t >= 0.0f)
+					{
+						rb_mgr.ApplyForce(
+							rb_entity,
+							ray_direction * std::clamp(holddown_timer * 500.0f, 0.0f, 1000.0f),
+							 (camera_ray.origin + result.t * camera_ray.dir) - rb_world_position
+						);
+						col_data.m_ch_debug_meshes.at(ch_handle).m_highlight_face_index = result.face_index;
+					}
 				}
 			}
+			//for (size_t i = 0; i < rb_data.m_index_entities.size(); i++)
+			//{
+			//	Entity const rb_entity = rb_data.m_index_entities[i];
+			//	Transform rb_transform = rb_entity.GetComponent<Transform>();
+			//	auto rb_world_transform = rb_transform.ComputeWorldTransform();
+			//	glm::vec3 rb_world_position = rb_world_transform.position;
+			//	glm::vec3 rb_world_scale = rb_world_transform.scale;
+			//	float const max_scale = glm::compMax(rb_world_scale);
+			//	float const sphere_radius = max_scale * 0.5f;
+
+			//	// Perform line-sphere intersection test
+			//	float const A = glm::length2(ray_world_end - ray_world_start);
+			//	float const B = 2.0f * glm::dot(
+			//		ray_world_end - ray_world_start, 
+			//		ray_world_start - rb_world_position
+			//	);
+			//	float const C = glm::length2(ray_world_start) + glm::length2(rb_world_position) - 2 * glm::dot(ray_world_start, rb_world_position) - sphere_radius * sphere_radius;
+
+			//	float const discriminant = B * B - 4.0f * A * C;
+			//	if (discriminant >= 0.0f)
+			//	{
+			//		float const sqrt_discriminant = glm::sqrt(discriminant);
+			//		float t0 = (-B - sqrt_discriminant)/(2.0f*A);
+			//		float t1 = (-B + sqrt_discriminant)/(2.0f * A);
+
+			//		float t_intersect = glm::min(t0, t1);
+			//		glm::vec3 world_intersection_point = ray_world_start + t_intersect * (ray_world_end - ray_world_start);
+
+			//		rb_mgr.ApplyForce(
+			//			i,
+			//			ray_direction * std::clamp(holddown_timer * 500.0f, 0.0f, 1000.0f),
+			//			world_intersection_point - rb_world_position
+			//		);
+			//	}
+			//}
 
 
 			holddown_timer = 0.0f;
