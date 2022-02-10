@@ -166,7 +166,7 @@ void register_resource_loaders()
 
 	resource_type const type_texture = resource_manager.register_type("Texture", dummy_loader, dummy_unloader);
 	resource_type const type_model = resource_manager.register_type("Model", dummy_loader, dummy_unloader);
-	resource_type const type_convex_hull = resource_manager.register_type("Collider", Engine::Physics::LoadConvexHull_OBJ, Engine::Physics::UnloadConvexHull_OBJ);
+	resource_type const type_convex_hull = resource_manager.register_type("Collider", Engine::Physics::LoadConvexHull, Engine::Physics::UnloadConvexHull);
 
 	resource_manager.register_type_extension(type_texture, ".png");
 	resource_manager.register_type_extension(type_texture, ".jpeg");
@@ -175,6 +175,7 @@ void register_resource_loaders()
 	//resource_manager.register_type_extension(type_model, ".obj");
 
 	resource_manager.register_type_extension(type_convex_hull, ".obj");
+	resource_manager.register_type_extension(type_convex_hull, ".cs350");
 }
 
 void update_loop()

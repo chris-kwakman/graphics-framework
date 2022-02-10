@@ -5,6 +5,7 @@
 
 #include <Engine/Utils/singleton.h>
 
+#include <algorithm>
 #include <deque>
 
 namespace Engine {
@@ -388,6 +389,67 @@ namespace Physics {
 		}
 		return new_hull;
 	}
+
+	convex_hull construct_convex_hull(glm::vec3 const* _vertices, size_t const _vertex_count, size_t const _debug_iterations)
+	{
+		if (_vertex_count < 4)
+			return convex_hull();
+
+		using vertex_idx = convex_hull::vertex_idx;
+		using edge_idx = convex_hull::half_edge_idx;
+		using face_idx = convex_hull::face_idx;
+		using edge = convex_hull::half_edge;
+		using face = convex_hull::face;
+
+		convex_hull hull;
+
+		// Create half-edge structure from an initial tetrahedron.
+		// Pick this tetrahedron using a random triangle and an extreme point from this triangle.
+		{
+			glm::vec3 const init_triangle[3] = { _vertices[0], _vertices[1], _vertices[2] };
+			glm::vec3 const init_tri_normal = glm::cross(_vertices[1] - _vertices[0], _vertices[2] - _vertices[0]);
+			vertex_idx extreme_vtx_idx = -1;
+			float maximal_distance = 0.0f;
+
+			for (size_t i = 3; i < _vertex_count; i++)
+			{
+				if (float dot = glm::dot(_vertices[i] - _vertices[0], init_tri_normal); dot > maximal_distance)
+				{
+					maximal_distance = dot;
+					extreme_vtx_idx = i;
+				}
+			}
+
+			vertex_idx const tetrahedron_indices[] = { 0,1,2,extreme_vtx_idx };
+			hull.m_vertices = { _vertices[0], _vertices[1], _vertices[2], _vertices[extreme_vtx_idx] };
+
+			// Create initial tetrahedron faces.
+			for (face_idx i = 0; i < 4; i++)
+			{
+				face new_face;
+				new_face.m_vertices = { tetrahedron_indices[i % 4], tetrahedron_indices[(i + 1) % 4],tetrahedron_indices[(i + 2) % 4] };
+				
+				edge new_edges[3];
+				for (size_t e = 0; e < 3; e++)
+				{
+					new_edges[e].m_edge_face = i;
+					new_edges[e].m_next_edge = hull.m_edges.size() + 1;
+					new_edges[e].m_twin_edge = edge::INVALID_EDGE;
+					new_edges[e].m_vertex = new_face.m_vertices[e];
+				}
+				new_face.m_edges = { (edge_idx)hull.m_edges.size(), (edge_idx)(hull.m_edges.size() + 1), (edge_idx)(hull.m_edges.size() + 2) };
+				hull.m_edges.emplace_back(new_edges);
+				hull.m_faces.emplace_back(std::move(new_face));
+			}
+		}
+
+	}
+
+
+
+
+
+
 
 	ConvexHullManager::convex_hull_info const* ConvexHullManager::GetConvexHullInfo(convex_hull_handle _handle) const
 	{

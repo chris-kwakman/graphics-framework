@@ -62,6 +62,16 @@ namespace Physics {
 		glm::uvec3 const * _face_indices,	size_t _face_count
 	);
 
+	/*
+	@brief	Create a convex hull from a vertex array using a 3D quickhull algorithm.
+	@param		glm::vec3 *			Array of vertices
+	@param		size_t				Size of vertex array
+	@returns	convex_hull
+	*/
+	convex_hull construct_convex_hull(
+		glm::vec3 const* _vertices, size_t const _vertex_count, size_t const _debug_iterations = std::numeric_limits<size_t>::max()
+	);
+
 	class ConvexHullManager
 	{
 		struct convex_hull_info;
