@@ -15,11 +15,10 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <SDL2/SDL.h>
 
-#include <STB/stb_image.h>
-#include <tiny_glft/tiny_gltf.h>
+#include <stb_image.h>
+#include <tiny_gltf.h>
 
-#include <ImGui/imgui.h>
-#include <ImGui/imgui_stdlib.h>
+#include <Engine/Editor/editor.h>
 
 
 namespace Engine {

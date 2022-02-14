@@ -6,7 +6,6 @@
 #include <Engine/Components/Transform.h>
 #include <Engine/Utils/algorithm.h>
 
-#include <ImGuizmo/ImGuizmo.h>
 #include <glm/gtx/matrix_decompose.hpp>
 
 namespace Component

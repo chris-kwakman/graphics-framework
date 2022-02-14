@@ -19,7 +19,7 @@
 
 #include <Demo/Components/PlayerController.h>
 
-#include <STB/stb_image_write.h>
+#include <stb_image_write.h>
 
 #include "LoadScene.h"
 
@@ -27,7 +27,7 @@
 #include <GLM/gtx/quaternion.hpp>
 #include <glm/gtx/euler_angles.hpp>
 
-#include <ImGui/imgui_stdlib.h>
+#include <imgui_stdlib.h>
 
 #include <string>
 #include <math.h>

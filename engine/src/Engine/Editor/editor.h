@@ -2,9 +2,12 @@
 #define ENGINE_EDITOR_H
 
 #include <Engine/ECS/entity.h>
-
 #include <SDL2/SDL_events.h>
-#include <ImGui/imgui.h>
+
+#include "my_imgui_config.h"
+#include <imgui.h>
+#include <imgui_stdlib.h>
+#include <ImGuizmo.h>
 
 namespace Engine {
 namespace Editor {

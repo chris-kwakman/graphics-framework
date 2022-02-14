@@ -5,9 +5,8 @@
 #include <Engine/Components/Camera.h>
 #include <Engine/Components/Nameable.h>
 
+#include <Engine/Editor/editor.h>
 
-#include <ImGui/imgui.h>
-#include <ImGuizmo/ImGuizmo.h>
 #include <SDL2/SDL_scancode.h>
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/matrix_decompose.hpp>

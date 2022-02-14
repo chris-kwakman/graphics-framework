@@ -4,10 +4,7 @@ enable_testing()
 
 project(root)
 
-# Ensure we use proper C++ standard
-set(CMAKE_CXX_STANDARDS 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS ON)
+enable_language(CXX)
 
 add_compile_definitions(_ITERATOR_DEBUG_LEVEL=0)
 

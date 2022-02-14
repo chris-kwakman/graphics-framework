@@ -2,8 +2,9 @@
 #include "Transform.h"
 
 #include <Engine/Physics/integration.h>
+#include <Engine/Editor/editor.h>
 
-#include <ImGui/imgui.h>
+#include <algorithm>
 
 namespace Component
 {
