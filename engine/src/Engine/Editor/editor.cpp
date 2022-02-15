@@ -32,8 +32,12 @@ namespace Editor {
 		ImGuiIO& io = ImGui::GetIO(); (void)io;
 		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
 		//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-		//io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
-		//io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+#ifdef IMGUI_HAS_VIEWPORT
+		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+#endif
+#ifdef IMGUI_HAS_DOCK
+		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
+#endif
 		//io.ConfigViewportsNoAutoMerge = true;
 		//io.ConfigViewportsNoTaskBarIcon = true;
 	}
@@ -48,11 +52,14 @@ namespace Editor {
 
 		// When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
 		ImGuiStyle& style = ImGui::GetStyle();
-		//if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-		//{
+#ifdef IMGUI_HAS_VIEWPORT
+		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+		{  
 			style.WindowRounding = 0.0f;
 			style.Colors[ImGuiCol_WindowBg].w = 0.75f;
-		//}
+		}
+#endif // IMGUI_HAS_VIEWPORT
+
 
 		//io.Fonts->AddFontDefault();
 		io.Fonts->AddFontFromFileTTF("data/fonts/Roboto-Medium.ttf", 16.0f);
@@ -113,14 +120,17 @@ namespace Editor {
 		//// Update and Render additional Platform Windows
 		//// (Platform functions may change the current OpenGL context, so we save/restore it to make it easier to paste this code elsewhere.
 		////  For this specific demo app we could also call SDL_GL_MakeCurrent(window, gl_context) directly)
-		//if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-		//{
-		//	SDL_Window* backup_current_window = SDL_GL_GetCurrentWindow();
-		//	SDL_GLContext backup_current_context = SDL_GL_GetCurrentContext();
-		//	ImGui::UpdatePlatformWindows();
-		//	ImGui::RenderPlatformWindowsDefault();
-		//	SDL_GL_MakeCurrent(backup_current_window, backup_current_context);
-		//}
+#ifdef IMGUI_HAS_VIEWPORT
+		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+		{
+			SDL_Window* backup_current_window = SDL_GL_GetCurrentWindow();
+			SDL_GLContext backup_current_context = SDL_GL_GetCurrentContext();
+			ImGui::UpdatePlatformWindows();
+			ImGui::RenderPlatformWindowsDefault();
+			SDL_GL_MakeCurrent(backup_current_window, backup_current_context);
+		}
+#endif // IMGUI_HAS_VIEWPORT
+
 	}
 
 	///////////////////////////////////////////////////

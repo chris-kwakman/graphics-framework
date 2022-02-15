@@ -9,7 +9,13 @@
       "cmakeCommandArgs": "",
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
-      "variables": [],
+      "variables": [
+        {
+          "name": "X_VCPKG_APPLOCAL_DEPS_INSTALL",
+          "value": "True",
+          "type": "BOOL"
+        }
+      ],
       "cmakeToolchain": ""
     },
     {
@@ -21,7 +27,13 @@
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
       "inheritEnvironments": [ "msvc_x64_x64" ],
-      "variables": [],
+      "variables": [
+        {
+          "name": "X_VCPKG_APPLOCAL_DEPS_INSTALL",
+          "value": "True",
+          "type": "BOOL"
+        }
+      ],
       "cmakeToolchain": ""
     }
   ]

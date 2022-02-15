@@ -469,7 +469,7 @@ namespace Sandbox
 		if (ImGui::Begin("Ambient Occlusion"))
 		{
 			ImGui::DragFloat("Radius Scale", &s_ambient_occlusion.radius_scale, 0.01f, 0.0f, 10.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
-			ImGui::SliderFloat("Angle Bias", &s_ambient_occlusion.angle_bias, 0.0f, M_PI / 2, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+			ImGui::SliderFloat("Angle Bias", &s_ambient_occlusion.angle_bias, 0.0f, glm::pi<float>() / 2.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
 			ImGui::DragFloat("Attenuation Scale", &s_ambient_occlusion.attenuation_scale, 0.01f, 0.0f, 1.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 			ImGui::DragFloat("AO Scale", &s_ambient_occlusion.ao_scale, 0.01f, 0.0f, 1.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 			ImGui::SliderInt("Sample Directions", &s_ambient_occlusion.sample_directions, 1, 16, "%d", ImGuiSliderFlags_AlwaysClamp);
@@ -642,42 +642,6 @@ namespace Sandbox
 					}
 				}
 			}
-			//for (size_t i = 0; i < rb_data.m_index_entities.size(); i++)
-			//{
-			//	Entity const rb_entity = rb_data.m_index_entities[i];
-			//	Transform rb_transform = rb_entity.GetComponent<Transform>();
-			//	auto rb_world_transform = rb_transform.ComputeWorldTransform();
-			//	glm::vec3 rb_world_position = rb_world_transform.position;
-			//	glm::vec3 rb_world_scale = rb_world_transform.scale;
-			//	float const max_scale = glm::compMax(rb_world_scale);
-			//	float const sphere_radius = max_scale * 0.5f;
-
-			//	// Perform line-sphere intersection test
-			//	float const A = glm::length2(ray_world_end - ray_world_start);
-			//	float const B = 2.0f * glm::dot(
-			//		ray_world_end - ray_world_start, 
-			//		ray_world_start - rb_world_position
-			//	);
-			//	float const C = glm::length2(ray_world_start) + glm::length2(rb_world_position) - 2 * glm::dot(ray_world_start, rb_world_position) - sphere_radius * sphere_radius;
-
-			//	float const discriminant = B * B - 4.0f * A * C;
-			//	if (discriminant >= 0.0f)
-			//	{
-			//		float const sqrt_discriminant = glm::sqrt(discriminant);
-			//		float t0 = (-B - sqrt_discriminant)/(2.0f*A);
-			//		float t1 = (-B + sqrt_discriminant)/(2.0f * A);
-
-			//		float t_intersect = glm::min(t0, t1);
-			//		glm::vec3 world_intersection_point = ray_world_start + t_intersect * (ray_world_end - ray_world_start);
-
-			//		rb_mgr.ApplyForce(
-			//			i,
-			//			ray_direction * std::clamp(holddown_timer * 500.0f, 0.0f, 1000.0f),
-			//			world_intersection_point - rb_world_position
-			//		);
-			//	}
-			//}
-
 
 			holddown_timer = 0.0f;
 		}
@@ -692,14 +656,6 @@ namespace Sandbox
 
 		auto& res_mgr = Singleton<Engine::Graphics::ResourceManager>();
 		auto& input_manager = Singleton<Engine::Managers::InputManager>();
-
-		//// Apply gravitational force to all objects
-		//auto& rb_data = Singleton<Component::RigidBodyManager>().m_rigidbodies_data;
-		//for (size_t i = 0; i < rb_data.size(); i++)
-		//{
-		//	float mass = rb_data.m_inv_masses[i] <= 0.0f ? 0.0f : 1.0f / rb_data.m_inv_masses[i];
-		//	rb_data.m_forces[i] += glm::vec3(0.0f, -9.81f, 0.0f) * mass;
-		//}
 
 		DummyEditorRender();
 

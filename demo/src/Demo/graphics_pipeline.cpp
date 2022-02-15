@@ -360,7 +360,7 @@ namespace Sandbox
 				clamped_angle_treshhold = clamped_angle_treshhold > 90.0f ? 90.0f : clamped_angle_treshhold;
 				res_mgr.SetBoundProgramUniform(
 					LOC_DECAL_ANGLE_TRESHHOLD,
-					clamped_angle_treshhold * ((float)M_PI / 180.0f)
+					clamped_angle_treshhold * (glm::pi<float>() / 180.0f)
 				);
 
 				for (auto decal_pair : all_decals)

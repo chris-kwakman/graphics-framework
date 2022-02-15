@@ -690,7 +690,7 @@ namespace Component
         }
         ImGui::SliderFloat("Blend Parameter", &m_blend_parameter, slider_left, slider_right, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 
-        float avail_width = ImGui::GetContentRegionAvailWidth();
+        float avail_width = ImGui::GetContentRegionAvail().x;
         ImGui::SetNextItemWidth(avail_width * 0.9f);
         ImGui::Indent(avail_width * 0.05f);
         if (ImGui::Button("Edit Blend Mask"))
@@ -1615,7 +1615,7 @@ void SkeletonAnimatorManager::window_edit_blendtree(std::unique_ptr<animation_tr
             bool table_began = ImGui::BeginTable(
                 "Skin Joints", 2, 
                 ImGuiTableFlags_BordersH | ImGuiTableFlags_ScrollY, 
-                glm::vec2(ImGui::GetContentRegionAvailWidth(), window_size.y * 0.3f)
+                glm::vec2(ImGui::GetContentRegionAvail().x, window_size.y * 0.3f)
             );
             if (table_began)
             {

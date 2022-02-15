@@ -28,24 +28,28 @@ find_package(imgui CONFIG REQUIRED)
 find_package(imguizmo CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
+# Create header only library
 find_path(TINYGLTF_INCLUDE_DIRS "tiny_gltf.h")
 find_path(STB_INCLUDE_DIRS "stb.h")
+add_library(header_only_lib INTERFACE)
+target_include_directories(header_only_lib INTERFACE ${TINYGLTF_INCLUDE_DIRS} ${STB_INCLUDE_DIRS})
 
-target_include_directories(Engine PUBLIC ${TINYGLTF_INCLUDE_DIRS})
-target_include_directories(Engine PUBLIC ${STB_INCLUDE_DIRS})
-
-target_link_libraries(Engine PUBLIC 
+#target_include_directories(Engine PUBLIC ${TINYGLTF_INCLUDE_DIRS} ${STB_INCLUDE_DIRS})
+target_link_libraries(Engine 
+PUBLIC 
 	GLEW::GLEW
 	SDL2::SDL2 SDL2::SDL2main
 	glm::glm
 	imgui::imgui
 	imguizmo::imguizmo
 	nlohmann_json nlohmann_json::nlohmann_json
+PRIVATE
+	header_only_lib
 )
 
 # Set proper C++ version
 
-target_compile_features(Engine PUBLIC cxx_std_17)
+target_compile_features(Engine PUBLIC cxx_std_20)
 set_target_properties(Engine PROPERTIES CXX_STANDARD_REQUIRED ON)
 set_target_properties(Engine PROPERTIES CXX_EXTENSIONS OFF)
 

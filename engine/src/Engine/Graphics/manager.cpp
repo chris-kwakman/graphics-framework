@@ -16,7 +16,6 @@
 #include <SDL2/SDL.h>
 
 #include <stb_image.h>
-#include <tiny_gltf.h>
 
 #include <Engine/Editor/editor.h>
 
