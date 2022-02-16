@@ -3,8 +3,8 @@
 
 #include <Engine/Math/Transform3D.h>
 #include <unordered_map>
-#include <GL/glew.h>
-#include <tiny_glft/tiny_gltf.h>
+#include <gl/glew.h>
+#include <tiny_gltf.h>
 
 #include <Engine/Utils/filesystem.h>
 
