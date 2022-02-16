@@ -71,6 +71,9 @@ namespace Physics {
 	convex_hull construct_convex_hull(
 		glm::vec3 const* _vertices, size_t const _vertex_count, size_t const _debug_iterations = std::numeric_limits<size_t>::max()
 	);
+	convex_hull construct_convex_hull(
+		uint32_t _point_hull_handle, size_t const _debug_iterations = std::numeric_limits<size_t>::max()
+	);
 
 	class ConvexHullManager
 	{
@@ -92,5 +95,13 @@ namespace Physics {
 		convex_hull_handle RegisterConvexHull(convex_hull&& _hull, std::string _name);
 		void DeleteConvexHull(convex_hull_handle _handle);
 	};
+
+	/*
+	* @brief	View convex hull data in imgui widget
+	* @param	convex_hull *	Convex hull data
+	*/
+	void DisplayConvexHullDataDebug(
+		convex_hull const* _hull
+	);
 }
 }

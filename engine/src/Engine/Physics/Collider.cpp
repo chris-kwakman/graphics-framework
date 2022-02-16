@@ -112,6 +112,15 @@ namespace Component
 			}
 
 		}
+
+		static bool display_debug_data = false;
+		ImGui::Checkbox("Display Debug Data", &display_debug_data);
+		if (display_debug_data)
+		{
+			Engine::Physics::DisplayConvexHullDataDebug(
+				&Singleton<ConvexHullManager>().GetConvexHullInfo(current_ch_handle)->m_data
+			);
+		}
 	}
 	void ColliderManager::impl_deserialize_data(nlohmann::json const& _j)
 	{

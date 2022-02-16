@@ -15,8 +15,8 @@ namespace Physics {
 		auto ext = _path.extension();
 		if (ext == ".obj")
 			return LoadConvexHull_OBJ(_path);
-		else if (ext == ".cs350")
-			return LoadConvexHull_CS350(_path);
+		//else if (ext == ".cs350")
+		//	return LoadConvexHull_CS350(_path);
 		else
 			return 0;
 	}
@@ -108,61 +108,6 @@ namespace Physics {
 			&vertices.front(), vertices.size(),
 			&face_vertex_indices.front(), face_vertex_indices.size()
 		);
-
-		return Singleton<ConvexHullManager>().RegisterConvexHull(std::move(new_hull), name);
-	}
-
-	uint32_t LoadConvexHull_CS350(fs::path const& _path)
-	{
-		if (!fs::exists(_path))
-			return 0;
-
-		std::fstream in_file(_path);
-		if (!in_file.is_open())
-			return 0;
-
-		std::string name = _path.string();
-
-		size_t tri_count = 0;
-		float vertex_coords[9];
-
-		in_file >> tri_count;
-
-		if (tri_count % 3 != 0)
-			return 0;
-
-		std::vector<glm::vec3> vertices(tri_count * 3);
-
-		for (size_t i = 0; i < tri_count; i++)
-		{
-			for (size_t j = 0; j < 9; j++)
-			{
-				in_file >> vertex_coords[j];
-			}
-			glm::vec3 const * tri_vertices = (glm::vec3*)vertex_coords;
-			for (size_t j = 0; j < 3; j++)
-			{
-				vertices[(3*i)+j] = tri_vertices[j];
-			}
-		}
-	
-		// Merge similar vertices
-
-		size_t duplicate_vertices = 0;
-		for (size_t i = 0; i < vertices.size() - duplicate_vertices; i++)
-		{
-			for (size_t j = i+1; j < vertices.size() - duplicate_vertices; j++)
-			{
-				if (glm::all(glm::epsilonEqual(vertices[i], vertices[j], 0.0001f)))
-				{
-					std::swap(vertices[j], vertices.back());
-					duplicate_vertices++;
-				}
-			}
-		}
-
-
-		convex_hull new_hull = Engine::Physics::construct_convex_hull(&vertices.front(), vertices.size() - duplicate_vertices);
 
 		return Singleton<ConvexHullManager>().RegisterConvexHull(std::move(new_hull), name);
 	}

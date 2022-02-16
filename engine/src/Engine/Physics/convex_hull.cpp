@@ -4,9 +4,12 @@
 #include <glm/gtc/epsilon.hpp>
 
 #include <Engine/Utils/singleton.h>
+#include <Engine/Physics/point_hull.h>
 
 #include <algorithm>
 #include <deque>
+
+#include <imgui.h>
 
 namespace Engine {
 namespace Physics {
@@ -438,14 +441,21 @@ namespace Physics {
 					new_edges[e].m_vertex = new_face.m_vertices[e];
 				}
 				new_face.m_edges = { (edge_idx)hull.m_edges.size(), (edge_idx)(hull.m_edges.size() + 1), (edge_idx)(hull.m_edges.size() + 2) };
-				hull.m_edges.emplace_back(new_edges);
+				hull.m_edges.emplace_back(new_edges[0]);
+				hull.m_edges.emplace_back(new_edges[1]);
+				hull.m_edges.emplace_back(new_edges[2]);
 				hull.m_faces.emplace_back(std::move(new_face));
 			}
 		}
 
 	}
 
-
+	convex_hull construct_convex_hull(uint32_t _point_hull_handle, size_t const _debug_iterations)
+	{
+		point_hull const * hull = Singleton<PointHullManager>().GetPointHull(_point_hull_handle);
+		assert(hull);
+		return construct_convex_hull(&hull->m_points.front(), hull->m_points.size(), _debug_iterations);
+	}
 
 
 
@@ -472,6 +482,97 @@ namespace Physics {
 	void ConvexHullManager::DeleteConvexHull(convex_hull_handle _handle)
 	{
 		m_map.erase(_handle);
+	}
+
+	void DisplayConvexHullDataDebug(convex_hull const* _hull)
+	{
+		static int set_scroll_idx_edges = -1, set_scroll_idx_faces = -1;
+
+		ImGuiTableFlags const table_flags = ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_Hideable | ImGuiTableFlags_ScrollY;
+
+		if (ImGui::BeginTable("Edges", 6, table_flags,
+			glm::vec2(ImGui::GetWindowContentRegionWidth(), ImGui::GetTextLineHeightWithSpacing() * 10.0f)
+		))
+		{
+			ImGui::TableSetupColumn("Edge IDX", ImGuiTableColumnFlags_WidthFixed);
+			ImGui::TableSetupColumn("Next Edge IDX");
+			ImGui::TableSetupColumn("Twin Edge IDX");
+			ImGui::TableSetupColumn("Face IDX");
+			ImGui::TableSetupColumn("Vertex IDX");
+			ImGui::TableSetupColumn("Vertex");
+			ImGui::TableHeadersRow();
+
+			for (size_t edge_idx = 0; edge_idx < _hull->m_edges.size(); edge_idx++)
+			{
+				convex_hull::half_edge const& edge = _hull->m_edges[edge_idx];
+				ImGui::TableNextRow();
+				ImGui::TableNextColumn();
+				ImGui::Text("%u", edge_idx);
+				ImGui::TableNextColumn();
+				ImGui::Text("%u", edge.m_next_edge);
+				if (ImGui::IsItemClicked())
+					set_scroll_idx_edges = edge.m_next_edge;
+				ImGui::TableNextColumn();
+				ImGui::Text("%u", edge.m_twin_edge);
+				if (ImGui::IsItemClicked())
+					set_scroll_idx_edges = edge.m_twin_edge;
+				ImGui::TableNextColumn();
+				ImGui::Text("%u", edge.m_edge_face);
+				if (ImGui::IsItemClicked())
+					set_scroll_idx_faces = edge.m_edge_face;
+				ImGui::TableNextColumn();
+				ImGui::Text("%u", edge.m_vertex);
+				ImGui::TableNextColumn();
+				glm::vec3 const vtx = _hull->m_vertices[edge.m_vertex];
+				ImGui::Text("%.3f,%.3f,%.3f", vtx.x, vtx.y, vtx.z);
+				if(set_scroll_idx_edges == edge_idx)
+				{
+					set_scroll_idx_edges = -1;
+					ImGui::SetScrollHereY(1.0f);
+				}
+			}
+			ImGui::EndTable();
+		}
+		if (ImGui::BeginTable("Faces", 3, table_flags,
+			glm::vec2(ImGui::GetWindowContentRegionWidth(), ImGui::GetTextLineHeightWithSpacing() * 10.0f)
+		))
+		{
+			ImGui::TableSetupColumn("Face IDX", ImGuiTableColumnFlags_WidthFixed);
+			ImGui::TableSetupColumn("Edges");
+			ImGui::TableSetupColumn("Vertices");
+			ImGui::TableHeadersRow();
+
+			for (size_t face_idx = 0; face_idx < _hull->m_faces.size(); face_idx++)
+			{
+				convex_hull::face const& face = _hull->m_faces[face_idx];
+
+				ImGui::TableNextRow();
+				ImGui::TableNextColumn();
+				ImGui::Text("%u", face_idx);
+				ImGui::TableNextColumn();
+				char buffer[4096];
+				{
+					size_t chars_written = 0;
+					for (size_t i = 0; i < face.m_edges.size(); i++)
+						chars_written += snprintf(buffer + chars_written, sizeof(buffer) - chars_written, "%u,", face.m_edges[i]);
+					ImGui::TextUnformatted(buffer, buffer + chars_written);
+				}
+				ImGui::TableNextColumn();
+				{
+					size_t chars_written = 0;
+					for (size_t i = 0; i < face.m_vertices.size(); i++)
+						chars_written += snprintf(buffer + chars_written, sizeof(buffer) - chars_written, "%u,", face.m_vertices[i]);
+					ImGui::TextUnformatted(buffer, buffer + chars_written);
+				}
+				if (set_scroll_idx_faces == face_idx)
+				{
+					set_scroll_idx_faces = -1;
+					ImGui::SetScrollHereY(1.0f);
+				}
+			}
+			ImGui::EndTable();
+		}
+
 	}
 }
 }
