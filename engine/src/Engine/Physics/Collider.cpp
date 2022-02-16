@@ -1,7 +1,7 @@
 #include "Collider.h"
 #include <Engine/Graphics/misc/create_convex_hull_mesh.h>
 
-#include <ImGui/imgui_stdlib.h>
+#include <Engine/Editor/editor.h>
 
 namespace Component
 {

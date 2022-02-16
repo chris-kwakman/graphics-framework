@@ -15,11 +15,9 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <SDL2/SDL.h>
 
-#include <STB/stb_image.h>
-#include <tiny_glft/tiny_gltf.h>
+#include <stb_image.h>
 
-#include <ImGui/imgui.h>
-#include <ImGui/imgui_stdlib.h>
+#include <Engine/Editor/editor.h>
 
 
 namespace Engine {
@@ -2040,11 +2038,11 @@ namespace Graphics {
 		{
 			partial_name_matches.clear();
 			std::string search_lowercase = s_search_bar;
-			std::for_each(search_lowercase.begin(), search_lowercase.end(), [](char& _c)->char {return std::tolower(_c); });
+			for (char& c : search_lowercase) c = std::tolower(c);
 			for (auto const & pair : m_named_mesh_map)
 			{
-				std::string mesh_name_lowercase = pair.first;;
-				std::for_each(mesh_name_lowercase.begin(), mesh_name_lowercase.end(), [](char& _c)->char {return std::tolower(_c); });
+				std::string mesh_name_lowercase = pair.first;
+				for (char& c : mesh_name_lowercase) c = std::tolower(c);
 				size_t result = mesh_name_lowercase.find(search_lowercase);
 				if (result != std::string::npos)
 					partial_name_matches.emplace(pair);

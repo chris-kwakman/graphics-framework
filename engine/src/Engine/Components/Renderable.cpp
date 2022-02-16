@@ -3,8 +3,7 @@
 #include <Engine/Utils/logging.h>
 #include "Transform.h"
 
-#include <ImGui/imgui.h>
-#include <ImGui/imgui_stdlib.h>
+#include <Engine/Editor/editor.h>
 
 namespace Component
 {

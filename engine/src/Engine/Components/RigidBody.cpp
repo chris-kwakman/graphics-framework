@@ -2,8 +2,9 @@
 #include "Transform.h"
 
 #include <Engine/Physics/integration.h>
+#include <Engine/Editor/editor.h>
 
-#include <ImGui/imgui.h>
+#include <algorithm>
 
 namespace Component
 {
@@ -166,7 +167,7 @@ namespace Component
 					{
 						ImGui::PushID(3 * j + i);
 						ImGui::TableNextColumn();
-						ImGui::SetNextItemWidth(ImGui::GetContentRegionAvailWidth());
+						ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 						modified |= ImGui::InputFloat("##flt_input", &_edit[j][i], 0.0f, 0.0f, "%.3f", ImGuiInputTextFlags_EnterReturnsTrue);
 						ImGui::PopID();
 					}

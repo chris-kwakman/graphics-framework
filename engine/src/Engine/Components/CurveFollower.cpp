@@ -1,7 +1,9 @@
 #include "CurveFollower.h"
 #include "Transform.h"
 #include <algorithm>
-#include <ImGui/imgui_stdlib.h>
+#include <Engine/Editor/editor.h>
+
+#include <glm/gtc/constants.hpp>
 
 namespace Component
 {

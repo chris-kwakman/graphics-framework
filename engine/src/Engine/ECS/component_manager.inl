@@ -2,7 +2,7 @@
 #include <typeinfo>
 #include "entity.h"
 
-#include <ImGui/imgui.h>
+#include <imgui.h>
 
 #include <Engine/Serialisation/scene.h>
 

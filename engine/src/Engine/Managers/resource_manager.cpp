@@ -1,9 +1,7 @@
 
 #include "resource_manager.h"
 
-#include <ImGui/imgui.h>
-#include <ImGui/imgui_stdlib.h>
-
+#include <Engine/Editor/editor.h>
 #include <Engine/Utils/singleton.h>
 
 namespace Engine {

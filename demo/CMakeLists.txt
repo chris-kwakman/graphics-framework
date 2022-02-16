@@ -6,32 +6,27 @@ get_filename_component(SRC_DIR "src" ABSOLUTE)
 #add_subdirectory(${PARENT_DIR}/engine Engine)
 
 link_directories(../lib/${CMAKE_BUILD_TYPE})
-include_directories(
-	"${PARENT_DIR}/include"
-	"${PARENT_DIR}/engine/src"
-	"src/"
-)
 
 # Include all necessary .cpp files from includes
 
 # Get demo .cpp files for compilation
 file(GLOB_RECURSE DEMO_CPP_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp)
-# Get include .cpp files for compilation
-file(GLOB IMGUI_CPP ${PARENT_DIR}/include/ImGui/*.cpp)
-set(IMGUIZMO_CPP ${PARENT_DIR}/include/ImGuizmo/ImGuizmo.cpp)
-#file(GLOB_RECURSE INCLUDE_CPP_FILES ${PARENT_DIR}/include/*.cpp)
 
 list(APPEND LIST_CPP_FILES ${DEMO_CPP_FILES})
-list(APPEND LIST_CPP_FILES ${IMGUI_CPP})
-list(APPEND LIST_CPP_FILES ${IMGUIZMO_CPP})
 
 add_executable(${PROJECT_NAME} ${LIST_CPP_FILES})
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
 target_link_libraries(${PROJECT_NAME} 
 	PUBLIC Engine
-	PUBLIC opengl32 glew32 SDL2 SDL2main
 )
+target_include_directories(Demo PUBLIC "src/")
 
 install(TARGETS ${PROJECT_NAME} DESTINATION ${PROJECT_SOURCE_DIR}/bin/${CMAKE_BUILD_TYPE}/)
+
+# Set proper C++ version
+
+target_compile_features(Demo PUBLIC cxx_std_20)
+set_target_properties(Demo PROPERTIES CXX_STANDARD_REQUIRED ON)
+set_target_properties(Demo PROPERTIES CXX_EXTENSIONS OFF)
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")

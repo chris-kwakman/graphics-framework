@@ -35,9 +35,12 @@ target_link_libraries(
   ${PROJECT_NAME}
   gtest_main
   Engine
-  opengl32 glew32 SDL2 SDL2main
 )
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
+
+target_compile_features(Tests PUBLIC cxx_std_20)
+set_target_properties(Tests PROPERTIES CXX_STANDARD_REQUIRED ON)
+set_target_properties(Tests PROPERTIES CXX_EXTENSIONS OFF)
 
 install(TARGETS ${PROJECT_NAME} DESTINATION ${PROJECT_SOURCE_DIR}/bin/${CMAKE_BUILD_TYPE}/)
 
