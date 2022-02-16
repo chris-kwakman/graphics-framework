@@ -533,9 +533,9 @@ namespace Sandbox
 						if (!s_search_input.empty())
 						{
 							std::string lower_case_search_input = s_search_input;
-							std::for_each(lower_case_search_input.begin(), lower_case_search_input.end(), [](char& _c)->char {return std::tolower(_c); });
+							for (char& c : lower_case_search_input) c = std::tolower(c);
 							std::string lower_case_comp_name;
-							std::for_each(lower_case_comp_name.begin(), lower_case_comp_name.end(), [](char& _c)->char {return std::tolower(_c); });
+							for (char& c : lower_case_comp_name) c = std::tolower(c);
 							size_t result = lower_case_comp_name.find(lower_case_search_input);
 							if (result != std::string::npos)
 								show_component = true;
