@@ -35,7 +35,6 @@ target_link_libraries(
   ${PROJECT_NAME}
   gtest_main
   Engine
-  opengl32 glew32 SDL2 SDL2main
 )
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
 

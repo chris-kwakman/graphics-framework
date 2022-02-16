@@ -13,6 +13,4 @@ endif()
 add_subdirectory(engine framework_engine)
 
 add_subdirectory(demo framework_demo)
-
-#enable_testing()
-#add_subdirectory(tests framework_tests)
+add_subdirectory(tests framework_tests)
