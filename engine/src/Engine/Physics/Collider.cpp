@@ -5,6 +5,12 @@
 
 namespace Component
 {
+	Engine::Physics::convex_hull const* Component::Collider::GetConvexHull() const
+	{
+		auto const handle = GetManager().m_data.m_entity_map[Owner()].Handle();
+		return &Singleton<Engine::Physics::ConvexHullManager>().GetConvexHullInfo(handle)->m_data;
+	}
+
 	const char* ColliderManager::GetComponentTypeName() const
 	{
 		return "Collider";

@@ -16,6 +16,8 @@ namespace Component
 	struct Collider : public IComp<ColliderManager>
 	{
 		DECLARE_COMPONENT(Collider);
+
+		Engine::Physics::convex_hull const * GetConvexHull() const;
 	};
 
 	class ColliderManager : public TCompManager<Collider>
