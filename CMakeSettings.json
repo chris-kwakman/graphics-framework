@@ -14,9 +14,14 @@
           "name": "X_VCPKG_APPLOCAL_DEPS_INSTALL",
           "value": "True",
           "type": "BOOL"
+        },
+        {
+          "name": "VCPKG_MANIFEST_MODE",
+          "value": "True",
+          "type": "BOOL"
         }
       ],
-      "cmakeToolchain": ""
+      "cmakeToolchain": "C:/Users/c.kwakman/dev/vcpkg/scripts/buildsystems/vcpkg.cmake"
     },
     {
       "name": "x64-Release",
