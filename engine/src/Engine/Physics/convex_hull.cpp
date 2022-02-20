@@ -285,6 +285,9 @@ namespace Physics {
 		auto get_next_index = [&](half_edge_idx _edge)->half_edge_idx& {return _ch.m_edges[_edge].m_next_edge; };
 		auto get_face_index = [&](half_edge_idx _edge)->face_idx& {return _ch.m_edges[_edge].m_edge_face; };
 
+		// Re-generate face data from existing edge data.
+		_ch.m_faces.clear();
+
 		// Mark all vertices found in existing edges as existing.
 		for (half_edge_idx edge_idx = 0; edge_idx < _ch.m_edges.size(); edge_idx++)
 		{
@@ -613,6 +616,41 @@ namespace Physics {
 		// Create half-edge structure from an initial tetrahedron.
 		// Pick this tetrahedron using a random triangle and an extreme point from this triangle.
 		{
+			//TODO: Create largest possible initial tetrahedron rather than taking a
+			// random triangle and picking the furthest vertex.
+
+			//// Get vertices in maximum directions along all axes.
+			//struct axis_max_vertex
+			//{
+			//	float		abs_distance = -std::numeric_limits<float>::max();
+			//	vertex_idx	vertex = -1;
+			//};
+			//axis_max_vertex maximal_vertices[6];
+			//for (vertex_idx v = 0; v < _vertex_count; v++)
+			//{
+			//	for (int i = 0; i < 6; i++)
+			//	{
+			//		float sign = float(-1+2*(i % 2));
+			//		if (float dist = _vertices[v][i / 2]; sign * dist > maximal_vertices[i].abs_distance)
+			//		{
+			//			maximal_vertices[i].abs_distance = sign * dist;
+			//			maximal_vertices[i].vertex = v;
+			//		}
+			//	}
+			//}
+			//int max_axis = 0;
+			//float max_dist = 0.0f;
+			//for (size_t i = 0; i < 3; i++)
+			//{
+			//	float new_dist = maximal_vertices[2 * i + 1].abs_distance - maximal_vertices[2 * i].abs_distance;
+			//	if (new_dist > max_dist)
+			//	{
+			//		max_axis = i;
+			//		max_dist = new_dist;
+			//	}
+			//}
+
+
 			glm::vec3 const init_triangle[3] = { _vertices[0], _vertices[1], _vertices[2] };
 			glm::vec3 const init_tri_normal = glm::cross(_vertices[1] - _vertices[0], _vertices[2] - _vertices[0]);
 			vertex_idx extreme_vtx_idx = -1;
@@ -680,7 +718,7 @@ namespace Physics {
 		conflict_queue vertex_conflicts_queue = create_hull_conflict_lists(hull, face_conflict_lists, existing_vertices);
 
 		// Resolve conflicts
-		while (!vertex_conflicts_queue.empty() && (_debug_iterations--) > 0)
+		while (!vertex_conflicts_queue.empty() && _debug_iterations > 0)
 		{
 			conflict_info ci = vertex_conflicts_queue.top();
 			vertex_conflicts_queue.pop();
@@ -689,6 +727,8 @@ namespace Physics {
 			// (i.e. vertex involved in conflict has been re-partitioned to a new face).
 			if (!existing_vertices[ci.vertex] || !existing_faces[ci.face])
 				continue;
+
+			_debug_iterations -= 1;
 
 			// Find the horizon of the current point
 			// I.e. find the sequence of edges from which new faces to the current point must be made).
@@ -724,10 +764,12 @@ namespace Physics {
 				{
 					if (visited_faces.find(hull.m_edges[twin_edge].m_edge_face) == visited_faces.end())
 					{
-						glm::vec3 const twin_face_normal = hull.compute_normal(hull.m_edges[twin_edge].m_edge_face);
+						glm::vec3 const twin_face_normal = glm::normalize(hull.compute_normal(hull.m_edges[twin_edge].m_edge_face));
 						// If twin face is not visible from current conflict point,
 						// we have reached a horizon edge.
-						if (glm::dot(cf_normal, twin_face_normal) < 0.0f)
+						glm::vec3 const point = hull.m_vertices[ci.vertex];
+						glm::vec3 const proj_point = project_point_to_plane(hull.m_vertices[hull.m_edges[twin_edge].m_vertex], twin_face_normal, point);
+						if (glm::dot(point - proj_point, twin_face_normal) < 0.0f)
 						{
 							horizon_edges.emplace_back(curr_face_frame.face_iter_edge);
 						}
@@ -759,6 +801,8 @@ namespace Physics {
 			// Create triangle faces from horizon edges and conflict point.
 			for (edge_idx const horizon_edge_idx : horizon_edges)
 			{
+				existing_edges[horizon_edge_idx] = false;
+
 				face_idx const new_face_idx = hull.m_faces.size();
 				edge_idx const new_edge_idx = hull.m_edges.size();
 				face new_face;
@@ -872,8 +916,6 @@ namespace Physics {
 			existing_faces,
 			face_normals
 		);
-
-		hull.m_faces.clear();
 
 		delete_unused_convex_hull_features(
 			hull,
