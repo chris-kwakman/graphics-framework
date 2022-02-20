@@ -42,10 +42,10 @@ namespace Managers {
 	{
 		if (ID() == 0)
 			return "Null";
-		else
-		{
+		else if (Singleton<Engine::Managers::ResourceManager>().is_resource_registered(ID()))
 			return Singleton<Engine::Managers::ResourceManager>().get_resource_path(ID()).string();
-		}
+		else
+			return "Null";
 	}
 
 	void ResourceManager::ImportSceneResources(nlohmann::json const& _scene_resources)
@@ -240,6 +240,18 @@ void ResourceManager::TryDragDropFile(fs::path _path)
 	{
 		m_drag_dropped_file_path = _path;
 	}
+}
+
+Resource ResourceManager::GetResourceFromID(resource_id _id) const
+{
+	if (is_resource_registered(_id))
+	{
+		resource_typeid res_typeid;
+		res_typeid.m_id = _id;
+		res_typeid.m_type = get_resource_type(_id);
+		return Resource(res_typeid);
+	}
+	return Resource();
 }
 
 void from_json(nlohmann::json const& _j, Resource& _v)

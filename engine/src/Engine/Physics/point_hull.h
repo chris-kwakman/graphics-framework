@@ -13,6 +13,8 @@ namespace Physics {
 		std::vector<glm::vec3> m_points;
 	};
 
+	std::vector<glm::vec3> load_point_hull_vertices(fs::path const& _path);
+
 	uint32_t LoadPointHull(fs::path const& _path);
 	void UnloadPointHull(uint32_t _handle);
 

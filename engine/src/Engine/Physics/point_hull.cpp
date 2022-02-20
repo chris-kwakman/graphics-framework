@@ -7,19 +7,9 @@ namespace Engine {
 namespace Physics {
 
 
-	uint32_t LoadPointHull(fs::path const& _path)
+	std::vector<glm::vec3> load_point_hull_vertices(fs::path const& _path)
 	{
-		if (!fs::exists(_path))
-			return 0;
-
-		if (!fs::exists(_path))
-			return 0;
-
 		std::fstream in_file(_path);
-		if (!in_file.is_open())
-			return 0;
-
-		std::string name = _path.string();
 
 		size_t tri_count = 0;
 		float vertex_coords[9];
@@ -57,8 +47,28 @@ namespace Physics {
 			}
 		}
 
+		vertices.erase(vertices.end() - duplicate_vertices, vertices.end());
+		return vertices;
+	}
+
+	uint32_t LoadPointHull(fs::path const& _path)
+	{
+		if (!fs::exists(_path))
+			return 0;
+
+		if (!fs::exists(_path))
+			return 0;
+
+		std::fstream in_file(_path);
+		if (!in_file.is_open())
+			return 0;
+
+		std::string name = _path.string();
+
+		auto vertices = load_point_hull_vertices(_path);
+
 		point_hull new_hull;
-		new_hull.m_points.insert(new_hull.m_points.begin(), vertices.begin(), vertices.end() - duplicate_vertices);
+		new_hull.m_points.insert(new_hull.m_points.begin(), vertices.begin(), vertices.end());
 
 		return Singleton<PointHullManager>().RegisterPointHull(std::move(new_hull));
 	}

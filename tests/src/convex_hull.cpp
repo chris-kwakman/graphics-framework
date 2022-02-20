@@ -342,3 +342,98 @@ TEST(ConvexHull, MergeColinearEdges3)
 	EXPECT_EQ(new_hull.m_edges.size(), 9);
 	EXPECT_EQ(new_hull.m_vertices.size(), 7);
 }
+
+TEST(PointHull, Tetrahedron)
+{
+	using v3 = glm::vec3;
+	v3 const vertices[] = {
+		v3(0,0,0),
+		v3(1,0,0),
+		v3(0,1,0),
+		v3(0,0,1)
+	};
+
+	convex_hull new_hull = construct_convex_hull(
+		vertices, sizeof(vertices) / sizeof(glm::vec3)
+	);
+
+	EXPECT_EQ(new_hull.m_faces.size(), 4);
+	EXPECT_EQ(new_hull.m_edges.size(), 12);
+	EXPECT_EQ(new_hull.m_vertices.size(), 4);
+}
+
+TEST(PointHull, Cube)
+{
+	using v3 = glm::vec3;
+	v3 const vertices[] = {
+		v3(0,0,0),
+		v3(1,0,0),
+		v3(0,1,0),
+		v3(0,0,1),
+		v3(1,1,1),
+		v3(0,1,1),
+		v3(1,0,1),
+		v3(1,1,0)
+	};
+
+	convex_hull new_hull = construct_convex_hull(
+		vertices, sizeof(vertices) / sizeof(glm::vec3)
+	);
+
+	EXPECT_EQ(new_hull.m_faces.size(), 6);
+	EXPECT_EQ(new_hull.m_edges.size(), 4*6);
+	EXPECT_EQ(new_hull.m_vertices.size(), 8);
+}
+
+TEST(PointHull, Cube2)
+{
+	using v3 = glm::vec3;
+	v3 const vertices[] = {
+		v3(0,0,0),
+		v3(1,0,0),
+		v3(0,1,0),
+		v3(0,0,1),
+		v3(1,1,1),
+		v3(0,1,1),
+		v3(1,0,1),
+		v3(1,1,0),
+		v3(0.5)
+	};
+
+	convex_hull new_hull = construct_convex_hull(
+		vertices, sizeof(vertices) / sizeof(glm::vec3)
+	);
+
+	EXPECT_EQ(new_hull.m_faces.size(), 6);
+	EXPECT_EQ(new_hull.m_edges.size(), 4 * 6);
+	EXPECT_EQ(new_hull.m_vertices.size(), 8);
+}
+
+TEST(PointHull, Diamond)
+{
+	using v3 = glm::vec3;
+	v3 const vertices[] = {
+		v3(-1,-1,-1),
+		v3(1,-1,-1),
+		v3(-1,1,-1),
+		v3(-1,-1,1),
+		v3(1,1,1),
+		v3(-1,1,1),
+		v3(1,-1,1),
+		v3(1,1,-1),
+		v3(2,0,0),
+		v3(-2,0,0),
+		v3(0,2,0),
+		v3(0,-2,0),
+		v3(0,0,2),
+		v3(0,0,-2),
+	};
+
+	convex_hull new_hull = construct_convex_hull(
+		vertices, sizeof(vertices) / sizeof(glm::vec3)
+	);
+
+	EXPECT_EQ(new_hull.m_faces.size(), 8);
+	EXPECT_EQ(new_hull.m_edges.size(), 3*8);
+	EXPECT_EQ(new_hull.m_vertices.size(), 4);
+}

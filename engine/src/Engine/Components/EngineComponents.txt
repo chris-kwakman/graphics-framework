@@ -12,3 +12,4 @@ DECLARE_MANAGER(DecalManager)
 DECLARE_MANAGER(RigidBodyManager)
 DECLARE_MANAGER(EditorCameraControllerManager)
 DECLARE_MANAGER(ColliderManager);
+DECLARE_MANAGER(DebugPointHullCompManager);

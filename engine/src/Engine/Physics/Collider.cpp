@@ -1,5 +1,6 @@
 #include "Collider.h"
 #include <Engine/Graphics/misc/create_convex_hull_mesh.h>
+#include <Engine/Physics/point_hull.h>
 
 #include <Engine/Editor/editor.h>
 
@@ -9,6 +10,12 @@ namespace Component
 	{
 		auto const handle = GetManager().m_data.m_entity_map[Owner()].Handle();
 		return &Singleton<Engine::Physics::ConvexHullManager>().GetConvexHullInfo(handle)->m_data;
+	}
+
+	void Collider::SetColliderResource(Engine::Managers::Resource _resource)
+	{
+		assert(_resource.Type() == Singleton<Engine::Managers::ResourceManager>().find_named_type("Collider"));
+		GetManager().SetColliderResource(Owner(), _resource);
 	}
 
 	const char* ColliderManager::GetComponentTypeName() const
@@ -29,9 +36,12 @@ namespace Component
 		if (old_handle != 0)
 		{
 			auto debug_mesh_iter = m_data.m_ch_debug_meshes.find(old_handle);
-			debug_mesh_iter->second.m_ref_count--;
-			if (debug_mesh_iter->second.m_ref_count == 0)
-				m_data.m_ch_debug_meshes.erase(debug_mesh_iter);
+			if (debug_mesh_iter != m_data.m_ch_debug_meshes.end())
+			{
+				debug_mesh_iter->second.m_ref_count--;
+				if (debug_mesh_iter->second.m_ref_count == 0)
+					m_data.m_ch_debug_meshes.erase(debug_mesh_iter);
+			}
 		}
 		map_iter->second = _resource;
 		if (_resource.ID() != 0)
@@ -166,5 +176,141 @@ namespace Component
 		auto& rm = Singleton<ResourceManager>();
 
 		// Delete graphics resources.
+	}
+
+
+
+
+	void DebugPointHullCompManager::set_entity_pointhull_resource(Entity _e, Engine::Managers::Resource _ph_resource)
+	{
+		using namespace Engine::Managers;
+
+		auto& res_mgr = Singleton<ResourceManager>();
+
+		auto & entry = m_data.m_entity_map.at(_e);
+		if (entry.m_pointhull_resource.ID() && entry.m_created_convexhull_resource.ID())
+		{
+			res_mgr.unload_resource(entry.m_created_convexhull_resource.ID());
+			entry.m_pointhull_resource = Resource();
+			entry.m_created_convexhull_resource = Resource();
+		}
+		entry.m_pointhull_resource = Resource();
+		if (_ph_resource.ID())
+		{
+			using namespace Engine::Physics;
+
+			entry.m_pointhull_resource = _ph_resource;
+			entry.m_created_convexhull_resource = create_convex_hull_resource(entry.m_pointhull_resource, entry.m_convex_hull_creation_iterations);
+		}
+		try_update_collider_resource(_e);
+	}
+	void DebugPointHullCompManager::set_entity_pointhull_creation_iterations(Entity _e, size_t _iterations)
+	{
+		auto& entry = m_data.m_entity_map.at(_e);
+		if (entry.m_created_convexhull_resource.ID())
+		{
+			Singleton<Engine::Managers::ResourceManager>().unload_resource(entry.m_created_convexhull_resource.ID());
+			entry.m_created_convexhull_resource = create_convex_hull_resource(entry.m_pointhull_resource, _iterations);
+			entry.m_convex_hull_creation_iterations = _iterations;
+		}
+		try_update_collider_resource(_e);
+	}
+
+	Engine::Managers::Resource DebugPointHullCompManager::create_convex_hull_resource(Engine::Managers::Resource _ph_resource, size_t _iterations)
+	{
+		using namespace Engine::Physics;
+		using namespace Engine::Managers;
+
+		auto& res_mgr = Singleton<ResourceManager>();
+
+		if (_ph_resource.ID())
+		{
+			convex_hull new_hull = construct_convex_hull(_ph_resource.Handle(), _iterations);
+			uint32_t const registered_hull_handle = Singleton<ConvexHullManager>().RegisterConvexHull(std::move(new_hull), "Debug Hull");
+			resource_type const hull_collider_type = res_mgr.find_named_type("Collider");
+			resource_id const ch_resource_id = res_mgr.register_resource(registered_hull_handle, hull_collider_type);
+			return res_mgr.GetResourceFromID(ch_resource_id);
+		}
+		else
+			return Resource();
+	}
+
+	void DebugPointHullCompManager::try_update_collider_resource(Entity _e)
+	{
+		Collider e_collider = _e.GetComponent<Collider>();
+		if(e_collider.IsValid())
+			e_collider.SetColliderResource(m_data.m_entity_map.at(_e).m_created_convexhull_resource);
+	}
+
+
+	const char* DebugPointHullCompManager::GetComponentTypeName() const
+	{
+		return "Debug Point Hull";
+	}
+
+	void DebugPointHullCompManager::impl_clear()
+	{
+		m_data = manager_data();
+	}
+	bool DebugPointHullCompManager::impl_create(Entity _e)
+	{
+		m_data.m_entity_map.emplace(_e, manager_data::entry_data());
+		return true;
+	}
+	void DebugPointHullCompManager::impl_destroy(Entity const* _entities, unsigned int _count)
+	{
+		for (size_t i = 0; i < _count; i++)
+		{
+			auto iter = m_data.m_entity_map.find(_entities[i]);
+			if (iter != m_data.m_entity_map.end())
+			{
+				manager_data::entry_data& entry = iter->second;
+				set_entity_pointhull_resource(_entities[i], Engine::Managers::Resource());
+				m_data.m_entity_map.erase(_entities[i]);
+			}
+		}
+	}
+	bool DebugPointHullCompManager::impl_component_owned_by_entity(Entity _entity) const
+	{
+		return m_data.m_entity_map.find(_entity) != m_data.m_entity_map.end();
+	}
+	void DebugPointHullCompManager::impl_edit_component(Entity _entity)
+	{
+		auto& entry = m_data.m_entity_map.at(_entity);
+		if (Engine::Managers::resource_dragdrop_target(entry.m_pointhull_resource,"Point Hull"))
+		{
+			set_entity_pointhull_resource(_entity, entry.m_pointhull_resource);
+		}
+		int iterations = (int)entry.m_convex_hull_creation_iterations;
+		if (ImGui::InputInt("Iterations", &iterations, 1, 5))
+		{
+			entry.m_convex_hull_creation_iterations = std::clamp(iterations, 0, std::numeric_limits<int>::max());
+			set_entity_pointhull_creation_iterations(_entity, entry.m_convex_hull_creation_iterations);
+		}
+		
+	}
+
+	void DebugPointHullCompManager::impl_deserialize_data(nlohmann::json const& _j)
+	{
+		if (_j.find("serializer_version") == _j.end())
+			return;
+		int const serializer_version = _j["serializer_version"];
+		if (serializer_version == 1)
+		{
+			m_data = _j["m_data"];
+
+			for (auto & pair : m_data.m_entity_map)
+			{
+				auto& entry = pair.second;
+				set_entity_pointhull_resource(pair.first, entry.m_pointhull_resource);
+			}
+		} 
+	}
+
+	void DebugPointHullCompManager::impl_serialize_data(nlohmann::json& _j) const
+	{
+		_j["serializer_version"] = 1;
+
+		_j["m_data"] = m_data;
 	}
 }

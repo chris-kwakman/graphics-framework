@@ -47,6 +47,8 @@ namespace Physics {
 		std::vector<glm::vec3>	m_vertices;
 		std::vector<half_edge>	m_edges;
 		std::vector<face>		m_faces;
+
+		glm::vec3 compute_normal(face_idx _face) const;
 	};
 
 	/*
@@ -72,7 +74,7 @@ namespace Physics {
 		glm::vec3 const* _vertices, size_t const _vertex_count, size_t const _debug_iterations = std::numeric_limits<size_t>::max()
 	);
 	convex_hull construct_convex_hull(
-		uint32_t _point_hull_handle, size_t const _debug_iterations = std::numeric_limits<size_t>::max()
+		uint32_t _point_hull_handle, size_t _debug_iterations = std::numeric_limits<size_t>::max()
 	);
 
 	class ConvexHullManager
