@@ -108,7 +108,7 @@ namespace Physics {
 			}
 		}
 
-		convex_hull new_hull = construct_convex_hull(
+		half_edge_data_structure new_hull = construct_half_edge_data_structure(
 			&vertices.front(), vertices.size(),
 			&face_vertex_indices.front(), face_vertex_indices.size()
 		);
@@ -121,7 +121,7 @@ namespace Physics {
 	{
 		auto vertices = load_point_hull_vertices(_path);
 
-		convex_hull new_hull = construct_convex_hull(
+		half_edge_data_structure new_hull = construct_convex_hull(
 			&vertices.front(), vertices.size()
 		);
 

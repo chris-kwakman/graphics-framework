@@ -6,7 +6,7 @@
 
 namespace Component
 {
-	Engine::Physics::convex_hull const* Component::Collider::GetConvexHull() const
+	Engine::Physics::half_edge_data_structure const* Component::Collider::GetConvexHull() const
 	{
 		auto const handle = GetManager().m_data.m_entity_map[Owner()].Handle();
 		return &Singleton<Engine::Physics::ConvexHullManager>().GetConvexHullInfo(handle)->m_data;
@@ -133,7 +133,7 @@ namespace Component
 		ImGui::Checkbox("Display Debug Data", &display_debug_data);
 		if (display_debug_data)
 		{
-			Engine::Physics::DisplayConvexHullDataDebug(
+			Engine::Physics::DebugDisplayHalfEdgeDataStructure(
 				&Singleton<ConvexHullManager>().GetConvexHullInfo(current_ch_handle)->m_data
 			);
 		}
@@ -225,7 +225,7 @@ namespace Component
 
 		if (_ph_resource.ID())
 		{
-			convex_hull new_hull = construct_convex_hull(_ph_resource.Handle(), _iterations);
+			half_edge_data_structure new_hull = construct_convex_hull(_ph_resource.Handle(), _iterations);
 			uint32_t const registered_hull_handle = Singleton<ConvexHullManager>().RegisterConvexHull(std::move(new_hull), "Debug Hull");
 			resource_type const hull_collider_type = res_mgr.find_named_type("Collider");
 			resource_id const ch_resource_id = res_mgr.register_resource(registered_hull_handle, hull_collider_type);

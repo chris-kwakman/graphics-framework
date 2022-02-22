@@ -11,9 +11,9 @@ namespace Physics {
 	* @param	transform3D		World transform of hull.
 	* @details	Transforms ray into local space of convex hull object.
 	*/
-	intersection_result intersect_ray_convex_hull(
-		ray _ray, 
-		convex_hull const& _hull, 
+	intersection_result intersect_ray_half_edge_data_structure(
+		ray _ray, half_edge_data_structure const & _hds,
+ 
 		transform3D const& _hull_transform
 	)
 	{
@@ -25,13 +25,13 @@ namespace Physics {
 		uint16_t const INVALID_FACE_INDEX = -1;
 		intersection_result minimum_intersection_face{ std::numeric_limits<float>::max(), INVALID_FACE_INDEX, glm::vec3(0.0f)};
 		glm::vec3 vertices_stack[256];
-		for (convex_hull::face_idx face_index = 0; face_index < _hull.m_faces.size(); face_index++)
+		for (half_edge_data_structure::face_idx face_index = 0; face_index < _hds.m_faces.size(); face_index++)
 		{
 			// Copy vertices to vector.
 			size_t face_vertex_count = 0;
-			for (size_t face_vtx_idx = 0; face_vtx_idx < _hull.m_faces[face_index].m_vertices.size(); face_vtx_idx++)
+			for (size_t face_vtx_idx = 0; face_vtx_idx < _hds.m_faces[face_index].m_vertices.size(); face_vtx_idx++)
 			{
-				vertices_stack[face_vertex_count++] = _hull.m_vertices[_hull.m_faces[face_index].m_vertices[face_vtx_idx]];
+				vertices_stack[face_vertex_count++] = _hds.m_vertices[_hds.m_faces[face_index].m_vertices[face_vtx_idx]];
 			}
 			intersection_result const face_result = intersect_ray_convex_polygon(_ray, vertices_stack, face_vertex_count);
 			if (face_result.t > 0.0f && face_result.t < minimum_intersection_face.t /*&& glm::dot(face_result.normal, _ray.dir) < 0*/)

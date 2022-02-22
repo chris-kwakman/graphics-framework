@@ -21,7 +21,7 @@ namespace Physics {
 		glm::vec3 normal;
 	};
 
-	intersection_result intersect_ray_convex_hull(ray _ray, convex_hull const& _hull, transform3D const& _hull_transform);
+	intersection_result intersect_ray_half_edge_data_structure(ray _ray, half_edge_data_structure const & _hds, transform3D const& _hull_transform);
 	intersection_result intersect_ray_convex_polygon(ray const& _ray, glm::vec3 const* _vertices, size_t const _size);
 
 }

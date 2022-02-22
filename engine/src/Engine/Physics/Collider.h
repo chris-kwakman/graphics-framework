@@ -17,7 +17,7 @@ namespace Component
 	{
 		DECLARE_COMPONENT(Collider);
 
-		Engine::Physics::convex_hull const * GetConvexHull() const;
+		Engine::Physics::half_edge_data_structure const * GetConvexHull() const;
 		void SetColliderResource(Engine::Managers::Resource _resource);
 	};
 
