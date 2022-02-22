@@ -9,7 +9,19 @@
       "cmakeCommandArgs": "",
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
-      "variables": []
+      "variables": [
+        {
+          "name": "X_VCPKG_APPLOCAL_DEPS_INSTALL",
+          "value": "True",
+          "type": "BOOL"
+        },
+        {
+          "name": "VCPKG_MANIFEST_MODE",
+          "value": "True",
+          "type": "BOOL"
+        }
+      ],
+      "cmakeToolchain": ""
     },
     {
       "name": "x64-Release",

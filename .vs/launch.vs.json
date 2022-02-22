@@ -1,0 +1,23 @@
+{
+  "version": "0.2.1",
+  "defaults": {},
+  "configurations": [
+    {
+      "type": "default",
+      "project": "CMakeLists.txt",
+      "projectTarget": "Demo.exe (Install)",
+      "name": "Demo.exe (Install)",
+      "currentDir": "${workspaceRoot}//demo",
+      "args": [
+        "data/scenes/rigidbody.scene"
+      ]
+    },
+    {
+      "type": "default",
+      "project": "CMakeLists.txt",
+      "projectTarget": "test_engine.exe (Install)",
+      "name": "test_engine.exe (Install)",
+      "currentDir": "${workspaceRoot}//tests"
+    }
+  ]
+}
