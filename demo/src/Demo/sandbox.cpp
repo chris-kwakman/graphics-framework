@@ -629,7 +629,7 @@ namespace Sandbox
 					Engine::Math::transform3D const rb_world_transform = rb_transform.ComputeWorldTransform();
 					glm::vec3 const rb_world_position = rb_world_transform.position;
 
-					intersection_result result = intersect_ray_convex_hull(camera_ray, ch_info->m_data, rb_world_transform);
+					intersection_result result = intersect_ray_half_edge_data_structure(camera_ray, ch_info->m_data, rb_world_transform);
 
 					if (result.t >= 0.0f)
 					{

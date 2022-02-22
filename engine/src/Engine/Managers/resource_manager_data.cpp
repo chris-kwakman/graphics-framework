@@ -167,6 +167,11 @@ namespace Managers {
 		return 0;
 	}
 
+	bool resource_manager_data::is_resource_registered(resource_id _id) const
+	{
+		return m_map_resource_id_to_data.find(_id) != m_map_resource_id_to_data.end();
+	}
+
 	resource_type resource_manager_data::register_type(std::string const _name, fn_resource_loader const _loader, fn_resource_unloader const _unloader)
 	{
 		// Check if any type with input name already exists.
@@ -249,8 +254,6 @@ namespace Managers {
 
 	resource_typeid& resource_typeid::operator=(resource_typeid const& _l)
 	{
-		bool const equal = (m_type != 0) && (m_type == _l.m_type);
-		assert(equal || ((m_type == 0) != (_l.m_type == 0)));
 		m_id = _l.m_id;
 		m_type = _l.m_type;
 		return *this;

@@ -21,7 +21,7 @@
           "type": "BOOL"
         }
       ],
-      "cmakeToolchain": "C:/Users/c.kwakman/dev/vcpkg/scripts/buildsystems/vcpkg.cmake"
+      "cmakeToolchain": ""
     },
     {
       "name": "x64-Release",

@@ -7,18 +7,18 @@
 
 using namespace Engine::Physics;
 
-void test_convex_hull_loops(convex_hull const& _hull, size_t _max_loop_length = 1024)
+void test_convex_hull_loops(half_edge_data_structure const& _hull, size_t _max_loop_length = 1024)
 {
 	std::vector<bool> processed_edges(_hull.m_edges.size(), false);
 
-	for (convex_hull::half_edge_idx process_edge_idx = 0; process_edge_idx < _hull.m_edges.size(); ++process_edge_idx)
+	for (half_edge_data_structure::half_edge_idx process_edge_idx = 0; process_edge_idx < _hull.m_edges.size(); ++process_edge_idx)
 	{
 		// Skip edge if we have already stepped through it.
 		if (processed_edges[process_edge_idx])
 			continue;
 		processed_edges[process_edge_idx] = true;
 
-		convex_hull::half_edge_idx edge_idx_iterator = process_edge_idx;
+		half_edge_data_structure::half_edge_idx edge_idx_iterator = process_edge_idx;
 		size_t current_loop_length = 0;
 		do
 		{
@@ -31,14 +31,14 @@ void test_convex_hull_loops(convex_hull const& _hull, size_t _max_loop_length = 
 	}
 }
 
-void test_face_vertices(convex_hull const& _hull)
+void test_face_vertices(half_edge_data_structure const& _hull)
 {
-	for (convex_hull::face_idx face_index = 0; face_index < _hull.m_faces.size(); face_index++)
+	for (half_edge_data_structure::face_idx face_index = 0; face_index < _hull.m_faces.size(); face_index++)
 	{
 		auto const & face_vertex_indices = _hull.m_faces[face_index].m_vertices;
 
 		glm::vec3 average_point(0.0f);
-		for (convex_hull::vertex_idx vtx_index_iterator = 0; vtx_index_iterator < face_vertex_indices.size(); ++vtx_index_iterator)
+		for (half_edge_data_structure::vertex_idx vtx_index_iterator = 0; vtx_index_iterator < face_vertex_indices.size(); ++vtx_index_iterator)
 			average_point += _hull.m_vertices[face_vertex_indices[vtx_index_iterator]];
 		average_point /= (float)face_vertex_indices.size();
 
@@ -48,7 +48,7 @@ void test_face_vertices(convex_hull const& _hull)
 		//	average_point - _hull.m_vertices[face_vertex_indices[1]])
 		//);
 		//// Test if all vertices of face belong to same plane.
-		//for (convex_hull::vertex_idx vtx_index_iterator = 0; vtx_index_iterator < face_vertex_indices.size(); ++vtx_index_iterator)
+		//for (half_edge_data_structure::vertex_idx vtx_index_iterator = 0; vtx_index_iterator < face_vertex_indices.size(); ++vtx_index_iterator)
 		//{
 		//	ASSERT_TRUE(
 		//		glm::epsilonEqual(
@@ -75,7 +75,7 @@ void test_face_vertices(convex_hull const& _hull)
 		 
 		 std::vector<glm::vec2> vtx_uv_coordinates(face_vertex_indices.size());
 		 // Test if all vertices of face belong to same plane.
-		 for (convex_hull::vertex_idx vtx_index_iterator = 0; vtx_index_iterator < face_vertex_indices.size(); ++vtx_index_iterator)
+		 for (half_edge_data_structure::vertex_idx vtx_index_iterator = 0; vtx_index_iterator < face_vertex_indices.size(); ++vtx_index_iterator)
 		 {
 		 	glm::vec3 const coordinates = mat * (_hull.m_vertices[face_vertex_indices[vtx_index_iterator]] - average_point);
 			vtx_uv_coordinates[vtx_index_iterator] = glm::vec2(coordinates.x, coordinates.y);
@@ -105,7 +105,7 @@ TEST(ConvexHull, TriangleConstruction)
 		glm::uvec3{0,1,2}
 	};
 
-	convex_hull new_hull = construct_convex_hull(
+	half_edge_data_structure new_hull = construct_half_edge_data_structure(
 		vertices,				sizeof(vertices) / sizeof(glm::vec3), 
 		face_vertex_indices,	sizeof(face_vertex_indices) / sizeof(glm::uvec3)
 	);
@@ -133,7 +133,7 @@ TEST(ConvexHull, SquareConstruction)
 		glm::uvec3(0,1,2), glm::uvec3(0,2,3)
 	};
 
-	convex_hull new_hull = construct_convex_hull(
+	half_edge_data_structure new_hull = construct_half_edge_data_structure(
 		vertices, sizeof(vertices) / sizeof(glm::vec3),
 		face_vertex_indices, sizeof(face_vertex_indices) / sizeof(glm::uvec3)
 	);
@@ -175,7 +175,7 @@ TEST(ConvexHull, CubeConstruction)
 		glm::uvec3(3,6,7)
 	};
 
-	convex_hull new_hull = construct_convex_hull(
+	half_edge_data_structure new_hull = construct_half_edge_data_structure(
 		vertices, sizeof(vertices) / sizeof(glm::vec3),
 		face_vertex_indices, sizeof(face_vertex_indices) / sizeof(glm::uvec3)
 	);
@@ -206,7 +206,7 @@ TEST(ConvexHull, DiscConstruction)
 		face_vertex_indices.emplace_back(0, i, (i % 12) + 1);
 	}
 
-	convex_hull new_hull = construct_convex_hull(
+	half_edge_data_structure new_hull = construct_half_edge_data_structure(
 		&vertices.front(), vertices.size(),
 		&face_vertex_indices.front(), face_vertex_indices.size()
 	);
@@ -239,7 +239,7 @@ TEST(ConvexHull, LongSharedEdge)
 		glm::uvec3(3,2,5)
 	};
 
-	convex_hull new_hull = construct_convex_hull(
+	half_edge_data_structure new_hull = construct_half_edge_data_structure(
 		vertices, sizeof(vertices) / sizeof(glm::vec3),
 		face_vertex_indices, sizeof(face_vertex_indices) / sizeof(glm::uvec3)
 	);
@@ -266,7 +266,7 @@ TEST(ConvexHull, MergeColinearEdges)
 		glm::uvec3(1,2,3)
 	};
 
-	convex_hull new_hull = construct_convex_hull(
+	half_edge_data_structure new_hull = construct_half_edge_data_structure(
 		vertices, sizeof(vertices) / sizeof(glm::vec3),
 		face_vertex_indices, sizeof(face_vertex_indices) / sizeof(glm::uvec3)
 	);
@@ -300,7 +300,7 @@ TEST(ConvexHull, MergeColinearEdges2)
 		uv3(3,7,6)
 	};
 
-	convex_hull new_hull = construct_convex_hull(
+	half_edge_data_structure new_hull = construct_half_edge_data_structure(
 		vertices, sizeof(vertices) / sizeof(glm::vec3),
 		face_vertex_indices, sizeof(face_vertex_indices) / sizeof(glm::uvec3)
 	);
@@ -333,7 +333,7 @@ TEST(ConvexHull, MergeColinearEdges3)
 		uv3(3,7,6)
 	};
 
-	convex_hull new_hull = construct_convex_hull(
+	half_edge_data_structure new_hull = construct_half_edge_data_structure(
 		vertices, sizeof(vertices) / sizeof(glm::vec3),
 		face_vertex_indices, sizeof(face_vertex_indices) / sizeof(glm::uvec3)
 	);
@@ -341,4 +341,99 @@ TEST(ConvexHull, MergeColinearEdges3)
 	EXPECT_EQ(new_hull.m_faces.size(), 2);
 	EXPECT_EQ(new_hull.m_edges.size(), 9);
 	EXPECT_EQ(new_hull.m_vertices.size(), 7);
+}
+
+TEST(PointHull, Tetrahedron)
+{
+	using v3 = glm::vec3;
+	v3 const vertices[] = {
+		v3(0,0,0),
+		v3(1,0,0),
+		v3(0,1,0),
+		v3(0,0,1)
+	};
+
+	half_edge_data_structure new_hull = construct_convex_hull(
+		vertices, sizeof(vertices) / sizeof(glm::vec3)
+	);
+
+	EXPECT_EQ(new_hull.m_faces.size(), 4);
+	EXPECT_EQ(new_hull.m_edges.size(), 12);
+	EXPECT_EQ(new_hull.m_vertices.size(), 4);
+}
+
+TEST(PointHull, Cube)
+{
+	using v3 = glm::vec3;
+	v3 const vertices[] = {
+		v3(0,0,0),
+		v3(1,0,0),
+		v3(0,1,0),
+		v3(0,0,1),
+		v3(1,1,1),
+		v3(0,1,1),
+		v3(1,0,1),
+		v3(1,1,0)
+	};
+
+	half_edge_data_structure new_hull = construct_convex_hull(
+		vertices, sizeof(vertices) / sizeof(glm::vec3)
+	);
+
+	EXPECT_EQ(new_hull.m_faces.size(), 6);
+	EXPECT_EQ(new_hull.m_edges.size(), 4*6);
+	EXPECT_EQ(new_hull.m_vertices.size(), 8);
+}
+
+TEST(PointHull, Cube2)
+{
+	using v3 = glm::vec3;
+	v3 const vertices[] = {
+		v3(0,0,0),
+		v3(1,0,0),
+		v3(0,1,0),
+		v3(0,0,1),
+		v3(1,1,1),
+		v3(0,1,1),
+		v3(1,0,1),
+		v3(1,1,0),
+		v3(0.5)
+	};
+
+	half_edge_data_structure new_hull = construct_convex_hull(
+		vertices, sizeof(vertices) / sizeof(glm::vec3)
+	);
+
+	EXPECT_EQ(new_hull.m_faces.size(), 6);
+	EXPECT_EQ(new_hull.m_edges.size(), 4 * 6);
+	EXPECT_EQ(new_hull.m_vertices.size(), 8);
+}
+
+TEST(PointHull, Diamond)
+{
+	using v3 = glm::vec3;
+	v3 const vertices[] = {
+		v3(-1,-1,-1),
+		v3(1,-1,-1),
+		v3(-1,1,-1),
+		v3(-1,-1,1),
+		v3(1,1,1),
+		v3(-1,1,1),
+		v3(1,-1,1),
+		v3(1,1,-1),
+		v3(2,0,0),
+		v3(-2,0,0),
+		v3(0,2,0),
+		v3(0,-2,0),
+		v3(0,0,2),
+		v3(0,0,-2),
+	};
+
+	half_edge_data_structure new_hull = construct_convex_hull(
+		vertices, sizeof(vertices) / sizeof(glm::vec3)
+	);
+
+	EXPECT_EQ(new_hull.m_faces.size(), 8);
+	EXPECT_EQ(new_hull.m_edges.size(), 3*8);
+	EXPECT_EQ(new_hull.m_vertices.size(), 6);
 }

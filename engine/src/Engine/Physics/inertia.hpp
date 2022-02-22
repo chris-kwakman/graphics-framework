@@ -9,7 +9,7 @@
 namespace Engine {
 namespace Physics {
 
-    struct convex_hull;
+    struct half_edge_data_structure;
 
     constexpr inline glm::mat3 inertiaTensorBox(float m, float w, float h, float d)
     {
@@ -51,7 +51,7 @@ namespace Physics {
                     { 0, 0, c } };
     }
 
-    glm::mat3 inertialTensorConvexHull(convex_hull const* _hull, float* _out_mass, glm::vec3* _out_cm);
+    glm::mat3 inertialTensorConvexHull(half_edge_data_structure const* _hds, float* _out_mass, glm::vec3* _out_cm);
     glm::mat3 inertiaTensorTriangles(const std::vector<std::array<glm::vec3,3>>& triangles, float* out_mass, glm::vec3* out_cm);
 }
 }

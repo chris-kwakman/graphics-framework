@@ -109,6 +109,8 @@ namespace Managers
 
 		resource_type		find_named_type(const char* _name) const;
 
+		bool				is_resource_registered(resource_id _id) const;
+
 	protected:
 
 		resource_id			load_resource_with_id(fs::path _path, resource_type _type, resource_id _id);
