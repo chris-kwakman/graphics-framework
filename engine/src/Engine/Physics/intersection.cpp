@@ -79,5 +79,88 @@ namespace Physics {
 		return { t, 0, plane_normal };
 	}
 
+
+	result_convex_hull_intersection intersect_convex_hulls_sat(convex_hull const& _hull1, transform3D _transform1, convex_hull const& _hull2, transform3D _transform2)
+	{
+		// Possible optimization: transform the hull with the least vertices to the space of the hull with the most vertices.
+		return intersect_convex_hulls_sat(
+			_hull1, _hull2,
+			(_transform1.GetInverse() * _transform2).GetMatrix()
+		);
+	}
+
+	result_convex_hull_intersection intersect_convex_hulls_sat(convex_hull const& _hull1, convex_hull const& _hull2, glm::mat4 const _mat_2_to_1)
+	{
+		std::vector<glm::vec3> const & hull1_vertices = _hull1.m_vertices;
+		// Rather than performing the intersection in world space, we perform the intersection in the local space of one
+		// of the passed convex hulls. This way, we only have to transform one set of vertices rather than both.
+		std::vector<glm::vec3> hull2_vertices(_hull2.m_vertices);
+		for (size_t i = 0; i < hull2_vertices.size(); i++)
+			hull2_vertices[i] = _mat_2_to_1 * glm::vec4(hull2_vertices[i], 1.0f);
+
+		result_convex_hull_intersection intersection_result;
+
+		using edge_idx = convex_hull::half_edge_idx;
+		using face_idx = convex_hull::face_idx;
+
+		// Compute face normals for both hulls.
+		std::vector<glm::vec3> hull1_normals(_hull1.m_faces.size()), hull2_normals(_hull2.m_faces.size());
+		for (size_t i = 0; i < _hull1.m_faces.size(); i++)
+			hull1_normals[i] = compute_convex_hull_face_normal(hull1_vertices, _hull1.m_faces, i);
+		for (size_t i = 0; i < _hull2.m_faces.size(); i++)
+			hull2_normals[i] = compute_convex_hull_face_normal(hull2_vertices, _hull2.m_faces, i);
+
+
+		// Check for face-face intersections
+		for (face_idx h1_f_idx = 0; h1_f_idx < _hull1.m_faces.size(); h1_f_idx++)
+		{
+
+		}
+		for (face_idx h2_f_idx = 0; h2_f_idx < _hull1.m_faces.size(); h2_f_idx++)
+		{
+
+		}
+
+		// Check for edge-edge intersections.
+		for (edge_idx h1_e_idx = 0; h1_e_idx < _hull1.m_edges.size(); h1_e_idx++)
+		{
+			convex_hull::half_edge const h1_edge = _hull1.m_edges[h1_e_idx];
+			convex_hull::half_edge const h1_twin_edge = _hull1.m_edges[h1_edge.m_twin_edge];
+			glm::vec3 const A = hull1_normals[h1_edge.m_edge_face], B = hull1_normals[h1_twin_edge];
+
+			glm::vec3 const cross_b_a = glm::cross(B, A);
+
+			for (edge_idx h2_e_idx = 0; h2_e_idx < _hull2.m_edges.size(); h2_e_idx++)
+			{
+				convex_hull::half_edge const h2_edge = _hull2.m_edges[h2_e_idx];
+				convex_hull::half_edge const h2_twin_edge = _hull2.m_edges[h2_edge.m_twin_edge];
+				glm::vec3 const C = hull1_normals[h2_edge.m_edge_face], D = hull1_normals[h2_twin_edge];
+
+				glm::vec3 const cross_d_c = glm::cross(D,C);
+				glm::vec3 const cross_c_b = glm::cross(C, B);
+
+				bool arcs_intersect = (
+					glm::dot(glm::dot(C,cross_b_a), glm::dot(D,cross_b_a)) < 0.0f &&
+					glm::dot(glm::dot(A, cross_d_c), glm::dot(B, cross_d_c)) < 0.0f &&
+					glm::dot(glm::dot(A, cross_c_b), glm::dot(D, cross_c_b)) > 0.0f
+				);
+
+				if (arcs_intersect)
+				{
+					float sep = 0.0f;
+					if (sep > 0.0f)
+					{
+						intersection_result.collision_type = ECollideType::eNoCollision;
+						goto end;
+					}
+				}
+			}
+		}
+
+		end:
+
+		return intersection_result;
+	}
+
 }
 }

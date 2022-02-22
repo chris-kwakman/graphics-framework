@@ -28,6 +28,21 @@ namespace Physics {
 	}
 
 
+	glm::vec3 compute_convex_hull_face_normal(std::vector<glm::vec3> const& _vertices, std::vector<convex_hull::face> const& _hds_face_data, convex_hull::face_idx _face_index)
+	{
+		// CCW-order of vertices in faces is assumed.
+		convex_hull::face const& face = _hds_face_data[_face_index];
+		return glm::cross(
+			_vertices[face.m_vertices[1]] - _vertices[face.m_vertices[0]],
+			_vertices[face.m_vertices[2]] - _vertices[face.m_vertices[0]]
+		);
+	}
+
+	glm::vec3 hds_find_closest_point_gjk(std::vector<glm::vec3> const& _hds_vertices, std::vector<convex_hull::half_edge> const& _hds_edges, glm::vec3 _target_point)
+	{
+		
+	}
+
 	convex_hull construct_convex_hull(
 		glm::vec3 const * _vertices,		size_t _vertex_count, 
 		glm::uvec3 const * _face_indices,	size_t _face_count

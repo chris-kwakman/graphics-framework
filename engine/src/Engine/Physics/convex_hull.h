@@ -50,6 +50,32 @@ namespace Physics {
 	};
 
 	/*
+	@brief	Get normal of a face in half-edge data structure
+	@param	vector<vec3> &					Vertices array of half-edge data structure
+	@param	vector<convex_hull::face> &		Faces array of half-edge data structure
+	@param	face_idx						Index of face whose normal to compute
+	@return vec3							Normal of face (NOT normalized)
+	*/
+	glm::vec3 compute_convex_hull_face_normal(
+		std::vector<glm::vec3> const& _vertices,
+		std::vector<convex_hull::face> const& _hds_face_data,
+		convex_hull::face_idx _face_index
+	);
+
+	/*
+	@brief	Use GJK to get closest point on half-edge data structure to point
+	@param	vector<vec3> &					Vertices array of half-edge data structure
+	@param	vector<convex_hull::edge> &		Edge array of half-edge data structure
+	@param	vec3							Target point
+	@return vec3							Closest point on HDS to input point
+	*/
+	glm::vec3 hds_find_closest_point_gjk(
+		std::vector<glm::vec3> const& _hds_vertices,
+		std::vector<convex_hull::half_edge> const& _hds_edges,
+		glm::vec3 _target_point
+	);
+
+	/*
 	@brief	Create a convex hull from a vertex array and face index array input.
 	@param		glm::vec3 *		Array of vertices.
 	@param		size_t			Size of vertex array.
