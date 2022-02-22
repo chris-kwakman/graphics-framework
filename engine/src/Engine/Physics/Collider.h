@@ -16,6 +16,9 @@ namespace Component
 	struct Collider : public IComp<ColliderManager>
 	{
 		DECLARE_COMPONENT(Collider);
+
+		Engine::Physics::convex_hull const * GetConvexHull() const;
+		void SetColliderResource(Engine::Managers::Resource _resource);
 	};
 
 	class ColliderManager : public TCompManager<Collider>
@@ -50,6 +53,54 @@ namespace Component
 		void SetColliderResource(Entity _e, Engine::Managers::Resource _resource);
 
 	private:
+
+		virtual void impl_clear() override;
+		virtual bool impl_create(Entity _e) override;
+		virtual void impl_destroy(Entity const* _entities, unsigned int _count) override;
+		virtual bool impl_component_owned_by_entity(Entity _entity) const override;
+		virtual void impl_edit_component(Entity _entity) override;
+		virtual void impl_deserialize_data(nlohmann::json const& _j) override;
+		virtual void impl_serialize_data(nlohmann::json& _j) const override;
+	};
+
+	class PointHullCompManager;
+	struct DebugPointHullComp : public IComp<PointHullCompManager>
+	{
+		DECLARE_COMPONENT(DebugPointHullComp);
+	};
+
+	class DebugPointHullCompManager : public TCompManager<DebugPointHullComp>
+	{
+
+		struct manager_data
+		{
+			struct entry_data
+			{
+				Engine::Managers::Resource m_pointhull_resource;
+				Engine::Managers::Resource m_created_convexhull_resource;
+				size_t m_convex_hull_creation_iterations = 0;
+
+				NLOHMANN_DEFINE_TYPE_INTRUSIVE(entry_data, m_pointhull_resource, m_convex_hull_creation_iterations)
+			};
+
+			std::unordered_map<Entity, entry_data, Entity::hash> m_entity_map;
+
+			NLOHMANN_DEFINE_TYPE_INTRUSIVE(manager_data, m_entity_map);
+		};
+
+		manager_data m_data;
+
+	public:
+
+		// Inherited via TCompManager
+		virtual const char* GetComponentTypeName() const override;
+
+	private:
+
+		void set_entity_pointhull_resource(Entity _e, Engine::Managers::Resource _ph_resource);
+		void set_entity_pointhull_creation_iterations(Entity _e, size_t _iterations);
+		Engine::Managers::Resource create_convex_hull_resource(Engine::Managers::Resource _ph_resource, size_t _iterations);
+		void try_update_collider_resource(Entity _e);
 
 		virtual void impl_clear() override;
 		virtual bool impl_create(Entity _e) override;

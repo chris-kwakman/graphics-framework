@@ -7,8 +7,8 @@
 
 #include "Renderable.h"
 
-#include <ImGui/imgui_stdlib.h>
-#include <ImGui/imgui_internal.h>
+#include <imgui_stdlib.h>
+#include <imgui_internal.h>
 
 #include <array>
 #include <fstream>
@@ -18,7 +18,7 @@
 namespace Component
 {
 
-    static std::filesystem::path const s_blendtree_dir = std::filesystem::path("data\\blend_trees");
+    static fs::path const s_blendtree_dir = fs::path("data\\blend_trees");
     static char blend_tree_file_name_buffer[128];
     static bool s_open_blendmask_edit_popup = false;
     static animation_blend_mask* s_p_edit_blend_mask = nullptr;
@@ -690,7 +690,7 @@ namespace Component
         }
         ImGui::SliderFloat("Blend Parameter", &m_blend_parameter, slider_left, slider_right, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 
-        float avail_width = ImGui::GetContentRegionAvailWidth();
+        float avail_width = ImGui::GetContentRegionAvail().x;
         ImGui::SetNextItemWidth(avail_width * 0.9f);
         ImGui::Indent(avail_width * 0.05f);
         if (ImGui::Button("Edit Blend Mask"))
@@ -1509,12 +1509,12 @@ void SkeletonAnimatorManager::window_edit_blendtree(std::unique_ptr<animation_tr
         ImGui::SetItemDefaultFocus();
         if(enter_pressed)
         {
-            std::filesystem::path file_name(blend_tree_file_name_buffer);
+            fs::path file_name(blend_tree_file_name_buffer);
             if (!file_name.empty())
             {
                 file_name.replace_extension("blent");
-                std::filesystem::path const file_path = s_blendtree_dir / file_name;
-                std::filesystem::create_directories(s_blendtree_dir);
+                fs::path const file_path = s_blendtree_dir / file_name;
+                fs::create_directories(s_blendtree_dir);
                 std::ofstream out(file_path);
                 try
                 {
@@ -1535,7 +1535,7 @@ void SkeletonAnimatorManager::window_edit_blendtree(std::unique_ptr<animation_tr
     {
         if (ImGui::BeginListBox("###Files", ImVec2(window_size.x * 0.25f, window_size.y * 0.75f)))
         {
-            using namespace std::filesystem;
+            using namespace fs;
             // TODO: Support recursive directory traversal.
             for (auto const& file : directory_iterator(s_blendtree_dir))
             {
@@ -1615,7 +1615,7 @@ void SkeletonAnimatorManager::window_edit_blendtree(std::unique_ptr<animation_tr
             bool table_began = ImGui::BeginTable(
                 "Skin Joints", 2, 
                 ImGuiTableFlags_BordersH | ImGuiTableFlags_ScrollY, 
-                glm::vec2(ImGui::GetContentRegionAvailWidth(), window_size.y * 0.3f)
+                glm::vec2(ImGui::GetContentRegionAvail().x, window_size.y * 0.3f)
             );
             if (table_began)
             {
@@ -1736,8 +1736,8 @@ void SkeletonAnimator::SetAnimation(animation_leaf_node _animation)
 void SkeletonAnimator::LoadBlendTree(std::string _filename)
 {
     auto& root_node = GetManager().get_entity_animator(Owner()).m_blendtree_root_node;
-    std::filesystem::path path = s_blendtree_dir / _filename;
-    if (std::filesystem::exists(path) && path.extension() == ".blent")
+    fs::path path = s_blendtree_dir / _filename;
+    if (fs::exists(path) && path.extension() == ".blent")
     {
         std::ifstream in(path);
         nlohmann::json j;

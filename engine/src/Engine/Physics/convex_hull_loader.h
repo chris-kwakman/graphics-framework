@@ -5,8 +5,10 @@
 namespace Engine {
 namespace Physics {
 
+	uint32_t LoadConvexHull(fs::path const& _path);
 	uint32_t LoadConvexHull_OBJ(fs::path const& _path);
-	void UnloadConvexHull_OBJ(uint32_t _handle);
+
+	void UnloadConvexHull(uint32_t _handle);
 
 }
 }

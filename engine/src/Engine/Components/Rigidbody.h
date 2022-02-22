@@ -89,6 +89,7 @@ namespace Component
 
 		void ApplyForce(Entity _entity, glm::vec3 _force, glm::vec3 _offset);
 		void ApplyForce(size_t _entity_index, glm::vec3 _force, glm::vec3 _offset);
+		void SetInertialTensor(size_t _entity_index, glm::mat3 _inertial_tensor);
 
 	private:
 

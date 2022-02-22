@@ -47,6 +47,8 @@ namespace Physics {
 		std::vector<glm::vec3>	m_vertices;
 		std::vector<half_edge>	m_edges;
 		std::vector<face>		m_faces;
+
+		glm::vec3 compute_normal(face_idx _face) const;
 	};
 
 	/*
@@ -60,6 +62,19 @@ namespace Physics {
 	convex_hull construct_convex_hull(
 		glm::vec3 const * _vertices,		size_t _vertex_count,
 		glm::uvec3 const * _face_indices,	size_t _face_count
+	);
+
+	/*
+	@brief	Create a convex hull from a vertex array using a 3D quickhull algorithm.
+	@param		glm::vec3 *			Array of vertices
+	@param		size_t				Size of vertex array
+	@returns	convex_hull
+	*/
+	convex_hull construct_convex_hull(
+		glm::vec3 const* _vertices, size_t const _vertex_count, size_t const _debug_iterations = std::numeric_limits<size_t>::max()
+	);
+	convex_hull construct_convex_hull(
+		uint32_t _point_hull_handle, size_t _debug_iterations = std::numeric_limits<size_t>::max()
 	);
 
 	class ConvexHullManager
@@ -82,5 +97,13 @@ namespace Physics {
 		convex_hull_handle RegisterConvexHull(convex_hull&& _hull, std::string _name);
 		void DeleteConvexHull(convex_hull_handle _handle);
 	};
+
+	/*
+	* @brief	View convex hull data in imgui widget
+	* @param	convex_hull *	Convex hull data
+	*/
+	void DisplayConvexHullDataDebug(
+		convex_hull const* _hull
+	);
 }
 }

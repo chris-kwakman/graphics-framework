@@ -4,16 +4,32 @@
 #include <fstream>
 #include <string>
 
+#include "point_hull.h"
+
+#include <glm/gtc/epsilon.hpp>
 #include <engine/Utils/singleton.h>
 
 namespace Engine {
 namespace Physics {
 
-	uint32_t LoadConvexHull_OBJ(fs::path const& _path)
+	uint32_t LoadConvexHull_CS350(fs::path const & _path);
+
+	uint32_t LoadConvexHull(fs::path const& _path)
 	{
 		if (!fs::exists(_path))
 			return 0;
 
+		auto ext = _path.extension();
+		if (ext == ".obj")
+			return LoadConvexHull_OBJ(_path);
+		else if (ext == ".cs350")
+			return LoadConvexHull_CS350(_path);
+		else
+			return 0;
+	}
+
+	uint32_t LoadConvexHull_OBJ(fs::path const& _path)
+	{
 		std::vector<glm::vec3> vertices;
 		std::vector<glm::uvec3> face_vertex_indices;
 
@@ -97,10 +113,22 @@ namespace Physics {
 			&face_vertex_indices.front(), face_vertex_indices.size()
 		);
 
-		return Singleton<ConvexHullManager>().RegisterConvexHull(std::move(new_hull), name);
+		return Singleton<ConvexHullManager>().RegisterConvexHull(std::move(new_hull), _path.string());
 	}
 
-	void UnloadConvexHull_OBJ(uint32_t _handle)
+
+	uint32_t LoadConvexHull_CS350(fs::path const& _path)
+	{
+		auto vertices = load_point_hull_vertices(_path);
+
+		convex_hull new_hull = construct_convex_hull(
+			&vertices.front(), vertices.size()
+		);
+
+		return Singleton<ConvexHullManager>().RegisterConvexHull(std::move(new_hull), _path.string());
+	}
+
+	void UnloadConvexHull(uint32_t _handle)
 	{
 		Singleton<ConvexHullManager>().DeleteConvexHull(_handle);
 	}

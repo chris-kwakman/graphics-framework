@@ -1,9 +1,13 @@
 #include "Rigidbody.h"
 #include "Transform.h"
 
-#include <Engine/Physics/integration.h>
+#include <Engine/Physics/inertia.hpp>
+#include <Engine/Physics/Collider.h>
 
-#include <ImGui/imgui.h>
+#include <Engine/Physics/integration.h>
+#include <Engine/Editor/editor.h>
+
+#include <algorithm>
 
 namespace Component
 {
@@ -85,6 +89,12 @@ namespace Component
 		m_rigidbodies_data.m_torques[_entity_index] += glm::cross(_offset, _force);
 	}
 
+	void RigidBodyManager::SetInertialTensor(size_t _entity_index, glm::mat3 _inertial_tensor)
+	{
+		m_rigidbodies_data.m_inertial_tensors[_entity_index] = _inertial_tensor;
+		m_rigidbodies_data.m_inv_inertial_tensors[_entity_index] = glm::inverse(_inertial_tensor);
+	}
+
 	void RigidBodyManager::impl_clear()
 	{
 		m_rigidbodies_data = rigidbody_data_collection();
@@ -152,6 +162,17 @@ namespace Component
 		if (ImGui::Checkbox("Linear Integration", &linear_integration_active))
 			EnableLinearIntegration(_entity, linear_integration_active);
 
+		Component::Collider collider_comp = _entity.GetComponent<Component::Collider>();
+		if (collider_comp.IsValid() && ImGui::Button("Use Convex Hull Inertial Tensor"))
+		{
+			glm::vec3 cm;
+			float mass;
+			SetInertialTensor(
+				entity_index, Engine::Physics::inertialTensorConvexHull(collider_comp.GetConvexHull(), &mass, &cm)
+			);
+			m_rigidbodies_data.m_inv_masses[entity_index] = 1.0f / mass;
+		}
+
 		auto edit_mat3 = [](glm::mat3& _edit, const char* _name)->bool
 		{
 			bool modified = false;
@@ -166,7 +187,7 @@ namespace Component
 					{
 						ImGui::PushID(3 * j + i);
 						ImGui::TableNextColumn();
-						ImGui::SetNextItemWidth(ImGui::GetContentRegionAvailWidth());
+						ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 						modified |= ImGui::InputFloat("##flt_input", &_edit[j][i], 0.0f, 0.0f, "%.3f", ImGuiInputTextFlags_EnterReturnsTrue);
 						ImGui::PopID();
 					}
@@ -176,9 +197,8 @@ namespace Component
 			return modified;
 		};
 
-		bool edited_inertial_tensor = edit_mat3(m_rigidbodies_data.m_inertial_tensors[entity_index], "Inertial Tensor");
-		if (edited_inertial_tensor)
-			m_rigidbodies_data.m_inv_inertial_tensors[entity_index] = glm::inverse(m_rigidbodies_data.m_inertial_tensors[entity_index]);
+		if(edit_mat3(m_rigidbodies_data.m_inertial_tensors[entity_index], "Inertial Tensor"))
+			SetInertialTensor(entity_index, m_rigidbodies_data.m_inertial_tensors[entity_index]);
 
 		ImGui::BeginDisabled(true);
 		edit_mat3(m_rigidbodies_data.m_inv_inertial_tensors[entity_index], "Inverse Inertial Tensor");

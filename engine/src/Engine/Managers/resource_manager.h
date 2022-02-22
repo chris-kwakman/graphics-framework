@@ -40,6 +40,8 @@ namespace Managers {
 		void DisplayEditorWidget();
 		void TryDragDropFile(fs::path _path);
 
+		Resource GetResourceFromID(resource_id _id) const;
+
 	private:
 		
 		bool m_new_resources = false;

@@ -15,6 +15,7 @@
 #include <Engine/Managers/resource_manager.h>
 
 #include <Engine/Physics/convex_hull_loader.h>
+#include <Engine/Physics/point_hull.h>
 
 #include "Demo/sandbox.h"
 #include "Demo/Components/SandboxCompManager.h"
@@ -166,7 +167,8 @@ void register_resource_loaders()
 
 	resource_type const type_texture = resource_manager.register_type("Texture", dummy_loader, dummy_unloader);
 	resource_type const type_model = resource_manager.register_type("Model", dummy_loader, dummy_unloader);
-	resource_type const type_convex_hull = resource_manager.register_type("Collider", Engine::Physics::LoadConvexHull_OBJ, Engine::Physics::UnloadConvexHull_OBJ);
+	resource_type const type_convex_hull = resource_manager.register_type("Collider", Engine::Physics::LoadConvexHull, Engine::Physics::UnloadConvexHull);
+	resource_type const type_point_hull = resource_manager.register_type("Point Hull", Engine::Physics::LoadPointHull, Engine::Physics::UnloadPointHull);
 
 	resource_manager.register_type_extension(type_texture, ".png");
 	resource_manager.register_type_extension(type_texture, ".jpeg");
@@ -175,6 +177,9 @@ void register_resource_loaders()
 	//resource_manager.register_type_extension(type_model, ".obj");
 
 	resource_manager.register_type_extension(type_convex_hull, ".obj");
+	//resource_manager.register_type_extension(type_convex_hull, ".cs350");
+
+	resource_manager.register_type_extension(type_point_hull, ".cs350");
 }
 
 void update_loop()

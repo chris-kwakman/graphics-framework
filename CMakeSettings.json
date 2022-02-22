@@ -21,7 +21,7 @@
           "type": "BOOL"
         }
       ],
-      "cmakeToolchain": ""
+      "cmakeToolchain": "C:/Users/c.kwakman/dev/vcpkg/scripts/buildsystems/vcpkg.cmake"
     },
     {
       "name": "x64-Release",
@@ -32,7 +32,14 @@
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
       "inheritEnvironments": [ "msvc_x64_x64" ],
-      "variables": []
+      "variables": [
+        {
+          "name": "X_VCPKG_APPLOCAL_DEPS_INSTALL",
+          "value": "True",
+          "type": "BOOL"
+        }
+      ],
+      "cmakeToolchain": ""
     }
   ]
 }

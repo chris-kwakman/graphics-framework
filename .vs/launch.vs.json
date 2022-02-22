@@ -15,8 +15,8 @@
     {
       "type": "default",
       "project": "CMakeLists.txt",
-      "projectTarget": "test_engine.exe (Install)",
-      "name": "test_engine.exe (Install)",
+      "projectTarget": "Tests.exe (Install)",
+      "name": "Tests.exe (Install)",
       "currentDir": "${workspaceRoot}//tests"
     }
   ]

@@ -2,7 +2,7 @@
 #define ENGINE_SERIALISE_GLTF_H
 #include <Engine/Graphics/manager.h>
 
-#include <tiny_glft/tiny_gltf.h>
+#include <tiny_gltf.h>
 #include <nlohmann/json.hpp>
 
 namespace Engine {
