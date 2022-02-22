@@ -89,6 +89,13 @@ namespace Physics {
 		glm::uvec3 const* _face_indices, size_t _face_count
 	);
 
+
+	half_edge_data_structure::vertex_idx get_hds_support_point_bruteforce(
+		decltype(half_edge_data_structure::m_vertices) const& _vertices,
+		decltype(half_edge_data_structure::m_edges) const& _edges,
+		glm::vec3	_direction
+	);
+
 	/*
 	* @brief	View convex hull data in imgui widget
 	* @param	half_edge_data_structure *	Convex hull data
@@ -96,5 +103,6 @@ namespace Physics {
 	void DebugDisplayHalfEdgeDataStructure(
 		half_edge_data_structure const* _hull
 	);
+
 }
 }

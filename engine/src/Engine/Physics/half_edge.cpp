@@ -3,8 +3,11 @@
 #include <map>
 #include <algorithm>
 #include <deque>
+
 #include <glm/geometric.hpp>
 #include <glm/gtc/epsilon.hpp>
+
+#include <imgui.h>
 
 namespace Engine {
 namespace Physics {
@@ -421,6 +424,144 @@ namespace Physics {
 		);
 
 		return new_hull;
+	}
+
+
+	/*
+	* @brief	Compute the normal of a face belonging to this hull.
+	* @param	face_idx		Index of face whose normal to compute.
+	* @returns	glm::vec3		Face normal
+	*/
+	glm::vec3 half_edge_data_structure::compute_face_normal(face_idx _face) const
+	{
+		// Assume face vertices are ordered CCW and form a convex polygon.
+		auto const& face = m_faces[_face];
+		glm::vec3 const e1 = m_vertices[face.m_vertices[1]] - m_vertices[face.m_vertices[0]];
+		glm::vec3 const e2 = m_vertices[face.m_vertices[2]] - m_vertices[face.m_vertices[1]];
+		return glm::cross(e1, e2);
+	}
+
+	/*
+	* @brief	Brute force method of finding support point in a given direction
+	* @param	vector<vec3> &			Vertices array
+	* @param	vector<half_edge> &		Edge array
+	* @param	vec3					Direction
+	* @return	vertex_idx				Index of support point in vertices array.
+	*/
+	half_edge_data_structure::vertex_idx get_hds_support_point_bruteforce(
+		decltype(half_edge_data_structure::m_vertices) const& _vertices, 
+		decltype(half_edge_data_structure::m_edges) const& _edges, 
+		glm::vec3 _direction
+	)
+	{
+		using vertex_idx = half_edge_data_structure::vertex_idx;
+
+		float max_dot = -std::numeric_limits<float>::max(); 
+		vertex_idx track_max_vertex;
+
+		for (vertex_idx i = 0; i < _vertices.size(); i++)
+		{
+			if (float dot = glm::dot(_vertices[i], _direction); dot > max_dot)
+			{
+				max_dot = dot;
+				track_max_vertex = i;
+			}
+		}
+
+		return track_max_vertex;
+	}
+
+
+
+	void DebugDisplayHalfEdgeDataStructure(half_edge_data_structure const* _hull)
+	{
+		static int set_scroll_idx_edges = -1, set_scroll_idx_faces = -1;
+
+		ImGuiTableFlags const table_flags = ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_Hideable | ImGuiTableFlags_ScrollY;
+
+		if (ImGui::BeginTable("Edges", 6, table_flags,
+			glm::vec2(ImGui::GetWindowContentRegionWidth(), ImGui::GetTextLineHeightWithSpacing() * 10.0f)
+		))
+		{
+			ImGui::TableSetupColumn("Edge IDX", ImGuiTableColumnFlags_WidthFixed);
+			ImGui::TableSetupColumn("Next Edge IDX");
+			ImGui::TableSetupColumn("Twin Edge IDX");
+			ImGui::TableSetupColumn("Face IDX");
+			ImGui::TableSetupColumn("Vertex IDX");
+			ImGui::TableSetupColumn("Vertex");
+			ImGui::TableHeadersRow();
+
+			for (size_t edge_idx = 0; edge_idx < _hull->m_edges.size(); edge_idx++)
+			{
+				half_edge_data_structure::half_edge const& edge = _hull->m_edges[edge_idx];
+				ImGui::TableNextRow();
+				ImGui::TableNextColumn();
+				ImGui::Text("%u", edge_idx);
+				ImGui::TableNextColumn();
+				ImGui::Text("%u", edge.m_next_edge);
+				if (ImGui::IsItemClicked())
+					set_scroll_idx_edges = edge.m_next_edge;
+				ImGui::TableNextColumn();
+				ImGui::Text("%u", edge.m_twin_edge);
+				if (ImGui::IsItemClicked())
+					set_scroll_idx_edges = edge.m_twin_edge;
+				ImGui::TableNextColumn();
+				ImGui::Text("%u", edge.m_edge_face);
+				if (ImGui::IsItemClicked())
+					set_scroll_idx_faces = edge.m_edge_face;
+				ImGui::TableNextColumn();
+				ImGui::Text("%u", edge.m_vertex);
+				ImGui::TableNextColumn();
+				glm::vec3 const vtx = _hull->m_vertices[edge.m_vertex];
+				ImGui::Text("%.3f,%.3f,%.3f", vtx.x, vtx.y, vtx.z);
+				if (set_scroll_idx_edges == edge_idx)
+				{
+					set_scroll_idx_edges = -1;
+					ImGui::SetScrollHereY(1.0f);
+				}
+			}
+			ImGui::EndTable();
+		}
+		if (ImGui::BeginTable("Faces", 3, table_flags,
+			glm::vec2(ImGui::GetWindowContentRegionWidth(), ImGui::GetTextLineHeightWithSpacing() * 10.0f)
+		))
+		{
+			ImGui::TableSetupColumn("Face IDX", ImGuiTableColumnFlags_WidthFixed);
+			ImGui::TableSetupColumn("Edges");
+			ImGui::TableSetupColumn("Vertices");
+			ImGui::TableHeadersRow();
+
+			for (size_t face_idx = 0; face_idx < _hull->m_faces.size(); face_idx++)
+			{
+				half_edge_data_structure::face const& face = _hull->m_faces[face_idx];
+
+				ImGui::TableNextRow();
+				ImGui::TableNextColumn();
+				ImGui::Text("%u", face_idx);
+				ImGui::TableNextColumn();
+				char buffer[4096];
+				{
+					size_t chars_written = 0;
+					for (size_t i = 0; i < face.m_edges.size(); i++)
+						chars_written += snprintf(buffer + chars_written, sizeof(buffer) - chars_written, "%u,", face.m_edges[i]);
+					ImGui::TextUnformatted(buffer, buffer + chars_written);
+				}
+				ImGui::TableNextColumn();
+				{
+					size_t chars_written = 0;
+					for (size_t i = 0; i < face.m_vertices.size(); i++)
+						chars_written += snprintf(buffer + chars_written, sizeof(buffer) - chars_written, "%u,", face.m_vertices[i]);
+					ImGui::TextUnformatted(buffer, buffer + chars_written);
+				}
+				if (set_scroll_idx_faces == face_idx)
+				{
+					set_scroll_idx_faces = -1;
+					ImGui::SetScrollHereY(1.0f);
+				}
+			}
+			ImGui::EndTable();
+		}
+
 	}
 }
 }
