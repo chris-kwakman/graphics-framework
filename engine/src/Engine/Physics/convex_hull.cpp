@@ -116,7 +116,7 @@ namespace Physics {
 				glm::vec3 const proj_point = project_point_to_plane(curr_face_plane_point, curr_face_normal, point);
 				float const dot = glm::dot(curr_face_normal, point - proj_point);
 				// TODO: Consider fat planes.
-				if (dot > 0.0f)
+				if (dot > FLT_EPSILON)
 				{
 					// Keep track of all vertices that are visible to the current face.
 					// This will be used for re-partitioning vertices
@@ -139,7 +139,7 @@ namespace Physics {
 		for (size_t i = 0; i < _process_vertices.size(); i++)
 		{
 			// Mark vertices that are inside the hull for deletion.
-			if (maximal_dots[i].second <= 0.0f)
+			if (maximal_dots[i].second <= FLT_EPSILON)
 			{
 				_existing_vertices[_process_vertices[i]] = false;
 			}
@@ -157,7 +157,7 @@ namespace Physics {
 		for (auto const & pair : track_face_maximal_conflicts)
 		{
 			// Only push to conflict queue if there is a conflicting vertex in front of the face.
-			if (pair.second.second > 0.0f)
+			if (pair.second.second > FLT_EPSILON)
 			{
 				conflict_info c_info;
 				c_info.face = pair.first;
@@ -374,7 +374,7 @@ namespace Physics {
 
 			// Found horizon edges are in reverse order.
 
-			std::vector<edge_idx> new_edges;
+			std::vector<edge_idx> new_edge_indices;
 			std::vector<face_idx> new_faces;
 
 			// Create triangle faces from horizon edges and conflict point.
@@ -412,9 +412,9 @@ namespace Physics {
 				new_face.m_edges = { new_edge_idx, edge_idx(new_edge_idx + 1u), edge_idx(new_edge_idx + 2u) };
 
 				// Keep track of new edge indices for pairing twin edges later.
-				new_edges.emplace_back(new_edge_idx);
-				new_edges.emplace_back(edge_idx(new_edge_idx + 1u));
-				new_edges.emplace_back(edge_idx(new_edge_idx + 2u));
+				new_edge_indices.emplace_back(new_edge_idx);
+				new_edge_indices.emplace_back(edge_idx(new_edge_idx + 1u));
+				new_edge_indices.emplace_back(edge_idx(new_edge_idx + 2u));
 
 				new_faces.emplace_back(new_face_idx);
 
@@ -431,7 +431,7 @@ namespace Physics {
 			}
 
 			// Find and set twin edges of newly added triangles.
-			pair_hds_twin_edges(hull.m_edges, new_edges.size(), &new_edges.front());
+			pair_hds_twin_edges(hull.m_edges, new_edge_indices.size(), &new_edge_indices.front());
 
 			// Mark faces used to determine horizon edges as deleted, as well as their edges.
 			for (half_edge_data_structure::face_idx const delete_face_idx : visited_faces)
@@ -452,11 +452,11 @@ namespace Physics {
 						face_conflict_lists[horizon_face_idx].begin(),
 						face_conflict_lists[horizon_face_idx].end()
 					);
+					face_conflict_lists.erase(horizon_face_idx);
 				}
+
 				std::vector<half_edge_data_structure::vertex_idx> process_vertices;
 				process_vertices.reserve(horizon_face_conflict_vertices.size());
-				std::vector<half_edge_data_structure::face_idx> process_faces;
-				process_faces.reserve(visited_faces.size());
 				
 				for (half_edge_data_structure::vertex_idx const vtx_idx : horizon_face_conflict_vertices)
 					process_vertices.push_back(vtx_idx);
