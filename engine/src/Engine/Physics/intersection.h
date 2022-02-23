@@ -33,11 +33,11 @@ namespace Physics {
 		{
 			struct edge_collision
 			{
-				convex_hull::half_edge_idx idx1, idx2;
+				half_edge_data_structure::half_edge_idx idx1, idx2;
 			} edge_data;
 			struct face_collision
 			{
-				convex_hull::face_idx idx1, idx2;
+				half_edge_data_structure::face_idx idx1, idx2;
 			} face_data;
 		};
 	};
@@ -51,8 +51,8 @@ namespace Physics {
 	@returns	result_convex_hull_intersection
 	*/
 	result_convex_hull_intersection intersect_convex_hulls_sat(
-		convex_hull const& _hull1, transform3D _transform1, 
-		convex_hull const& _hull2, transform3D _transform2
+		half_edge_data_structure const& _hull1, transform3D _transform1, 
+		half_edge_data_structure const& _hull2, transform3D _transform2
 	);
 
 	/*
@@ -63,7 +63,9 @@ namespace Physics {
 	@returns	result_convex_hull_intersection
 	*/
 	result_convex_hull_intersection intersect_convex_hulls_sat(
-		convex_hull const& _hull1, convex_hull const& _hull2, glm::mat4 const _mat_2_to_1
+		half_edge_data_structure const& _hull1, 
+		half_edge_data_structure const& _hull2, 
+		glm::mat4 const _mat_2_to_1
 	);
 }
 }

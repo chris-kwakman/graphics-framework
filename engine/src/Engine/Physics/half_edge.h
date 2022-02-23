@@ -25,7 +25,7 @@ namespace Physics {
 			static half_edge_idx const INVALID_EDGE = std::numeric_limits<half_edge_idx>::max();
 
 			half_edge_idx	m_next_edge;
-			half_edge_idx	m_twin_edge; // It is assumed only one twin edge exists. Not true for more complex shapes.
+			half_edge_idx	m_twin_edge; // It is assumed only one twin edge exists.
 			face_idx		m_edge_face;
 			vertex_idx		m_vertex;
 		};
@@ -47,6 +47,28 @@ namespace Physics {
 		glm::vec3 compute_face_normal(face_idx _face) const;
 		half_edge_idx get_previous_edge(half_edge_idx _edge_idx) const;
 	};
+
+	/*
+	* @brief	Project a point onto a given plane
+	* @param	glm::vec3	Plane point
+	* @param	glm::vec3	Plane normal (NORMALIZED)
+	* @param	glm::vec3	Point to project
+	* @return	glm::vec3	Projected point.
+	*/
+	glm::vec3 project_point_to_plane(glm::vec3 _plane_point, glm::vec3 _plane_normal, glm::vec3 _point);
+
+	/*
+	* @brief	Compute normal of face in array using given index
+	* @param	vector<vec3>		Vertices array
+	* @param	vector<hds::face>	Face data array
+	* @param	hds::face_idx		Index to face in face data array.
+	* @return	vec3				Normal (not normalized)
+	*/
+	glm::vec3 compute_hds_face_normal(
+		std::vector<glm::vec3> const & _vertices,
+		std::vector<half_edge_data_structure::face> const & _faces,
+		half_edge_data_structure::face_idx _get_face_idx_normal
+	);
 
 	/*
 	* @brief	For every edge in the convex hull, set its twin edge (if it exists)
@@ -92,7 +114,7 @@ namespace Physics {
 
 	half_edge_data_structure::vertex_idx get_hds_support_point_bruteforce(
 		decltype(half_edge_data_structure::m_vertices) const& _vertices,
-		decltype(half_edge_data_structure::m_edges) const& _edges,
+		//decltype(half_edge_data_structure::m_edges) const& _edges,
 		glm::vec3	_direction
 	);
 

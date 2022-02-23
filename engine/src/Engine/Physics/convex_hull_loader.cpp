@@ -14,21 +14,7 @@ namespace Physics {
 
 	uint32_t LoadConvexHull_CS350(fs::path const & _path);
 
-	uint32_t LoadConvexHull(fs::path const& _path)
-	{
-		if (!fs::exists(_path))
-			return 0;
-
-		auto ext = _path.extension();
-		if (ext == ".obj")
-			return LoadConvexHull_OBJ(_path);
-		else if (ext == ".cs350")
-			return LoadConvexHull_CS350(_path);
-		else
-			return 0;
-	}
-
-	uint32_t LoadConvexHull_OBJ(fs::path const& _path)
+	half_edge_data_structure ConstructConvexHull_OBJ(fs::path const& _path, bool _quickhull)
 	{
 		std::vector<glm::vec3> vertices;
 		std::vector<glm::uvec3> face_vertex_indices;
@@ -75,7 +61,7 @@ namespace Physics {
 				if (present_v && !present_vt && !present_vn)
 				{
 					format = "f %u %u %u";
-					sscanf(file_line.c_str(), format, 
+					sscanf(file_line.c_str(), format,
 						&indices.x, &indices.y, &indices.z
 					);
 				}
@@ -95,7 +81,7 @@ namespace Physics {
 				}
 				else if (present_v && present_vt && present_vn)
 				{
-					format = "f %u/%u/%u %u/%u/%u, %u/%u/%u";
+					format = "f %u/%u/%u %u/%u/%u %u/%u/%u";
 					sscanf(file_line.c_str(), format,
 						&indices.x, &tmp, &tmp,
 						&indices.y, &tmp, &tmp,
@@ -108,10 +94,47 @@ namespace Physics {
 			}
 		}
 
-		half_edge_data_structure new_hull = construct_half_edge_data_structure(
-			&vertices.front(), vertices.size(),
-			&face_vertex_indices.front(), face_vertex_indices.size()
-		);
+		if (face_vertex_indices.empty() || _quickhull)
+		{
+			return construct_convex_hull(
+				&vertices.front(), vertices.size()
+			);
+		}
+		else
+		{
+			try {
+				return construct_half_edge_data_structure(
+					&vertices.front(), vertices.size(),
+					&face_vertex_indices.front(), face_vertex_indices.size()
+				);
+			}
+			catch (...)
+			{
+				return construct_convex_hull(
+					&vertices.front(), vertices.size()
+				);
+			}
+		}
+
+	}
+
+	uint32_t LoadConvexHull(fs::path const& _path)
+	{
+		if (!fs::exists(_path))
+			return 0;
+
+		auto ext = _path.extension();
+		if (ext == ".obj")
+			return LoadConvexHull_OBJ(_path);
+		else if (ext == ".cs350")
+			return LoadConvexHull_CS350(_path);
+		else
+			return 0;
+	}
+
+	uint32_t LoadConvexHull_OBJ(fs::path const& _path)
+	{
+		half_edge_data_structure new_hull = ConstructConvexHull_OBJ(_path);
 
 		return Singleton<ConvexHullManager>().RegisterConvexHull(std::move(new_hull), _path.string());
 	}

@@ -50,7 +50,7 @@ namespace Physics {
 	* Perform intersection test of ray against convex polygon
 	* @param	ray				NORMALIZED intersection ray
 	* @param	glm::vec3 *		Pointer to array of convex polygon vertices, CCW order
-	* @param	size_t			Size of vertex array
+	* @param	size_t			Size of support_vertex array
 	* @details	Ray and vertices must be in the same space. Normal of polygon face
 	*			is assumed to be defined by vertices in CCW order.
 	*/
@@ -80,7 +80,9 @@ namespace Physics {
 	}
 
 
-	result_convex_hull_intersection intersect_convex_hulls_sat(convex_hull const& _hull1, transform3D _transform1, convex_hull const& _hull2, transform3D _transform2)
+	result_convex_hull_intersection intersect_convex_hulls_sat(
+		half_edge_data_structure const& _hull1, transform3D _transform1, 
+		half_edge_data_structure const& _hull2, transform3D _transform2)
 	{
 		// Possible optimization: transform the hull with the least vertices to the space of the hull with the most vertices.
 		return intersect_convex_hulls_sat(
@@ -89,8 +91,19 @@ namespace Physics {
 		);
 	}
 
-	result_convex_hull_intersection intersect_convex_hulls_sat(convex_hull const& _hull1, convex_hull const& _hull2, glm::mat4 const _mat_2_to_1)
+	result_convex_hull_intersection intersect_convex_hulls_sat(
+		half_edge_data_structure const& _hull1, 
+		half_edge_data_structure const& _hull2, 
+		glm::mat4 const _mat_2_to_1
+	)
 	{
+
+		using edge_idx = half_edge_data_structure::half_edge_idx;
+		using face_idx = half_edge_data_structure::face_idx;
+		using vertex_idx = half_edge_data_structure::vertex_idx;
+		using face = half_edge_data_structure::face;
+		using half_edge = half_edge_data_structure::half_edge;
+
 		std::vector<glm::vec3> const & hull1_vertices = _hull1.m_vertices;
 		// Rather than performing the intersection in world space, we perform the intersection in the local space of one
 		// of the passed convex hulls. This way, we only have to transform one set of vertices rather than both.
@@ -99,42 +112,72 @@ namespace Physics {
 			hull2_vertices[i] = _mat_2_to_1 * glm::vec4(hull2_vertices[i], 1.0f);
 
 		result_convex_hull_intersection intersection_result;
-
-		using edge_idx = convex_hull::half_edge_idx;
-		using face_idx = convex_hull::face_idx;
+		intersection_result.collision_type = ECollideType::eNoCollision;
 
 		// Compute face normals for both hulls.
+		// TODO: Precompute face normals?
 		std::vector<glm::vec3> hull1_normals(_hull1.m_faces.size()), hull2_normals(_hull2.m_faces.size());
 		for (size_t i = 0; i < _hull1.m_faces.size(); i++)
-			hull1_normals[i] = compute_convex_hull_face_normal(hull1_vertices, _hull1.m_faces, i);
+			hull1_normals[i] = compute_hds_face_normal(hull1_vertices, _hull1.m_faces, i);
 		for (size_t i = 0; i < _hull2.m_faces.size(); i++)
-			hull2_normals[i] = compute_convex_hull_face_normal(hull2_vertices, _hull2.m_faces, i);
+			hull2_normals[i] = compute_hds_face_normal(hull2_vertices, _hull2.m_faces, i);
 
-
-		// Check for face-face intersections
+		// Check for face-face separation
 		for (face_idx h1_f_idx = 0; h1_f_idx < _hull1.m_faces.size(); h1_f_idx++)
 		{
-
+			glm::vec3 const face_normal = hull1_normals[h1_f_idx];
+			vertex_idx const sup_vtx_idx = get_hds_support_point_bruteforce(
+				hull2_vertices, -face_normal
+			);
+			glm::vec3 const support_vertex = hull2_vertices[sup_vtx_idx];
+			glm::vec3 const proj_vertex = project_point_to_plane(
+				hull1_vertices[_hull1.m_faces[h1_f_idx].m_vertices.front()], 
+				-face_normal, 
+				support_vertex
+			);
+			float const sep = glm::dot(-face_normal, proj_vertex - support_vertex);
+			if (sep > 0.0f)
+			{
+				intersection_result.collision_type = ECollideType::eNoCollision;
+				return intersection_result;
+			}
 		}
-		for (face_idx h2_f_idx = 0; h2_f_idx < _hull1.m_faces.size(); h2_f_idx++)
+		for (face_idx h2_f_idx = 0; h2_f_idx < _hull2.m_faces.size(); h2_f_idx++)
 		{
-
+			glm::vec3 const face_normal = hull2_normals[h2_f_idx];
+			vertex_idx const sup_vtx_idx = get_hds_support_point_bruteforce(
+				hull1_vertices, -face_normal
+			);
+			glm::vec3 const support_vertex = hull1_vertices[sup_vtx_idx];
+			glm::vec3 const proj_vertex = project_point_to_plane(
+				hull2_vertices[_hull2.m_faces[h2_f_idx].m_vertices.front()],
+				-face_normal,
+				support_vertex
+			);
+			float const sep = glm::dot(-face_normal, proj_vertex - support_vertex);
+			if (sep > 0.0f)
+			{
+				intersection_result.collision_type = ECollideType::eNoCollision;
+				return intersection_result;
+			}
 		}
+
+		intersection_result.collision_type = ECollideType::eFaceCollision;
 
 		// Check for edge-edge intersections.
 		for (edge_idx h1_e_idx = 0; h1_e_idx < _hull1.m_edges.size(); h1_e_idx++)
 		{
-			convex_hull::half_edge const h1_edge = _hull1.m_edges[h1_e_idx];
-			convex_hull::half_edge const h1_twin_edge = _hull1.m_edges[h1_edge.m_twin_edge];
-			glm::vec3 const A = hull1_normals[h1_edge.m_edge_face], B = hull1_normals[h1_twin_edge];
+			half_edge const h1_edge = _hull1.m_edges[h1_e_idx];
+			half_edge const h1_twin_edge = _hull1.m_edges[h1_edge.m_twin_edge];
+			glm::vec3 const A = hull1_normals[h1_edge.m_edge_face], B = hull1_normals[h1_twin_edge.m_edge_face];
 
 			glm::vec3 const cross_b_a = glm::cross(B, A);
 
 			for (edge_idx h2_e_idx = 0; h2_e_idx < _hull2.m_edges.size(); h2_e_idx++)
 			{
-				convex_hull::half_edge const h2_edge = _hull2.m_edges[h2_e_idx];
-				convex_hull::half_edge const h2_twin_edge = _hull2.m_edges[h2_edge.m_twin_edge];
-				glm::vec3 const C = hull1_normals[h2_edge.m_edge_face], D = hull1_normals[h2_twin_edge];
+				half_edge const h2_edge = _hull2.m_edges[h2_e_idx];
+				half_edge const h2_twin_edge = _hull2.m_edges[h2_edge.m_twin_edge];
+				glm::vec3 const C = hull2_normals[h2_edge.m_edge_face], D = hull2_normals[h2_twin_edge.m_edge_face];
 
 				glm::vec3 const cross_d_c = glm::cross(D,C);
 				glm::vec3 const cross_c_b = glm::cross(C, B);
@@ -147,18 +190,31 @@ namespace Physics {
 
 				if (arcs_intersect)
 				{
-					float sep = 0.0f;
+					// Compute separation between edges
+					glm::vec3 separating_plane_normal = glm::cross(
+						hull1_vertices[h1_twin_edge.m_vertex] - hull1_vertices[h1_edge.m_vertex],
+						hull2_vertices[h2_twin_edge.m_vertex] - hull2_vertices[h2_edge.m_vertex]
+					);
+
+					// Assume center of hull1 is 0,0,0.
+					glm::vec3 const C(0.0f);
+					if (glm::dot(separating_plane_normal, hull1_vertices[h1_twin_edge.m_vertex] - C) > 0.0f)
+						separating_plane_normal = -separating_plane_normal;
+
+					// Signed distance to separating plane from hull2 edge vertex is separation.
+					glm::vec3 const hull2_edge_vtx = hull2_vertices[h2_edge.m_vertex];
+					glm::vec3 const proj_hull2_edge_vtx = project_point_to_plane(hull1_vertices[h1_edge.m_vertex], separating_plane_normal, hull2_edge_vtx);
+					float const sep = glm::dot(separating_plane_normal, proj_hull2_edge_vtx - hull2_edge_vtx);
 					if (sep > 0.0f)
 					{
 						intersection_result.collision_type = ECollideType::eNoCollision;
-						goto end;
+						return intersection_result;
 					}
 				}
 			}
 		}
 
-		end:
-
+		intersection_result.collision_type = ECollideType(ECollideType::eEdgeCollision | ECollideType::eFaceCollision);
 		return intersection_result;
 	}
 

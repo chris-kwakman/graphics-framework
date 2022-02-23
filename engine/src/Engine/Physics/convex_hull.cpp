@@ -15,23 +15,9 @@
 #include <glm/geometric.hpp>
 
 
-
 namespace Engine {
 namespace Physics {
 
-
-	/*
-	* @brief	Project a point onto a given plane
-	* @param	glm::vec3	Plane point
-	* @param	glm::vec3	Plane normal (NORMALIZED)
-	* @param	glm::vec3	Point to project
-	* @return	glm::vec3	Projected point.
-	*/
-	glm::vec3 project_point_to_plane(glm::vec3 _plane_point, glm::vec3 _plane_normal, glm::vec3 _point)
-	{
-		assert(glm::epsilonEqual(glm::dot(_plane_normal, _plane_normal), 1.0f, 0.00001f));
-		return _point - glm::dot(_plane_normal, _point - _plane_point) * _plane_normal;
-	};
 
 	struct conflict_info
 	{

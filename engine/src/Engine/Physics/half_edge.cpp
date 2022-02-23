@@ -7,10 +7,19 @@
 #include <glm/geometric.hpp>
 #include <glm/gtc/epsilon.hpp>
 
+#include <Engine/Utils/filesystem.h>
+#include <fstream>
+#include <string>
+
 #include <imgui.h>
 
 namespace Engine {
 namespace Physics {
+
+	glm::vec3 project_point_to_plane(glm::vec3 _plane_point, glm::vec3 _plane_normal, glm::vec3 _point)
+	{
+		return _point - (glm::dot(_plane_normal, _point - _plane_point) / glm::dot(_plane_normal, _plane_normal)) * _plane_normal;
+	};
 
 	half_edge_data_structure::half_edge_idx half_edge_data_structure::get_previous_edge(half_edge_data_structure::half_edge_idx _idx) const
 	{
@@ -22,6 +31,15 @@ namespace Physics {
 			iterator_edge = m_edges[edge_idx_iterator];
 		} while (iterator_edge.m_next_edge != _idx);
 		return edge_idx_iterator;
+	}
+
+	glm::vec3 compute_hds_face_normal(std::vector<glm::vec3> const& _vertices, std::vector<half_edge_data_structure::face> const& _faces, half_edge_data_structure::face_idx _get_face_idx_normal)
+	{
+		half_edge_data_structure::face const& face = _faces[_get_face_idx_normal];
+		return glm::cross(
+			_vertices[face.m_vertices[1]] - _vertices[face.m_vertices[0]],
+			_vertices[face.m_vertices[2]] - _vertices[face.m_vertices[0]]
+		);
 	}
 
 	void pair_hds_twin_edges(
@@ -86,7 +104,7 @@ namespace Physics {
 		for (auto& pair : vertex_edge_map)
 		{
 			auto& [vertex_idx, vertex_half_edges] = pair;
-			assert(vertex_half_edges.size() <= 2 && !vertex_half_edges.empty());
+			//assert(vertex_half_edges.size() <= 2 && !vertex_half_edges.empty());
 
 			// Set each half-edge as having the other half-edge as their twin (i.e. edge is adjacent to two faces)
 			if (vertex_half_edges.size() == 2)
@@ -94,6 +112,8 @@ namespace Physics {
 				_ch_edges[vertex_half_edges[0]].m_twin_edge = vertex_half_edges[1];
 				_ch_edges[vertex_half_edges[1]].m_twin_edge = vertex_half_edges[0];
 			}
+			else if(vertex_half_edges.size() > 2)
+				throw std::runtime_error("Pair of vertices has more than two edges between it!");
 		}
 	}
 
@@ -450,7 +470,7 @@ namespace Physics {
 	*/
 	half_edge_data_structure::vertex_idx get_hds_support_point_bruteforce(
 		decltype(half_edge_data_structure::m_vertices) const& _vertices, 
-		decltype(half_edge_data_structure::m_edges) const& _edges, 
+		//decltype(half_edge_data_structure::m_edges) const& _edges, 
 		glm::vec3 _direction
 	)
 	{
