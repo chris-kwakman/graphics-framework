@@ -25,6 +25,11 @@ namespace Physics {
 
 		bool present_v = false, present_vn = false, present_vt = false;
 
+		if (!fs::exists(_path))
+		{
+			throw std::runtime_error("[convex_hull_loader] File not found.");
+		}
+
 		std::ifstream in_file(_path);
 		char buffer[128];
 		while (!in_file.eof())
