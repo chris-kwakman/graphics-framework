@@ -43,7 +43,7 @@ namespace Component
 			unsigned int transform;
 			unsigned int matrix;
 
-			NLOHMANN_DEFINE_TYPE_INTRUSIVE(indexer_data, transform, matrix)
+			NLOHMANN_DEFINE_TYPE_INTRUSIVE(indexer_data, transform)
 		};
 
 		// Double-linked maps

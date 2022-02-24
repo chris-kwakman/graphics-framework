@@ -329,6 +329,11 @@ namespace Component
 		auto it1 = m_data.m_entity_map.begin();
 		while (it1 != m_data.m_entity_map.end())
 		{
+			if (!it1->second.ID())
+			{
+				it1++;
+				continue;
+			}
 			convex_hull_handle const ch_1 = it1->second.Handle();
 			auto chi_1 = Singleton<ConvexHullManager>().GetConvexHullInfo(ch_1);
 			auto it2 = it1;
@@ -336,6 +341,12 @@ namespace Component
 			it2++;
 			while (it2 != m_data.m_entity_map.end())
 			{
+				if (!it2->second.ID())
+				{
+					it2++;
+					continue;
+				}
+
 				convex_hull_handle const ch_2 = it2->second.Handle();
 				auto chi_2 = Singleton<ConvexHullManager>().GetConvexHullInfo(ch_2);
 				Engine::Math::transform3D const tr_2 = it2->first.GetComponent<Component::Transform>().ComputeWorldTransform();
@@ -343,7 +354,7 @@ namespace Component
 				if (result.intersection_type & EIntersectionType::eAnyIntersection)
 				{
 					m_data.m_intersection_results.emplace(
-						entity_pair(it1->first, it2->first), result
+						std::pair(it1->first, it2->first), result
 					);
 					m_data.m_entity_intersections[it1->first].emplace_back(it2->first);
 					m_data.m_entity_intersections[it2->first].emplace_back(it1->first);

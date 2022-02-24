@@ -621,8 +621,9 @@ namespace Sandbox
 				using namespace Engine::Physics;
 				convex_hull_handle const ch_handle = entity_collider_pair.second.Handle();
 
+				RigidBody rb_comp = entity_collider_pair.first.GetComponent<RigidBody>();
 				auto ch_info = Singleton<ConvexHullManager>().GetConvexHullInfo(ch_handle);
-				if (ch_info)
+				if (ch_info && rb_comp.IsValid())
 				{
 					Entity const rb_entity = entity_collider_pair.first;
 					Transform rb_transform = rb_entity.GetComponent<Transform>();

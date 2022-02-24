@@ -140,9 +140,7 @@ namespace Physics {
 			);
 			float const sep = glm::dot(-face_normal, proj_vertex - support_vertex);
 			if (sep > 0.0f)
-			{
 				return intersection_result;
-			}
 			min_sep_faces = std::min(min_sep_faces, sep);
 		}
 		for (face_idx h2_f_idx = 0; h2_f_idx < _hull2.m_faces.size(); h2_f_idx++)
@@ -159,9 +157,8 @@ namespace Physics {
 			);
 			float const sep = glm::dot(-face_normal, proj_vertex - support_vertex);
 			if (sep > 0.0f)
-			{
 				return intersection_result;
-			}
+			min_sep_faces = std::min(min_sep_faces, sep);
 		}
 
 		// Check for edge-edge intersections.
@@ -169,7 +166,8 @@ namespace Physics {
 		{
 			half_edge const h1_edge = _hull1.m_edges[h1_e_idx];
 			half_edge const h1_twin_edge = _hull1.m_edges[h1_edge.m_twin_edge];
-			glm::vec3 const A = hull1_normals[h1_edge.m_edge_face], B = hull1_normals[h1_twin_edge.m_edge_face];
+			glm::vec3 const A = hull1_normals[h1_edge.m_edge_face];
+			glm::vec3 const B = hull1_normals[h1_twin_edge.m_edge_face];
 
 			glm::vec3 const cross_b_a = glm::cross(B, A);
 
@@ -177,40 +175,49 @@ namespace Physics {
 			{
 				half_edge const h2_edge = _hull2.m_edges[h2_e_idx];
 				half_edge const h2_twin_edge = _hull2.m_edges[h2_edge.m_twin_edge];
-				glm::vec3 const C = hull2_normals[h2_edge.m_edge_face], D = hull2_normals[h2_twin_edge.m_edge_face];
+				glm::vec3 const C = hull2_normals[h2_twin_edge.m_edge_face];
+				glm::vec3 const D = hull2_normals[h2_edge.m_edge_face];
 
-				glm::vec3 const cross_d_c = glm::cross(D,C);
+				glm::vec3 const cross_d_c = glm::cross(D, C);
 				glm::vec3 const cross_c_b = glm::cross(C, B);
-
+				
+				float const c_dot_cross_b_a = glm::dot(C, glm::cross(B, A));
+				float const b_dot_cross_d_c = glm::dot(B, cross_d_c);
+				
 				bool arcs_intersect = (
-					glm::dot(glm::dot(C,cross_b_a), glm::dot(D,cross_b_a)) < 0.0f &&
-					glm::dot(glm::dot(A, cross_d_c), glm::dot(B, cross_d_c)) < 0.0f &&
-					glm::dot(glm::dot(A, cross_c_b), glm::dot(D, cross_c_b)) > 0.0f
+					(c_dot_cross_b_a * glm::dot(D, cross_b_a) < 0.0f) &&
+					(glm::dot(A, cross_d_c) *  b_dot_cross_d_c < 0.0f) &&
+					(c_dot_cross_b_a * b_dot_cross_d_c) < 0.0f
 				);
 
-				if (arcs_intersect)
-				{
-					// Compute separation between edges
-					glm::vec3 separating_plane_normal = glm::cross(
-						hull1_vertices[h1_twin_edge.m_vertex] - hull1_vertices[h1_edge.m_vertex],
-						hull2_vertices[h2_twin_edge.m_vertex] - hull2_vertices[h2_edge.m_vertex]
-					);
+				/*float acb = glm::dot(C, glm::cross(B, A));
+				float bdc = glm::dot(B, glm::cross(D, C));
+				float adb = glm::dot(A, glm::cross(D, B));
+				float adc = glm::dot(A, glm::cross(D, C));
 
-					// Assume center of hull1 is 0,0,0.
-					glm::vec3 const C(0.0f);
-					if (glm::dot(separating_plane_normal, hull1_vertices[h1_twin_edge.m_vertex] - C) > 0.0f)
-						separating_plane_normal = -separating_plane_normal;
+				bool arcs_intersect = (acb * adb < 0.0f) && (adc * bdc < 0.0f) && (acb * bdc < 0.0f);*/
 
-					// Signed distance to separating plane from hull2 edge vertex is separation.
-					glm::vec3 const hull2_edge_vtx = hull2_vertices[h2_edge.m_vertex];
-					glm::vec3 const proj_hull2_edge_vtx = project_point_to_plane(hull1_vertices[h1_edge.m_vertex], separating_plane_normal, hull2_edge_vtx);
-					float const sep = glm::dot(separating_plane_normal, proj_hull2_edge_vtx - hull2_edge_vtx);
-					if (sep > 0.0f)
-					{
-						return intersection_result;
-					}
-					min_sep_edges = std::min(min_sep_edges, sep);
-				}
+				// If true, separation is signed distance between intersection edges.
+				// If it is negative, the penetration is the separation.
+				if (!arcs_intersect)
+					continue;
+
+				glm::vec3 const e1_vec = hull1_vertices[h1_twin_edge.m_vertex] - hull1_vertices[h1_edge.m_vertex];
+				glm::vec3 const e2_vec = hull2_vertices[h2_twin_edge.m_vertex] - hull2_vertices[h2_edge.m_vertex];
+
+				// Compute separation plane between edges
+				glm::vec3 separating_plane_normal = glm::normalize(glm::cross(e1_vec, e2_vec));
+
+				// Compute center of current face. TODO: Cache?
+				glm::vec3 const hull1_center(0.0f);
+				if (glm::dot(separating_plane_normal, hull1_vertices[h1_twin_edge.m_vertex] - hull1_center) < 0.0f)
+					separating_plane_normal = -separating_plane_normal;
+
+				// Signed distance to separating plane from hull2 edge vertex is separation.
+				float const sep = glm::dot(separating_plane_normal, hull2_vertices[h2_edge.m_vertex] - hull1_vertices[h1_edge.m_vertex]);
+				if (sep > 0.0f)
+					return intersection_result;
+				min_sep_edges = std::min(min_sep_edges, sep);
 			}
 		}
 
