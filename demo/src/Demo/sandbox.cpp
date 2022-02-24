@@ -673,6 +673,7 @@ namespace Sandbox
 		frame_counter++;
 
 		GameplayLogic();
+		Singleton<Component::ColliderManager>().TestColliderIntersections();
 
 		s_time += 1.0 / 60.0;
 		GraphicsPipelineRender();

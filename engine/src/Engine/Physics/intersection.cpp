@@ -112,7 +112,10 @@ namespace Physics {
 			hull2_vertices[i] = _mat_2_to_1 * glm::vec4(hull2_vertices[i], 1.0f);
 
 		result_convex_hull_intersection intersection_result;
-		intersection_result.collision_type = ECollideType::eNoCollision;
+		intersection_result.intersection_type = EIntersectionType::eNoIntersection;
+
+		float min_sep_faces = std::numeric_limits<float>::max();
+		float min_sep_edges = min_sep_faces;
 
 		// Compute face normals for both hulls.
 		// TODO: Precompute face normals?
@@ -138,9 +141,9 @@ namespace Physics {
 			float const sep = glm::dot(-face_normal, proj_vertex - support_vertex);
 			if (sep > 0.0f)
 			{
-				intersection_result.collision_type = ECollideType::eNoCollision;
 				return intersection_result;
 			}
+			min_sep_faces = std::min(min_sep_faces, sep);
 		}
 		for (face_idx h2_f_idx = 0; h2_f_idx < _hull2.m_faces.size(); h2_f_idx++)
 		{
@@ -157,12 +160,9 @@ namespace Physics {
 			float const sep = glm::dot(-face_normal, proj_vertex - support_vertex);
 			if (sep > 0.0f)
 			{
-				intersection_result.collision_type = ECollideType::eNoCollision;
 				return intersection_result;
 			}
 		}
-
-		intersection_result.collision_type = ECollideType::eFaceCollision;
 
 		// Check for edge-edge intersections.
 		for (edge_idx h1_e_idx = 0; h1_e_idx < _hull1.m_edges.size(); h1_e_idx++)
@@ -207,14 +207,18 @@ namespace Physics {
 					float const sep = glm::dot(separating_plane_normal, proj_hull2_edge_vtx - hull2_edge_vtx);
 					if (sep > 0.0f)
 					{
-						intersection_result.collision_type = ECollideType::eNoCollision;
 						return intersection_result;
 					}
+					min_sep_edges = std::min(min_sep_edges, sep);
 				}
 			}
 		}
 
-		intersection_result.collision_type = ECollideType(ECollideType::eEdgeCollision | ECollideType::eFaceCollision);
+		if (min_sep_edges < min_sep_faces)
+			intersection_result.intersection_type = EIntersectionType::eEdgeIntersection;
+		else
+			intersection_result.intersection_type = EIntersectionType::eFaceIntersection;
+		
 		return intersection_result;
 	}
 

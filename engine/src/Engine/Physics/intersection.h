@@ -8,7 +8,7 @@ namespace Engine {
 
 namespace Physics {
 
-	enum ECollideType : char { eNoCollision = 0, eEdgeCollision = 1, eFaceCollision = 2, eAnyCollision = 3 };
+	enum EIntersectionType : char { eNoIntersection = 0, eEdgeIntersection = 1, eFaceIntersection = 2, eAnyIntersection = 3 };
 
 	struct ray
 	{
@@ -28,18 +28,7 @@ namespace Physics {
 
 	struct result_convex_hull_intersection
 	{
-		ECollideType collision_type;
-		union
-		{
-			struct edge_collision
-			{
-				half_edge_data_structure::half_edge_idx idx1, idx2;
-			} edge_data;
-			struct face_collision
-			{
-				half_edge_data_structure::face_idx idx1, idx2;
-			} face_data;
-		};
+		EIntersectionType intersection_type;
 	};
 
 	/*

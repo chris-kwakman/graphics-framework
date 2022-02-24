@@ -33,8 +33,8 @@ TEST(Sat, cubeIntersectionFace)
     rhs_m2w.position = glm::vec3({ 1,0,0 });
 
     auto result = intersect_convex_hulls_sat(shape, lhs_m2w, shape, rhs_m2w);
-    ASSERT_TRUE(result.collision_type & ECollideType::eAnyCollision);
-    ASSERT_TRUE(result.collision_type & ECollideType::eFaceCollision);
+    ASSERT_TRUE(result.intersection_type & EIntersectionType::eAnyIntersection);
+    ASSERT_TRUE(result.intersection_type & EIntersectionType::eFaceIntersection);
 }
 
 TEST(Sat, cubeIntersectionEdges)
@@ -50,8 +50,8 @@ TEST(Sat, cubeIntersectionEdges)
     rhs_m2w.position = glm::vec3({ 1, 0.75, -2 });
 
     auto result = intersect_convex_hulls_sat(shape, lhs_m2w, shape, rhs_m2w);
-    ASSERT_TRUE(result.collision_type & ECollideType::eAnyCollision);
-    ASSERT_TRUE(result.collision_type & ECollideType::eEdgeCollision);
+    ASSERT_TRUE(result.intersection_type & EIntersectionType::eAnyIntersection);
+    ASSERT_TRUE(result.intersection_type & EIntersectionType::eEdgeIntersection);
 }
 
 
@@ -68,8 +68,8 @@ TEST(Sat, convexHullIntersectionFace)
     rhs_m2w.position = glm::vec3({ 2.07,0,0 });
 
     auto result = intersect_convex_hulls_sat(shape, lhs_m2w, shape, rhs_m2w);
-    ASSERT_TRUE(result.collision_type & ECollideType::eAnyCollision);
-    ASSERT_TRUE(result.collision_type & ECollideType::eFaceCollision);
+    ASSERT_TRUE(result.intersection_type & EIntersectionType::eAnyIntersection);
+    ASSERT_TRUE(result.intersection_type & EIntersectionType::eFaceIntersection);
 }
 
 TEST(Sat, convexHullIntersectionEdges)
@@ -85,6 +85,6 @@ TEST(Sat, convexHullIntersectionEdges)
     rhs_m2w.position = glm::vec3({ 1,0.75,-2 });
 
     auto result = intersect_convex_hulls_sat(shape, lhs_m2w, shape, rhs_m2w);
-    ASSERT_TRUE(result.collision_type & ECollideType::eAnyCollision);
-    ASSERT_TRUE(result.collision_type & ECollideType::eEdgeCollision);
+    ASSERT_TRUE(result.intersection_type & EIntersectionType::eAnyIntersection);
+    ASSERT_TRUE(result.intersection_type & EIntersectionType::eEdgeIntersection);
 }

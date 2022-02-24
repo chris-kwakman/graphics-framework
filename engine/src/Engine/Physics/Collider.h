@@ -2,6 +2,7 @@
 
 #include <engine/ECS/component_manager.h>
 #include <Engine/Physics/convex_hull.h>
+#include <Engine/Physics/intersection.h>
 
 #include <Engine/Graphics/manager.h>
 
@@ -11,6 +12,24 @@
 namespace Component
 {
 	using namespace Engine::ECS;
+
+
+	struct entity_pair
+	{
+		entity_pair(Entity _e1, Entity _e2) :
+			e1(std::min(_e1, _e2)), e2(std::max(_e1, _e2))
+		{}
+
+		Entity e1, e2;
+		bool operator==(entity_pair const& _l) const
+		{
+			return (e1.ID() == _l.e2.ID()) && (e1.ID() == _l.e2.ID());
+		}
+		bool operator<(entity_pair const& _l) const
+		{
+			return (e1.ID() == _l.e1.ID()) ? e2.ID() > _l.e1.ID() : e1.ID() < _l.e1.ID();
+		}
+	};
 
 	class ColliderManager;
 	struct Collider : public IComp<ColliderManager>
@@ -39,6 +58,9 @@ namespace Component
 			std::unordered_map<Entity, Engine::Managers::Resource, Entity::hash> m_entity_map;
 			std::unordered_map<Engine::Physics::convex_hull_handle, ch_debug_render_data> m_ch_debug_meshes;
 
+			std::map<entity_pair, Engine::Physics::result_convex_hull_intersection> m_intersection_results;
+			std::unordered_map<Entity, std::vector<Entity>, Entity::hash> m_entity_intersections;
+
 			bool m_render_debug_face_mesh = true, m_render_debug_edge_mesh = true;
 
 			NLOHMANN_DEFINE_TYPE_INTRUSIVE(manager_data, m_entity_map, m_render_debug_face_mesh, m_render_debug_edge_mesh);
@@ -51,6 +73,8 @@ namespace Component
 		// Inherited via TCompManager
 		virtual const char* GetComponentTypeName() const override;
 		void SetColliderResource(Entity _e, Engine::Managers::Resource _resource);
+
+		void TestColliderIntersections();
 
 	private:
 

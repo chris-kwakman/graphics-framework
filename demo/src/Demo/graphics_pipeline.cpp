@@ -802,6 +802,8 @@ namespace Sandbox
 
 			for (auto [e, ch_handle] : collider_mgr.m_data.m_entity_map)
 			{
+				bool set_intersection_base_color = false;
+
 				Component::Transform transform = e.GetComponent<Component::Transform>();
 				Engine::Math::transform3D world_transform = transform.ComputeWorldTransform();
 
@@ -814,6 +816,15 @@ namespace Sandbox
 				if (it == collider_mgr.m_data.m_ch_debug_meshes.end())
 					continue;
 
+				auto const& intersection_data = collider_mgr.m_data.m_entity_intersections;
+				auto e_intersect_it = intersection_data.find(e);
+				if (e_intersect_it != intersection_data.end())
+				{
+					set_intersection_base_color = true;
+				}
+
+				uint32_t const BASE_COLOR_LOCATION = res_mgr.FindBoundProgramUniformLocation("u_base_color_factor");
+
 				auto debug_render_data = it->second;
 				res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, matrix_vp * world_transform.GetMatrix());
 				int const LOC_HIGHLIGHT_INDEX = res_mgr.FindBoundProgramUniformLocation("u_highlight_index");
@@ -823,9 +834,14 @@ namespace Sandbox
 					auto& primitive_list = res_mgr.GetMeshPrimitives(debug_render_data.m_ch_face_mesh);
 					for (auto& primitive : primitive_list)
 					{
+						glm::vec4 use_base_color;
+						if (set_intersection_base_color)
+							use_base_color = glm::vec4(0.0f, 1.0f, 0.0f, 0.75f);
+						else
+							use_base_color = res_mgr.GetMaterial(primitive.m_material_handle).m_pbr_metallic_roughness.m_base_color_factor;
 						res_mgr.SetBoundProgramUniform(
 							LOC_BASE_COLOR_FACTOR,
-							res_mgr.GetMaterial(primitive.m_material_handle).m_pbr_metallic_roughness.m_base_color_factor
+							use_base_color
 						);
 						res_mgr.SetBoundProgramUniform(LOC_HIGHLIGHT_INDEX, debug_render_data.m_highlight_face_index);
 						render_primitive(primitive);
