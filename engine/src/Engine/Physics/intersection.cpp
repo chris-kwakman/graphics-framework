@@ -80,7 +80,7 @@ namespace Physics {
 	}
 
 
-	result_convex_hull_intersection intersect_convex_hulls_sat(
+	EIntersectionType intersect_convex_hulls_sat(
 		half_edge_data_structure const& _hull1, transform3D _transform1, 
 		half_edge_data_structure const& _hull2, transform3D _transform2)
 	{
@@ -91,7 +91,7 @@ namespace Physics {
 		);
 	}
 
-	result_convex_hull_intersection intersect_convex_hulls_sat(
+	EIntersectionType intersect_convex_hulls_sat(
 		half_edge_data_structure const& _hull1, 
 		half_edge_data_structure const& _hull2, 
 		glm::mat4 const _mat_2_to_1
@@ -104,6 +104,9 @@ namespace Physics {
 		using face = half_edge_data_structure::face;
 		using half_edge = half_edge_data_structure::half_edge;
 
+		struct edge_pair { edge_idx hull1_edge_idx, hull2_edge_idx; };
+		struct face_vertex_pair { face_idx reference_face_index; vertex_idx incident_face_vertex; bool reference_is_hull1 = false; };
+
 		std::vector<glm::vec3> const & hull1_vertices = _hull1.m_vertices;
 		// Rather than performing the intersection in world space, we perform the intersection in the local space of one
 		// of the passed convex hulls. This way, we only have to transform one set of vertices rather than both.
@@ -111,11 +114,10 @@ namespace Physics {
 		for (size_t i = 0; i < hull2_vertices.size(); i++)
 			hull2_vertices[i] = _mat_2_to_1 * glm::vec4(hull2_vertices[i], 1.0f);
 
-		result_convex_hull_intersection intersection_result;
-		intersection_result.intersection_type = EIntersectionType::eNoIntersection;
-
 		float min_sep_faces = std::numeric_limits<float>::max();
 		float min_sep_edges = min_sep_faces;
+		face_vertex_pair min_sep_face_pair;
+		edge_pair min_sep_edge_pair;
 
 		// Compute face normals for both hulls.
 		// TODO: Precompute face normals?
@@ -140,7 +142,12 @@ namespace Physics {
 			);
 			float const sep = glm::dot(-face_normal, proj_vertex - support_vertex);
 			if (sep > 0.0f)
-				return intersection_result;
+				return EIntersectionType::eNoIntersection;
+			else if (sep < min_sep_faces)
+			{
+				min_sep_faces = sep;
+				min_sep_face_pair = face_vertex_pair{ h1_f_idx, sup_vtx_idx, true };
+			}
 			min_sep_faces = std::min(min_sep_faces, sep);
 		}
 		for (face_idx h2_f_idx = 0; h2_f_idx < _hull2.m_faces.size(); h2_f_idx++)
@@ -157,8 +164,12 @@ namespace Physics {
 			);
 			float const sep = glm::dot(-face_normal, proj_vertex - support_vertex);
 			if (sep > 0.0f)
-				return intersection_result;
-			min_sep_faces = std::min(min_sep_faces, sep);
+				return EIntersectionType::eNoIntersection;
+			else if (sep < min_sep_faces)
+			{
+				min_sep_faces = sep;
+				min_sep_face_pair = face_vertex_pair{ h2_f_idx, sup_vtx_idx, false };
+			}
 		}
 
 		// Check for edge-edge intersections.
@@ -181,7 +192,7 @@ namespace Physics {
 				glm::vec3 const cross_d_c = glm::cross(D, C);
 				glm::vec3 const cross_c_b = glm::cross(C, B);
 				
-				float const c_dot_cross_b_a = glm::dot(C, glm::cross(B, A));
+				float const c_dot_cross_b_a = glm::dot(C, cross_b_a);
 				float const b_dot_cross_d_c = glm::dot(B, cross_d_c);
 				
 				bool arcs_intersect = (
@@ -189,13 +200,6 @@ namespace Physics {
 					(glm::dot(A, cross_d_c) *  b_dot_cross_d_c < 0.0f) &&
 					(c_dot_cross_b_a * b_dot_cross_d_c) < 0.0f
 				);
-
-				/*float acb = glm::dot(C, glm::cross(B, A));
-				float bdc = glm::dot(B, glm::cross(D, C));
-				float adb = glm::dot(A, glm::cross(D, B));
-				float adc = glm::dot(A, glm::cross(D, C));
-
-				bool arcs_intersect = (acb * adb < 0.0f) && (adc * bdc < 0.0f) && (acb * bdc < 0.0f);*/
 
 				// If true, separation is signed distance between intersection edges.
 				// If it is negative, the penetration is the separation.
@@ -216,17 +220,22 @@ namespace Physics {
 				// Signed distance to separating plane from hull2 edge vertex is separation.
 				float const sep = glm::dot(separating_plane_normal, hull2_vertices[h2_edge.m_vertex] - hull1_vertices[h1_edge.m_vertex]);
 				if (sep > 0.0f)
-					return intersection_result;
-				min_sep_edges = std::min(min_sep_edges, sep);
+					return EIntersectionType::eNoIntersection;
+				else if (sep < min_sep_edges)
+				{
+					min_sep_edges = sep;
+					min_sep_edge_pair = edge_pair{ h1_e_idx, h2_e_idx };
+				}
 			}
 		}
 
-		if (min_sep_edges < min_sep_faces)
-			intersection_result.intersection_type = EIntersectionType::eEdgeIntersection;
-		else
-			intersection_result.intersection_type = EIntersectionType::eFaceIntersection;
+		EIntersectionType return_intersection_type;
+
+		return_intersection_type = (min_sep_edges < min_sep_faces) 
+			? EIntersectionType::eEdgeIntersection 
+			: EIntersectionType::eFaceIntersection;
 		
-		return intersection_result;
+		return return_intersection_type;
 	}
 
 }

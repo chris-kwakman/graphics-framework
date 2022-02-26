@@ -40,7 +40,7 @@ namespace Component
 			std::unordered_map<Entity, Engine::Managers::Resource, Entity::hash> m_entity_map;
 			std::unordered_map<Engine::Physics::convex_hull_handle, ch_debug_render_data> m_ch_debug_meshes;
 
-			std::map<std::pair<Entity,Entity>, Engine::Physics::result_convex_hull_intersection> m_intersection_results;
+			std::map<std::pair<Entity,Entity>, Engine::Physics::EIntersectionType> m_intersection_results;
 			std::unordered_map<Entity, std::vector<Entity>, Entity::hash> m_entity_intersections;
 
 			bool m_render_debug_face_mesh = true, m_render_debug_edge_mesh = true;

@@ -350,8 +350,8 @@ namespace Component
 				convex_hull_handle const ch_2 = it2->second.Handle();
 				auto chi_2 = Singleton<ConvexHullManager>().GetConvexHullInfo(ch_2);
 				Engine::Math::transform3D const tr_2 = it2->first.GetComponent<Component::Transform>().ComputeWorldTransform();
-				auto result = intersect_convex_hulls_sat(chi_1->m_data, tr_1, chi_2->m_data, tr_2);
-				if (result.intersection_type & EIntersectionType::eAnyIntersection)
+				EIntersectionType result = intersect_convex_hulls_sat(chi_1->m_data, tr_1, chi_2->m_data, tr_2);
+				if (result & EIntersectionType::eAnyIntersection)
 				{
 					m_data.m_intersection_results.emplace(
 						std::pair(it1->first, it2->first), result
