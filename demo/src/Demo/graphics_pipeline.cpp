@@ -25,6 +25,19 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/quaternion.hpp>
 
+struct gfx_pipeline_resources
+{
+	using mesh_handle = Engine::Graphics::mesh_handle;
+	using buffer_handle = Engine::Graphics::buffer_handle;
+
+	static size_t const MAX_LINE_SEGMENTS = 512;
+	static size_t const MAX_POINT_COUNT = MAX_LINE_SEGMENTS * 2;
+	mesh_handle line_point_mesh_handle = 0;
+	buffer_handle line_point_mesh_vbo_handle = 0;
+	void upload_line_point_data(glm::vec3 const* _points, size_t _count) const;
+};
+
+static gfx_pipeline_resources s_pipeline_resources;
 
 namespace Sandbox
 {
@@ -32,11 +45,50 @@ namespace Sandbox
 	{
 		setup_lighting_pass_pipeline();
 		setup_volumetric_fog();
+
+		using namespace Engine::Graphics;
+		using GraphicsManager = ResourceManager;
+		auto& gfx_mgr = Singleton<GraphicsManager>();
+
+		// Create mesh for displaying points / lines.
+		GLuint line_point_mesh_vao = 0, line_point_mesh_vbo = 0;
+		glCreateVertexArrays(1, &line_point_mesh_vao);
+		glCreateBuffers(1, &line_point_mesh_vbo);
+
+		glBindVertexArray(line_point_mesh_vao);
+		glBindBuffer(GL_ARRAY_BUFFER, line_point_mesh_vbo);
+		glBufferData(GL_ARRAY_BUFFER, gfx_pipeline_resources::MAX_POINT_COUNT * sizeof(glm::vec3), nullptr, GL_DYNAMIC_DRAW);
+		glEnableVertexArrayAttrib(line_point_mesh_vao, 0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, nullptr);
+
+		GraphicsManager::buffer_info line_point_buf_info;
+		line_point_buf_info.m_gl_id = line_point_mesh_vbo;
+		line_point_buf_info.m_target = GL_ARRAY_BUFFER;
+		s_pipeline_resources.line_point_mesh_vbo_handle = gfx_mgr.RegisterBuffer(line_point_buf_info);
+
+		GraphicsManager::material_data line_point_mesh_mat;
+		line_point_mesh_mat.m_double_sided = false;
+		line_point_mesh_mat.m_name = "Debug Line Point Mesh Material";
+		line_point_mesh_mat.m_pbr_metallic_roughness.m_base_color_factor = glm::vec4(1.0f);
+		material_handle const line_point_mat_handle = gfx_mgr.RegisterMaterial(line_point_mesh_mat);
+
+		GraphicsManager::mesh_primitive_data prim_data;
+		prim_data.m_vao_gl_id = line_point_mesh_vao;
+		prim_data.m_vertex_count = gfx_pipeline_resources::MAX_POINT_COUNT;
+		prim_data.m_material_handle = line_point_mat_handle;
+
+		s_pipeline_resources.line_point_mesh_handle = gfx_mgr.RegisterMeshPrimitives(
+			GraphicsManager::mesh_primitive_list{ prim_data }, 
+			"Debug Line Point Mesh"
+		);
 	}
 	void ShutdownGraphicsPipelineRender()
 	{
 		shutdown_lighting_pass_pipeline();
 		shutdown_volumetric_fog();
+
+		s_pipeline_resources.line_point_mesh_handle = 0;
+		s_pipeline_resources.line_point_mesh_vbo_handle = 0;
 	}
 
 	void GraphicsPipelineRender()
@@ -790,6 +842,8 @@ namespace Sandbox
 		
 			set_bound_program_uniform_locations();
 
+			int const LOC_HIGHLIGHT_INDEX = res_mgr.FindBoundProgramUniformLocation("u_highlight_index");
+
 			// Debug convex hull rendering for physics objects
 			using namespace Engine::Physics;
 			auto const & collider_mgr = Singleton<Component::ColliderManager>();
@@ -800,6 +854,74 @@ namespace Sandbox
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+			if (!collider_mgr.m_data.m_intersection_results.empty())
+			{
+				using namespace Component;
+				using namespace Engine::Physics;
+				using hds = half_edge_data_structure;
+
+				// Debug Intersection rendering
+				std::vector<glm::vec3> render_points;
+				for (auto [e_pair, intersection_result] : collider_mgr.m_data.m_intersection_results)
+				{
+					// TODO: Handle face-face intersections.
+					if (!intersection_result.second.is_edge_edge)
+						continue;
+
+					contact_manifold const cm = intersection_result.second;
+
+					Entity const e1 = e_pair.first;
+					Entity const e2 = e_pair.second;
+
+					Transform const tr1 = e1.GetComponent<Transform>();
+					Transform const tr2 = e2.GetComponent<Transform>();
+
+					Collider const col1 = e1.GetComponent<Collider>();
+					Collider const col2 = e2.GetComponent<Collider>();
+
+					hds const* ch1 = col1.GetConvexHull();
+					hds const* ch2 = col2.GetConvexHull();
+
+					hds::half_edge_idx const edge_idx_1 = cm.edge_edge_contact.hull1_edge_idx;
+					hds::half_edge_idx const edge_idx_2 = cm.edge_edge_contact.hull2_edge_idx;
+
+					hds::half_edge const edge1 = ch1->m_edges[edge_idx_1];
+					hds::half_edge const edge2 = ch2->m_edges[edge_idx_2];
+
+					// Compute points of maximum (absolute) separation between two edges in respective local spaces.
+					glm::vec3 p1 = ch1->m_vertices[edge1.m_vertex] + cm.edge_edge_contact.hull1_edge_t * ch1->get_edge_vector(edge_idx_1);
+					glm::vec3 p2 = ch2->m_vertices[edge2.m_vertex] + cm.edge_edge_contact.hull2_edge_t * ch2->get_edge_vector(edge_idx_2);
+
+					// Transform previous points into world space.
+					p1 = tr1.ComputeWorldTransform().TransformPoint(p1);
+					p2 = tr2.ComputeWorldTransform().TransformPoint(p2);
+
+					// Queue points for rendering
+					render_points.emplace_back(p1);
+					render_points.emplace_back(p2);
+				}
+
+				if (!render_points.empty())
+				{
+					s_pipeline_resources.upload_line_point_data(&render_points.front(), render_points.size());
+
+					using namespace Engine::Graphics;
+					using GraphicsManager = ResourceManager;
+					auto const& gfx_mgr = Singleton<GraphicsManager>();
+					auto const& line_point_prim_data = gfx_mgr.GetMeshPrimitives(
+						s_pipeline_resources.line_point_mesh_handle
+					);
+
+					res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, matrix_vp);
+					res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, glm::vec4(1.0f));
+					res_mgr.SetBoundProgramUniform(LOC_HIGHLIGHT_INDEX, (int)-1);
+
+					glBindVertexArray(line_point_prim_data.front().m_vao_gl_id);
+					glDrawArrays(GL_LINES, 0, render_points.size());
+					glBindVertexArray(0);
+				}
+			}
+
 			for (auto [e, ch_handle] : collider_mgr.m_data.m_entity_map)
 			{
 				bool set_intersection_base_color = false;
@@ -807,12 +929,14 @@ namespace Sandbox
 				Component::Transform transform = e.GetComponent<Component::Transform>();
 				Engine::Math::transform3D world_transform = transform.ComputeWorldTransform();
 
-				convex_hull_handle const ch_handle = collider_mgr.m_data.m_entity_map.at(e).Handle();
 
-				if (ch_handle == 0)
+				auto const& e_ch_debug_render_instance = collider_mgr.m_data.m_entity_map.at(e);
+				Engine::Managers::Resource const ch_collider_res = e_ch_debug_render_instance.m_collider_resource;
+				convex_hull_handle const ch_handle = ch_collider_res.Handle();
+				if (ch_collider_res.ID() == 0 || ch_handle == 0)
 					continue;
 
-				auto it = collider_mgr.m_data.m_ch_debug_meshes.find(ch_handle);
+				auto it = collider_mgr.m_data.m_ch_debug_meshes.find(ch_collider_res);
 				if (it == collider_mgr.m_data.m_ch_debug_meshes.end())
 					continue;
 
@@ -823,11 +947,8 @@ namespace Sandbox
 					set_intersection_base_color = true;
 				}
 
-				uint32_t const BASE_COLOR_LOCATION = res_mgr.FindBoundProgramUniformLocation("u_base_color_factor");
-
 				auto debug_render_data = it->second;
 				res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, matrix_vp * world_transform.GetMatrix());
-				int const LOC_HIGHLIGHT_INDEX = res_mgr.FindBoundProgramUniformLocation("u_highlight_index");
 
 				if (collider_mgr.m_data.m_render_debug_face_mesh && debug_render_data.m_ch_face_mesh)
 				{
@@ -843,7 +964,7 @@ namespace Sandbox
 							LOC_BASE_COLOR_FACTOR,
 							use_base_color
 						);
-						res_mgr.SetBoundProgramUniform(LOC_HIGHLIGHT_INDEX, debug_render_data.m_highlight_face_index);
+						res_mgr.SetBoundProgramUniform(LOC_HIGHLIGHT_INDEX, e_ch_debug_render_instance.m_highlight_face_index);
 						render_primitive(primitive);
 					}
 				}
@@ -857,11 +978,12 @@ namespace Sandbox
 							LOC_BASE_COLOR_FACTOR,
 							res_mgr.GetMaterial(primitive.m_material_handle).m_pbr_metallic_roughness.m_base_color_factor
 						);
-						res_mgr.SetBoundProgramUniform(LOC_HIGHLIGHT_INDEX, debug_render_data.m_highlight_edge_index);
+						res_mgr.SetBoundProgramUniform(LOC_HIGHLIGHT_INDEX, e_ch_debug_render_instance.m_highlight_edge_index);
 						render_primitive(primitive);
 					}
 				}
 			}
+
 		}
 
 
@@ -1087,4 +1209,16 @@ namespace Sandbox
 		}
 
 	}
+}
+
+void gfx_pipeline_resources::upload_line_point_data(glm::vec3 const* _points, size_t _count) const
+{
+	using namespace Engine::Graphics;
+	using GraphicsManager = ResourceManager;
+	auto const& gfx_mgr = Singleton<GraphicsManager>();
+	
+	assert(_count <= MAX_POINT_COUNT);
+	GraphicsManager::buffer_info const & buf_info = gfx_mgr.GetBufferInfo(s_pipeline_resources.line_point_mesh_vbo_handle);
+	glBindBuffer(buf_info.m_target, buf_info.m_gl_id);
+	glBufferSubData(buf_info.m_target, (GLintptr)0, sizeof(glm::vec3) * _count, _points);
 }

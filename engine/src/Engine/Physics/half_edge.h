@@ -45,7 +45,9 @@ namespace Physics {
 		std::vector<face>		m_faces;
 
 		glm::vec3 compute_face_normal(face_idx _face) const;
-		half_edge_idx get_previous_edge(half_edge_idx _edge_idx) const;
+		inline half_edge_idx	get_next_edge(half_edge_idx _edge_idx) const;
+		inline half_edge_idx	get_previous_edge(half_edge_idx _edge_idx) const;
+		glm::vec3				get_edge_vector(half_edge_idx _edge_idx) const;
 	};
 
 	/*

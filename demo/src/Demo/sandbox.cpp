@@ -616,17 +616,17 @@ namespace Sandbox
 
 			auto const & rb_data = rb_mgr.m_rigidbodies_data;
 			auto & col_data = collider_mgr.m_data;
-			for (auto const & entity_collider_pair : col_data.m_entity_map)
+			for (auto & [entity, debug_render_instance] : col_data.m_entity_map)
 			{
 				using namespace Engine::Physics;
-				convex_hull_handle const ch_handle = entity_collider_pair.second.Handle();
 
-				RigidBody rb_comp = entity_collider_pair.first.GetComponent<RigidBody>();
+				convex_hull_handle const ch_handle = debug_render_instance.m_collider_resource.Handle();
+
+				RigidBody rb_comp = entity.GetComponent<RigidBody>();
 				auto ch_info = Singleton<ConvexHullManager>().GetConvexHullInfo(ch_handle);
 				if (ch_info && rb_comp.IsValid())
 				{
-					Entity const rb_entity = entity_collider_pair.first;
-					Transform rb_transform = rb_entity.GetComponent<Transform>();
+					Transform rb_transform = entity.GetComponent<Transform>();
 					Engine::Math::transform3D const rb_world_transform = rb_transform.ComputeWorldTransform();
 					glm::vec3 const rb_world_position = rb_world_transform.position;
 
@@ -635,11 +635,11 @@ namespace Sandbox
 					if (result.t >= 0.0f)
 					{
 						rb_mgr.ApplyForce(
-							rb_entity,
+							entity,
 							ray_direction * std::clamp(holddown_timer * 500.0f, 0.0f, 1000.0f),
 							 (camera_ray.origin + result.t * camera_ray.dir) - rb_world_position
 						);
-						col_data.m_ch_debug_meshes.at(ch_handle).m_highlight_face_index = result.face_index;
+						debug_render_instance.m_highlight_face_index = result.face_index;
 					}
 				}
 			}

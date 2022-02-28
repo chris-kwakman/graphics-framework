@@ -26,21 +26,29 @@ namespace Component
 	{
 		struct manager_data
 		{
-			struct ch_debug_render_data
+			struct ch_debug_render_instance
 			{
-				~ch_debug_render_data();
-
-				unsigned int m_ref_count = 0;
-				Engine::Graphics::mesh_handle m_ch_face_mesh;
-				Engine::Graphics::mesh_handle m_ch_edge_mesh;
+				Engine::Managers::Resource m_collider_resource{};
 				int m_highlight_face_index = -1;
 				int m_highlight_edge_index = -1;
+
+				NLOHMANN_DEFINE_TYPE_INTRUSIVE(ch_debug_render_instance, m_collider_resource, m_highlight_face_index, m_highlight_edge_index);
 			};
 
-			std::unordered_map<Entity, Engine::Managers::Resource, Entity::hash> m_entity_map;
-			std::unordered_map<Engine::Physics::convex_hull_handle, ch_debug_render_data> m_ch_debug_meshes;
+			struct ch_debug_meshes
+			{
+				~ch_debug_meshes();
 
-			std::map<std::pair<Entity,Entity>, Engine::Physics::EIntersectionType> m_intersection_results;
+				unsigned int m_ref_count = 0;
+				Engine::Graphics::mesh_handle m_ch_face_mesh = 0;
+				Engine::Graphics::mesh_handle m_ch_edge_mesh = 0;
+			};
+
+
+			std::unordered_map<Entity, ch_debug_render_instance, Entity::hash> m_entity_map;
+			std::map<Engine::Managers::Resource, ch_debug_meshes> m_ch_debug_meshes;
+
+			std::map<std::pair<Entity,Entity>, std::pair<Engine::Physics::EIntersectionType, Engine::Physics::contact_manifold>> m_intersection_results;
 			std::unordered_map<Entity, std::vector<Entity>, Entity::hash> m_entity_intersections;
 
 			bool m_render_debug_face_mesh = true, m_render_debug_edge_mesh = true;

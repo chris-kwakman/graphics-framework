@@ -17,17 +17,17 @@ namespace Managers {
 
 	bool Resource::operator==(Resource const& _l) const
 	{
-		return *this == _l;
+		return resource_typeid::operator<(_l);
 	}
 
 	bool Resource::operator!=(Resource const& _l) const
 	{
-		return *this != _l;
+		return resource_typeid::operator!=(_l);
 	}
 
 	bool Resource::operator<(Resource const& _l) const
 	{
-		return *this < _l;
+		return resource_typeid::operator<(_l);
 	}
 
 	uint32_t Resource::Handle() const

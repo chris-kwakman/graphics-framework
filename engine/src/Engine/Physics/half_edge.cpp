@@ -21,7 +21,7 @@ namespace Physics {
 		return _point - (glm::dot(_plane_normal, _point - _plane_point) / glm::dot(_plane_normal, _plane_normal)) * _plane_normal;
 	};
 
-	half_edge_data_structure::half_edge_idx half_edge_data_structure::get_previous_edge(half_edge_data_structure::half_edge_idx _idx) const
+	inline half_edge_data_structure::half_edge_idx half_edge_data_structure::get_previous_edge(half_edge_data_structure::half_edge_idx _idx) const
 	{
 		half_edge_data_structure::half_edge_idx edge_idx_iterator = _idx;
 		half_edge_data_structure::half_edge iterator_edge = m_edges[edge_idx_iterator];
@@ -32,6 +32,18 @@ namespace Physics {
 		} while (iterator_edge.m_next_edge != _idx);
 		return edge_idx_iterator;
 	}
+
+	inline half_edge_data_structure::half_edge_idx half_edge_data_structure::get_next_edge(half_edge_idx _edge_idx) const
+	{
+		return m_edges[_edge_idx].m_next_edge;
+	}
+
+	glm::vec3 half_edge_data_structure::get_edge_vector(half_edge_idx _edge_idx) const
+	{
+		half_edge_idx const next_edge_idx = get_next_edge(_edge_idx);
+		return m_vertices[m_edges[next_edge_idx].m_vertex] - m_vertices[m_edges[_edge_idx].m_vertex];
+	}
+
 
 	glm::vec3 compute_hds_face_normal(std::vector<glm::vec3> const& _vertices, std::vector<half_edge_data_structure::face> const& _faces, half_edge_data_structure::face_idx _get_face_idx_normal)
 	{
