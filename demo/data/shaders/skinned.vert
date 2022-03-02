@@ -1,11 +1,11 @@
 #version 420 core
 
-layout(location = 0) attribute in vec3 v_pos;
-layout(location = 1) attribute in vec3 v_normal;
-layout(location = 2) attribute in vec4 v_tangent;
-layout(location = 3) attribute in vec2 v_uv_1;
-layout(location = 5) attribute in vec4 v_joints;
-layout(location = 6) attribute in vec4 v_weights;
+layout(location = 0) in vec3 v_pos;
+layout(location = 1) in vec3 v_normal;
+layout(location = 2) in vec4 v_tangent;
+layout(location = 3) in vec2 v_uv_1;
+layout(location = 5) in vec4 v_joints;
+layout(location = 6) in vec4 v_weights;
 
 uniform mat4 u_mvp;
 uniform mat4 u_mv_t_inv;
