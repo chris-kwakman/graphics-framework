@@ -310,15 +310,18 @@ namespace Physics {
 			glm::vec3 const reference_face_vtx = reference_vertices[reference_face.m_vertices.front()];
 
 			// Collect sideplane normals and sideplane vertices for ease of computation
-			std::vector<glm::vec3> reference_sideplane_normals(reference_face.m_edges.size());
-			std::vector<glm::vec3> ref_face_vertices(reference_face.m_vertices.size());
+			std::vector<glm::vec3> ref_sideplane_normals(reference_face.m_edges.size());
+			std::vector<glm::vec3> ref_sideplane_vertices(reference_face.m_vertices.size());
 			{
 				size_t const ref_face_vtx_count = reference_face.m_vertices.size();
 				for (size_t i = 0; i < ref_face_vtx_count; i++)
 				{
-					ref_face_vertices[i] = reference_vertices[reference_face.m_vertices[i]];
-					glm::vec3 const v = reference_vertices[reference_face.m_vertices[i]] - reference_vertices[reference_face.m_vertices[(i + 1) % ref_face_vtx_count]];
-					reference_sideplane_normals[i] = glm::normalize(glm::cross(reference_face_normal, v));
+					half_edge const ref_face_edge = reference_hull.m_edges[reference_face.m_edges[i]];
+					half_edge const ref_sideplane_edge = reference_hull.m_edges[ref_face_edge.m_twin_edge];
+					ref_sideplane_vertices[i] = reference_vertices[reference_face.m_vertices[i]];
+					ref_sideplane_normals[i] = glm::normalize(
+						compute_hds_face_normal(reference_vertices, reference_hull.m_faces, ref_sideplane_edge.m_edge_face)
+					);
 				}
 			}
 
@@ -330,18 +333,21 @@ namespace Physics {
 			// Clip segments formed by point list against sideplanes one-by-one.
 			std::vector<glm::vec3> clipped_vertices;
 			{
-				bool vtx_inside[128];
-				glm::vec3 tmp_clipped_vertices[64];
+				// Allocate block for storing clipped vertices on stack.
+				size_t const MAX_TEMP_VERTICES = 64;
+				bool vtx_inside[MAX_TEMP_VERTICES];
+				glm::vec3 tmp_clipped_vertices[MAX_TEMP_VERTICES];
 				size_t iter_clipped_vertices = 0;
-				for (size_t i = 0; i < ref_face_vertices.size(); i++)
+
+				for (size_t i = 0; i < ref_sideplane_vertices.size(); i++)
 				{
-					glm::vec3 const sideplane_vtx = ref_face_vertices[i];
-					glm::vec3 const sideplane_normal = reference_sideplane_normals[i];
+					glm::vec3 const sideplane_vtx = ref_sideplane_vertices[i];
+					glm::vec3 const sideplane_normal = ref_sideplane_normals[i];
 
 					iter_clipped_vertices = 0;
 
 					points_inside_planes(
-						&sideplane_vtx, &sideplane_normal, 1,
+						&ref_sideplane_vertices[i], &ref_sideplane_normals[i], 1,
 						vertices_to_clip.data(), vertices_to_clip.size(), vtx_inside
 					);
 
@@ -364,54 +370,55 @@ namespace Physics {
 							tmp_clipped_vertices[iter_clipped_vertices++] = p2;
 					}
 
+					// Load clipped vertices back into vertices_to_clip.
 					vertices_to_clip.resize(iter_clipped_vertices);
 					for (size_t i = 0; i < iter_clipped_vertices; i++)
 						vertices_to_clip[i] = tmp_clipped_vertices[i];
 				}
 
+				// Load clipped vertices into final vector for processing.
 				clipped_vertices.resize(iter_clipped_vertices);
 				for (size_t i = 0; i < iter_clipped_vertices; i++)
 					clipped_vertices[i] = tmp_clipped_vertices[i];
 			}
+			
+			// Compute penetration of each clipped vertex.
+			std::vector<float> vertex_penetrations(clipped_vertices.size());
+			for (size_t i = 0; i < clipped_vertices.size(); i++)
+				vertex_penetrations[i] = -glm::dot(clipped_vertices[i] - reference_face_vtx, reference_face_normal);
 
-			// Only keep clipped vertices "below" reference plane.
-			size_t reduced_vertices = 0;
-			for (size_t i = 0; i < clipped_vertices.size() - reduced_vertices; i++)
+			// Only keep vertices with positive penetration
+			size_t discarded_vertices = 0;
+			for (size_t i = 0; i < clipped_vertices.size() - discarded_vertices; i++)
 			{
-				glm::vec3 const cv = clipped_vertices[i];
-				if (glm::dot(cv - reference_face_vtx, reference_face_normal) > 0.0f)
+				size_t const back_index = clipped_vertices.size() - discarded_vertices - 1;
+				if (vertex_penetrations[i] < -glm::epsilon<float>())
 				{
-					std::swap(clipped_vertices[i], clipped_vertices[clipped_vertices.size() - 1 - reduced_vertices]);
-					reduced_vertices++;
+					std::swap(vertex_penetrations[i], vertex_penetrations[back_index]);
+					std::swap(clipped_vertices[i], clipped_vertices[back_index]);
+					discarded_vertices++;
 				}
 			}
-			clipped_vertices.erase(clipped_vertices.end() - reduced_vertices, clipped_vertices.end());
-			
-			// Project clipped incident face vertices onto reference face.
-			std::vector<glm::vec3> projected_vertices(clipped_vertices);
-			std::vector<float> vertex_penetrations(clipped_vertices.size());
-			for (size_t i = 0; i < projected_vertices.size(); i++)
-			{
-				glm::vec3 & p = projected_vertices[i];
-				vertex_penetrations[i] = glm::dot(p - reference_face_vtx, reference_face_normal);
-			}
+
+			assert(discarded_vertices < clipped_vertices.size() && "All vertices have been clipped - bug in implementation.");
+
+			vertex_penetrations.erase(vertex_penetrations.end() - discarded_vertices, vertex_penetrations.end());
+			clipped_vertices.erase(clipped_vertices.end() - discarded_vertices, clipped_vertices.end());
+
 
 			// If hull2 is the reference hull, transform points back to hull2 local space
 			if (!min_sep_face_pair.reference_is_hull1)
-			{
 				for (glm::vec3& p : clipped_vertices)
 					p = mat_1_to_2 * glm::vec4(p,1.0f);
-				for (glm::vec3& p : projected_vertices)
-					p = mat_1_to_2 * glm::vec4(p, 1.0f);
-			}
 
 			// Output data
 			_out_contact_manifold->face_face_contact.reference_face_idx = reference_face_index;
 			_out_contact_manifold->face_face_contact.incident_face_idx = incident_face_index;
 			_out_contact_manifold->vertex_penetrations = std::move(vertex_penetrations);
-			_out_contact_manifold->projected_vertices = std::move(projected_vertices);
+			_out_contact_manifold->incident_vertices = std::move(clipped_vertices);
 			_out_contact_manifold->reference_is_hull_1 = min_sep_face_pair.reference_is_hull1;
 		}
+
 
 		return return_intersection_type;
 	}

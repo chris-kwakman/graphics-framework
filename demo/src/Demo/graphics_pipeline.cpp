@@ -908,12 +908,14 @@ namespace Sandbox
 							mat_verts_to_world = tr2.ComputeWorldMatrix();
 						glm::mat4 const mat_inv_t_verts_to_world = glm::transpose(glm::inverse(mat_verts_to_world));
 
-						glm::vec3 const local_face_normal = glm::normalize(ch1->compute_face_normal(cm.face_face_contact.reference_face_idx));
+						hds const* reference_ch = cm.reference_is_hull_1 ? ch1 : ch2;
+
+						glm::vec3 const local_face_normal = glm::normalize(reference_ch->compute_face_normal(cm.face_face_contact.reference_face_idx));
 						glm::vec3 const world_face_normal = mat_inv_t_verts_to_world * glm::vec4(local_face_normal, 0.0f);
-						for (size_t i = 0; i < cm.projected_vertices.size(); i++)
+						for (size_t i = 0; i < cm.incident_vertices.size(); i++)
 						{
-							render_points.emplace_back(mat_verts_to_world * glm::vec4(cm.projected_vertices[i] - cm.vertex_penetrations[i] * world_face_normal, 1.0f));
-							render_points.emplace_back(mat_verts_to_world * glm::vec4(cm.projected_vertices[i], 1.0f));
+							render_points.emplace_back(mat_verts_to_world * glm::vec4(cm.incident_vertices[i] + cm.vertex_penetrations[i] * world_face_normal, 1.0f));
+							render_points.emplace_back(mat_verts_to_world * glm::vec4(cm.incident_vertices[i], 1.0f));
 						}
 					}
 

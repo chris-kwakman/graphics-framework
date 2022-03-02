@@ -44,7 +44,7 @@ namespace Physics {
 				face_idx reference_face_idx, incident_face_idx;
 			} face_face_contact;
 		};
-		std::vector<glm::vec3> projected_vertices{};
+		std::vector<glm::vec3> incident_vertices{};
 		std::vector<float> vertex_penetrations{};
 		bool is_edge_edge : 1;
 		bool reference_is_hull_1 : 1;
