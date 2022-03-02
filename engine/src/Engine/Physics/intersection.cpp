@@ -294,7 +294,7 @@ namespace Physics {
 			// Find incident face that is most anti-parallel to reference face.
 			face_idx incident_face_index = -1;
 			float min_dot = std::numeric_limits<float>::max();
-			glm::vec3 const reference_face_normal = compute_hds_face_normal(reference_vertices, reference_hull.m_faces, reference_face_index);
+			glm::vec3 const reference_face_normal = glm::normalize(compute_hds_face_normal(reference_vertices, reference_hull.m_faces, reference_face_index));
 			for (face_idx incident_hull_face_idx = 0; incident_hull_face_idx < incident_hull.m_faces.size(); ++incident_hull_face_idx)
 			{
 				float const dot = glm::dot(compute_hds_face_normal(incident_vertices, incident_hull.m_faces, incident_hull_face_idx), reference_face_normal);
@@ -305,70 +305,156 @@ namespace Physics {
 				}
 			}
 
-			face const& reference_face = incident_hull.m_faces[reference_face_index];
+			face const& reference_face = reference_hull.m_faces[reference_face_index];
 			face const& incident_face = incident_hull.m_faces[incident_face_index];
 
-			std::vector<glm::vec3> clipped_vertices;
+			glm::vec3 const reference_face_vtx = reference_vertices[reference_face.m_vertices.front()];
 
-			// Clip incident face against reference face side planes.
-			for (edge_idx e_idx : incident_face.m_edges)
+			// Collect sideplane normals and sideplane vertices for ease of computation
+			std::vector<glm::vec3> reference_sideplane_normals(reference_face.m_edges.size());
+			std::vector<glm::vec3> ref_face_vertices(reference_face.m_vertices.size());
 			{
-				// Get incident face incident_edge vertices.
-				half_edge const incident_edge = incident_hull.m_edges[e_idx];
-				edge_idx const incident_e_next_idx = incident_hull.get_next_edge(e_idx);
-				glm::vec3 const incident_e_p1 = incident_vertices[incident_edge.m_vertex];
-				glm::vec3 const incident_e_p2 = incident_vertices[incident_hull.m_edges[incident_e_next_idx].m_vertex];
-				glm::vec3 const incident_e_v = incident_e_p2 - incident_e_p1;
+				size_t const ref_face_vtx_count = reference_face.m_vertices.size();
+				for (size_t i = 0; i < ref_face_vtx_count; i++)
+				{
+					ref_face_vertices[i] = reference_vertices[reference_face.m_vertices[i]];
+					glm::vec3 const v = reference_vertices[reference_face.m_vertices[i]] - reference_vertices[reference_face.m_vertices[(i + 1) % ref_face_vtx_count]];
+					reference_sideplane_normals[i] = glm::normalize(glm::cross(reference_face_normal, v));
+				}
+			}
 
-				float min_t = std::numeric_limits<float>::max();
-				glm::vec3 clip_face_vtx;
-				glm::vec3 clip_face_normal;
-				for (edge_idx ref_e_idx : reference_face.m_edges)
+			// Copy vertices of current incident face to vector.
+			std::vector<glm::vec3> vertices_to_clip(incident_face.m_vertices.size());
+			for (size_t i = 0; i < incident_face.m_vertices.size(); i++)
+				vertices_to_clip[i] = incident_vertices[incident_face.m_vertices[i]];
+
+			// Clip segments formed by point list against sideplanes one-by-one.
+			std::vector<glm::vec3> clipped_vertices;
+			{
+				bool vtx_inside[128];
+				glm::vec3 tmp_clipped_vertices[64];
+				size_t iter_clipped_vertices = 0;
+				for (size_t i = 0; i < ref_face_vertices.size(); i++)
 				{
-					half_edge const reference_edge = reference_hull.m_edges[e_idx];
-					edge_idx const reference_e_next_idx = reference_hull.get_next_edge(e_idx);
-					glm::vec3 const reference_e_p1 = reference_vertices[reference_edge.m_vertex];
-					glm::vec3 const reference_e_p2 = reference_vertices[reference_hull.m_edges[reference_e_next_idx].m_vertex];
-					glm::vec3 const reference_e_v = reference_e_p2 - reference_e_p1;
-					glm::vec3 const reference_side_plane_normal = glm::cross(reference_face_normal, reference_e_v);
-					// Intersect incident face edge "ray" against reference sideplane
-					float t = -glm::dot(incident_e_p1 - reference_e_p1, reference_side_plane_normal) / glm::dot(incident_e_v, reference_side_plane_normal);
-					if (t < min_t)
+					glm::vec3 const sideplane_vtx = ref_face_vertices[i];
+					glm::vec3 const sideplane_normal = reference_sideplane_normals[i];
+
+					iter_clipped_vertices = 0;
+
+					points_inside_planes(
+						&sideplane_vtx, &sideplane_normal, 1,
+						vertices_to_clip.data(), vertices_to_clip.size(), vtx_inside
+					);
+
+					// Sutherland-Hodgeman algorithm
+					for (size_t j = 0; j < vertices_to_clip.size(); j++)
 					{
-						min_t = t;
-						clip_face_vtx = reference_e_p1;
-						clip_face_normal = reference_side_plane_normal;
+						size_t const k = (j + 1) % (vertices_to_clip.size());
+						glm::vec3 const p1 = vertices_to_clip[j]; // Prev
+						glm::vec3 const p2 = vertices_to_clip[k]; // Current
+
+						if (vtx_inside[j] != vtx_inside[k])
+						{
+							float const t = intersect_segment_planes(
+								p1, p2, &sideplane_vtx, &sideplane_normal, 1
+							);
+							tmp_clipped_vertices[iter_clipped_vertices++] = p1 + t * (p2 - p1);
+						}
+
+						if (!vtx_inside[k])
+							tmp_clipped_vertices[iter_clipped_vertices++] = p2;
 					}
+
+					vertices_to_clip.resize(iter_clipped_vertices);
+					for (size_t i = 0; i < iter_clipped_vertices; i++)
+						vertices_to_clip[i] = tmp_clipped_vertices[i];
 				}
-				min_t = std::min(min_t, 1.0f);
-				if (min_t > 0.0f)
+
+				clipped_vertices.resize(iter_clipped_vertices);
+				for (size_t i = 0; i < iter_clipped_vertices; i++)
+					clipped_vertices[i] = tmp_clipped_vertices[i];
+			}
+
+			// Only keep clipped vertices "below" reference plane.
+			size_t reduced_vertices = 0;
+			for (size_t i = 0; i < clipped_vertices.size() - reduced_vertices; i++)
+			{
+				glm::vec3 const cv = clipped_vertices[i];
+				if (glm::dot(cv - reference_face_vtx, reference_face_normal) > 0.0f)
 				{
-					bool prev_inside = glm::dot(incident_e_p1 - clip_face_vtx, clip_face_normal) >= 0.0f;
-					bool curr_inside = glm::dot(incident_e_p2 - clip_face_vtx, clip_face_normal) >= 0.0f;
-					if (prev_inside && curr_inside)
-						clipped_vertices.emplace_back(incident_e_p2);
-					else if (prev_inside && !curr_inside)
-						clipped_vertices.emplace_back(incident_e_p1 + min_t * (incident_e_p2 - incident_e_p1));
-					else if (!prev_inside && !curr_inside)
-					{
-						clipped_vertices.emplace_back(incident_e_p1 + min_t * (incident_e_p2 - incident_e_p1));
-						clipped_vertices.emplace_back(incident_e_p2);
-					}
-					else if (!prev_inside && curr_inside)
-						clipped_vertices.emplace_back(incident_e_p2);
-					else if (curr_inside)
-						clipped_vertices.emplace_back(incident_e_p2);
+					std::swap(clipped_vertices[i], clipped_vertices[clipped_vertices.size() - 1 - reduced_vertices]);
+					reduced_vertices++;
 				}
+			}
+			clipped_vertices.erase(clipped_vertices.end() - reduced_vertices, clipped_vertices.end());
+			
+			// Project clipped incident face vertices onto reference face.
+			std::vector<glm::vec3> projected_vertices(clipped_vertices);
+			std::vector<float> vertex_penetrations(clipped_vertices.size());
+			for (size_t i = 0; i < projected_vertices.size(); i++)
+			{
+				glm::vec3 & p = projected_vertices[i];
+				vertex_penetrations[i] = glm::dot(p - reference_face_vtx, reference_face_normal);
+			}
+
+			// If hull2 is the reference hull, transform points back to hull2 local space
+			if (!min_sep_face_pair.reference_is_hull1)
+			{
+				for (glm::vec3& p : clipped_vertices)
+					p = mat_1_to_2 * glm::vec4(p,1.0f);
+				for (glm::vec3& p : projected_vertices)
+					p = mat_1_to_2 * glm::vec4(p, 1.0f);
 			}
 
 			// Output data
 			_out_contact_manifold->face_face_contact.reference_face_idx = reference_face_index;
 			_out_contact_manifold->face_face_contact.incident_face_idx = incident_face_index;
-			_out_contact_manifold->clipped_incident_face_vertices = std::move(clipped_vertices);
+			_out_contact_manifold->vertex_penetrations = std::move(vertex_penetrations);
+			_out_contact_manifold->projected_vertices = std::move(projected_vertices);
 			_out_contact_manifold->reference_is_hull_1 = min_sep_face_pair.reference_is_hull1;
 		}
 
 		return return_intersection_type;
+	}
+
+	void points_inside_planes(
+		glm::vec3 const* _plane_vertices, 
+		glm::vec3 const* _plane_normals, 
+		size_t const _plane_count,
+		glm::vec3 const * _p, 
+		size_t const _point_count,
+		bool* _out_results
+	)
+	{
+		for (size_t i = 0; i < _point_count; i++)
+		{
+			bool inside_planes = true;
+			for (size_t j = 0; j < _plane_count; j++)
+			{
+				float const dot = glm::dot(_p[i] - _plane_vertices[j], _plane_normals[j]);
+				inside_planes &= dot > -glm::epsilon<float>();
+			}
+			_out_results[i] = inside_planes;
+		}
+	}
+
+	float intersect_segment_planes(
+		glm::vec3 const _p1, glm::vec3 const _p2, 
+		glm::vec3 const* _plane_vertices, 
+		glm::vec3 const* _plane_normals,
+		size_t const _plane_count
+	)
+	{
+		float min_t = 1.0f;
+		for (size_t i = 0; i < _plane_count; i++)
+		{
+			float intersect_t = -glm::dot(_p1 - _plane_vertices[i], _plane_normals[i]) / glm::dot(_p2 - _p1, _plane_normals[i]);
+			// Ignore intersections behind start of segment.
+			if (intersect_t < 0.0f)
+				intersect_t = std::numeric_limits<float>::max();
+			min_t = std::min(min_t, std::clamp(intersect_t, 0.0f, 1.0f));
+		}
+		return min_t;
 	}
 
 }

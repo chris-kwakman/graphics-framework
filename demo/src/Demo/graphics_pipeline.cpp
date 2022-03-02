@@ -864,12 +864,7 @@ namespace Sandbox
 				std::vector<glm::vec3> render_points;
 				for (auto [e_pair, intersection_result] : collider_mgr.m_data.m_intersection_results)
 				{
-					// TODO: Handle face-face intersections.
-					if (!intersection_result.second.is_edge_edge)
-						continue;
-
 					contact_manifold const cm = intersection_result.second;
-
 					Entity const e1 = e_pair.first;
 					Entity const e2 = e_pair.second;
 
@@ -882,23 +877,46 @@ namespace Sandbox
 					hds const* ch1 = col1.GetConvexHull();
 					hds const* ch2 = col2.GetConvexHull();
 
-					hds::half_edge_idx const edge_idx_1 = cm.edge_edge_contact.hull1_edge_idx;
-					hds::half_edge_idx const edge_idx_2 = cm.edge_edge_contact.hull2_edge_idx;
+					// TODO: Handle face-face intersections.
+					if (intersection_result.second.is_edge_edge)
+					{
 
-					hds::half_edge const edge1 = ch1->m_edges[edge_idx_1];
-					hds::half_edge const edge2 = ch2->m_edges[edge_idx_2];
+						hds::half_edge_idx const edge_idx_1 = cm.edge_edge_contact.hull1_edge_idx;
+						hds::half_edge_idx const edge_idx_2 = cm.edge_edge_contact.hull2_edge_idx;
 
-					// Compute points of maximum (absolute) separation between two edges in respective local spaces.
-					glm::vec3 p1 = ch1->m_vertices[edge1.m_vertex] + cm.edge_edge_contact.hull1_edge_t * ch1->get_edge_vector(edge_idx_1);
-					glm::vec3 p2 = ch2->m_vertices[edge2.m_vertex] + cm.edge_edge_contact.hull2_edge_t * ch2->get_edge_vector(edge_idx_2);
+						hds::half_edge const edge1 = ch1->m_edges[edge_idx_1];
+						hds::half_edge const edge2 = ch2->m_edges[edge_idx_2];
 
-					// Transform previous points into world space.
-					p1 = tr1.ComputeWorldTransform().TransformPoint(p1);
-					p2 = tr2.ComputeWorldTransform().TransformPoint(p2);
+						// Compute points of maximum (absolute) separation between two edges in respective local spaces.
+						glm::vec3 p1 = ch1->m_vertices[edge1.m_vertex] + cm.edge_edge_contact.hull1_edge_t * ch1->get_edge_vector(edge_idx_1);
+						glm::vec3 p2 = ch2->m_vertices[edge2.m_vertex] + cm.edge_edge_contact.hull2_edge_t * ch2->get_edge_vector(edge_idx_2);
 
-					// Queue points for rendering
-					render_points.emplace_back(p1);
-					render_points.emplace_back(p2);
+						// Transform previous points into world space.
+						p1 = tr1.ComputeWorldTransform().TransformPoint(p1);
+						p2 = tr2.ComputeWorldTransform().TransformPoint(p2);
+
+						// Queue points for rendering
+						render_points.emplace_back(p1);
+						render_points.emplace_back(p2);
+					}
+					else
+					{
+						glm::mat4 mat_verts_to_world;
+						if (cm.reference_is_hull_1)
+							mat_verts_to_world = tr1.ComputeWorldMatrix();
+						else
+							mat_verts_to_world = tr2.ComputeWorldMatrix();
+						glm::mat4 const mat_inv_t_verts_to_world = glm::transpose(glm::inverse(mat_verts_to_world));
+
+						glm::vec3 const local_face_normal = glm::normalize(ch1->compute_face_normal(cm.face_face_contact.reference_face_idx));
+						glm::vec3 const world_face_normal = mat_inv_t_verts_to_world * glm::vec4(local_face_normal, 0.0f);
+						for (size_t i = 0; i < cm.projected_vertices.size(); i++)
+						{
+							render_points.emplace_back(mat_verts_to_world * glm::vec4(cm.projected_vertices[i] - cm.vertex_penetrations[i] * world_face_normal, 1.0f));
+							render_points.emplace_back(mat_verts_to_world * glm::vec4(cm.projected_vertices[i], 1.0f));
+						}
+					}
+
 				}
 
 				if (!render_points.empty())
@@ -916,12 +934,14 @@ namespace Sandbox
 					res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, glm::vec4(1.0f));
 					res_mgr.SetBoundProgramUniform(LOC_HIGHLIGHT_INDEX, (int)-1);
 
+					glLineWidth(8.0f);
 					glBindVertexArray(line_point_prim_data.front().m_vao_gl_id);
 					glDrawArrays(GL_LINES, 0, render_points.size());
 					glBindVertexArray(0);
 				}
 			}
 
+			glLineWidth(2.0f);
 			for (auto [e, ch_handle] : collider_mgr.m_data.m_entity_map)
 			{
 				bool set_intersection_base_color = false;
@@ -970,7 +990,6 @@ namespace Sandbox
 				}
 				if (collider_mgr.m_data.m_render_debug_edge_mesh && debug_render_data.m_ch_edge_mesh)
 				{
-					glLineWidth(4.0f);
 					auto& primitive_list = res_mgr.GetMeshPrimitives(debug_render_data.m_ch_edge_mesh);
 					for (auto& primitive : primitive_list)
 					{

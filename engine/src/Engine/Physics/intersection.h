@@ -44,7 +44,8 @@ namespace Physics {
 				face_idx reference_face_idx, incident_face_idx;
 			} face_face_contact;
 		};
-		std::vector<glm::vec3> clipped_incident_face_vertices{};
+		std::vector<glm::vec3> projected_vertices{};
+		std::vector<float> vertex_penetrations{};
 		bool is_edge_edge : 1;
 		bool reference_is_hull_1 : 1;
 	};
@@ -75,6 +76,21 @@ namespace Physics {
  
 		half_edge_data_structure const& _hull2, transform3D const& _transform_2_to_1,
 		contact_manifold* _out_contact_manifold
+	);
+
+	void points_inside_planes(
+		glm::vec3 const* _plane_vertices,
+		glm::vec3 const* _plane_normals,
+		size_t const _plane_count,
+		glm::vec3 const * _p,
+		size_t const _point_count,
+		bool * _out_results
+	);
+	float intersect_segment_planes(
+		glm::vec3 const _p1, glm::vec3 const _p2,
+		glm::vec3 const* _plane_vertices,
+		glm::vec3 const* _plane_normals,
+		size_t const _plane_count
 	);
 }
 }
