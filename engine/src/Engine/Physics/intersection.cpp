@@ -220,12 +220,11 @@ namespace Physics {
 
 				// Compute center of current face. TODO: Cache?
 				glm::vec3 hull1_face_center(0.0f);
-				auto const & h1_e_face_vertices = _hull1.m_faces[h1_edge.m_edge_face].m_vertices;
+				/*auto const & h1_e_face_vertices = _hull1.m_faces[h1_edge.m_edge_face].m_vertices;
 				for (vertex_idx vtx_idx : h1_e_face_vertices)
 					hull1_face_center += hull1_vertices[vtx_idx];
-				hull1_face_center /= float(h1_e_face_vertices.size());
+				hull1_face_center /= float(h1_e_face_vertices.size());*/
 
-				// TODO: Fix issue with opposite incident_edge being chosen.
 				if (glm::dot(separating_plane_normal, hull1_vertices[h1_twin_edge.m_vertex] - hull1_face_center) < 0.0f)
 					separating_plane_normal = -separating_plane_normal;
 
