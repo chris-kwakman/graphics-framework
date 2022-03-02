@@ -24,7 +24,7 @@ namespace Component
 		size_t const rigidbody_count = m_rigidbodies_data.size();
 
 		// Skip if there's nothing to integrate.
-		if (rigidbody_count == 0)
+		if (!m_integration_enabled || rigidbody_count == 0)
 			return;
 
 		// Read transform position & rotation from each object
@@ -203,6 +203,8 @@ namespace Component
 		ImGui::BeginDisabled(true);
 		edit_mat3(m_rigidbodies_data.m_inv_inertial_tensors[entity_index], "Inverse Inertial Tensor");
 		ImGui::EndDisabled();
+
+		ImGui::Checkbox("Enable Global Integration", &m_integration_enabled);
 
 	}
 

@@ -78,6 +78,7 @@ namespace Component
 		};
 
 		rigidbody_data_collection m_rigidbodies_data;
+		bool m_integration_enabled = true;
 
 		// Inherited via TCompManager
 		virtual const char* GetComponentTypeName() const override;
