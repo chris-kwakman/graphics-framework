@@ -82,14 +82,16 @@ namespace Physics {
 
 
 	EIntersectionType intersect_convex_hulls_sat(
-		half_edge_data_structure const& _hull1, transform3D _transform1, 
-		half_edge_data_structure const& _hull2, transform3D _transform2,
+		half_edge_data_structure const& _hull1, transform3D const & _transform1, 
+		half_edge_data_structure const& _hull2, transform3D const & _transform2,
 		contact_manifold* _out_contact_manifold
 	)
 	{
 		// Possible optimization: transform the hull with the least vertices to the space of the hull with the most vertices.
+		// We transform vertices from hull2 to hull1 space.
 		return intersect_convex_hulls_sat(
 			_hull1, _hull2,
+			_transform1,
 			(_transform1.GetInverse() * _transform2),
 			_out_contact_manifold
 		);
@@ -98,11 +100,11 @@ namespace Physics {
 	EIntersectionType intersect_convex_hulls_sat(
 		half_edge_data_structure const& _hull1, 
 		half_edge_data_structure const& _hull2, 
+		transform3D const& _transform_1,
 		transform3D const& _transform_2_to_1,
 		contact_manifold* _out_contact_manifold
 	)
 	{
-
 		glm::mat4 const mat_2_to_1 = _transform_2_to_1.GetMatrix();
 		glm::mat4 const mat_1_to_2 = _transform_2_to_1.GetInvMatrix();
 
@@ -218,14 +220,10 @@ namespace Physics {
 				// Compute separation plane between edges
 				glm::vec3 separating_plane_normal = glm::normalize(glm::cross(e1_vec, e2_vec));
 
-				// Compute center of current face. TODO: Cache?
-				glm::vec3 hull1_face_center(0.0f);
-				/*auto const & h1_e_face_vertices = _hull1.m_faces[h1_edge.m_edge_face].m_vertices;
-				for (vertex_idx vtx_idx : h1_e_face_vertices)
-					hull1_face_center += hull1_vertices[vtx_idx];
-				hull1_face_center /= float(h1_e_face_vertices.size());*/
+				// Compute center of current hull. TODO: Cache?
+				glm::vec3 const hull1_center(0.0f);
 
-				if (glm::dot(separating_plane_normal, hull1_vertices[h1_twin_edge.m_vertex] - hull1_face_center) < 0.0f)
+				if (glm::dot(separating_plane_normal, hull1_vertices[h1_twin_edge.m_vertex] - hull1_center) < 0.0f)
 					separating_plane_normal = -separating_plane_normal;
 
 				// Signed distance to separating plane from hull2 incident_edge vertex is separation.
@@ -275,12 +273,23 @@ namespace Physics {
 			t2 = (e + t1 * b) / c;
 			t2 = std::clamp(t2, 0.0f, 1.0f);
 
+			// Compute contact points in world space.			
+			glm::mat4 const hull1_to_world = _transform_1.GetMatrix();
+			glm::vec4 intersection_points[2] = { hull1_to_world * glm::vec4(p1 + t1 * v1, 1.0f), hull1_to_world * glm::vec4(p2 + t2 * v2, 1.0f) };
 			
+			float distance = glm::distance(intersection_points[0], intersection_points[1]);
+
+			contact new_contact;
+			new_contact.point = intersection_points[0];
+			new_contact.penetration = distance;
+
+			_out_contact_manifold->debug_draw_points = { intersection_points[0], intersection_points[1] };
+
+			_out_contact_manifold->hull1_element_idx = h1_e_idx;
+			_out_contact_manifold->hull2_element_idx = h2_e_idx;
 			_out_contact_manifold->is_edge_edge = true;
-			_out_contact_manifold->edge_edge_contact.hull1_edge_idx = h1_e_idx;
-			_out_contact_manifold->edge_edge_contact.hull2_edge_idx = h2_e_idx;
-			_out_contact_manifold->edge_edge_contact.hull1_edge_t = t1;
-			_out_contact_manifold->edge_edge_contact.hull2_edge_t = t2;
+			_out_contact_manifold->contact_points.reserve(1);
+			_out_contact_manifold->contact_points.emplace_back(new_contact);
 		}
 		else if(_out_contact_manifold && return_intersection_type == EIntersectionType::eFaceIntersection)
 		{
@@ -346,6 +355,7 @@ namespace Physics {
 
 					iter_clipped_vertices = 0;
 
+					// Compute which points are inside the volume for all clipping points simultaneously.
 					points_inside_planes(
 						&ref_sideplane_vertices[i], &ref_sideplane_normals[i], 1,
 						vertices_to_clip.data(), vertices_to_clip.size(), vtx_inside
@@ -358,6 +368,9 @@ namespace Physics {
 						glm::vec3 const p1 = vertices_to_clip[j]; // Prev
 						glm::vec3 const p2 = vertices_to_clip[k]; // Current
 
+						// If either the start OR end point (not both) are
+						// inside the volumes defined by the side planes,
+						// add the segment to the list of clipped points.
 						if (vtx_inside[j] != vtx_inside[k])
 						{
 							float const t = intersect_segment_planes(
@@ -366,6 +379,8 @@ namespace Physics {
 							tmp_clipped_vertices[iter_clipped_vertices++] = p1 + t * (p2 - p1);
 						}
 
+						// If the end point is inside the volume, add the end point
+						// to the list of clipped points.
 						if (!vtx_inside[k])
 							tmp_clipped_vertices[iter_clipped_vertices++] = p2;
 					}
@@ -382,43 +397,42 @@ namespace Physics {
 					clipped_vertices[i] = tmp_clipped_vertices[i];
 			}
 			
-			// Compute penetration of each clipped vertex.
-			std::vector<float> vertex_penetrations(clipped_vertices.size());
+			// Compute penetration of each clipped point.
+			// Only keep contact points with positive penetration
+			std::vector<contact> contact_points;
+			glm::mat4 const mat_1_to_world = _transform_1.GetMatrix();
 			for (size_t i = 0; i < clipped_vertices.size(); i++)
-				vertex_penetrations[i] = -glm::dot(clipped_vertices[i] - reference_face_vtx, reference_face_normal);
-
-			// Only keep vertices with positive penetration
-			size_t discarded_vertices = 0;
-			for (size_t i = 0; i < clipped_vertices.size() - discarded_vertices; i++)
 			{
-				size_t const back_index = clipped_vertices.size() - discarded_vertices - 1;
-				if (vertex_penetrations[i] < -glm::epsilon<float>())
-				{
-					std::swap(vertex_penetrations[i], vertex_penetrations[back_index]);
-					std::swap(clipped_vertices[i], clipped_vertices[back_index]);
-					discarded_vertices++;
-				}
+				contact icp;
+				icp.point = mat_1_to_world * glm::vec4(clipped_vertices[i],1.0f);
+				icp.penetration = -glm::dot(clipped_vertices[i] - reference_face_vtx, reference_face_normal);
+				if (icp.penetration > glm::epsilon<float>())
+					contact_points.emplace_back(icp);
 			}
 
-			assert(discarded_vertices < clipped_vertices.size() && "All vertices have been clipped - bug in implementation.");
+			//assert(contact_vec.empty() && "All points have been clipped - bug in implementation.");
 
-			vertex_penetrations.erase(vertex_penetrations.end() - discarded_vertices, vertex_penetrations.end());
-			clipped_vertices.erase(clipped_vertices.end() - discarded_vertices, clipped_vertices.end());
-
-
-			// If hull2 is the reference hull, transform points back to hull2 local space
-			if (!min_sep_face_pair.reference_is_hull1)
-				for (glm::vec3& p : clipped_vertices)
-					p = mat_1_to_2 * glm::vec4(p,1.0f);
+			if (contact_points.empty())
+			{
+				return_intersection_type = eNoIntersection;
+				goto end;
+			}
 
 			// Output data
-			_out_contact_manifold->face_face_contact.reference_face_idx = reference_face_index;
-			_out_contact_manifold->face_face_contact.incident_face_idx = incident_face_index;
-			_out_contact_manifold->vertex_penetrations = std::move(vertex_penetrations);
-			_out_contact_manifold->incident_vertices = std::move(clipped_vertices);
-			_out_contact_manifold->reference_is_hull_1 = min_sep_face_pair.reference_is_hull1;
+			_out_contact_manifold->is_edge_edge = false;
+			_out_contact_manifold->hull1_element_idx = reference_face_index;
+			_out_contact_manifold->hull2_element_idx = incident_face_index;
+			_out_contact_manifold->contact_points = std::move(contact_points);
+
+			std::vector<glm::vec3> debug_draw_points;
+			size_t const contact_point_count = _out_contact_manifold->contact_points.size();
+			debug_draw_points.reserve(contact_point_count);
+			for (size_t i = 0; i < contact_point_count; i++)
+				debug_draw_points.emplace_back(_out_contact_manifold->contact_points[i].point);
+			_out_contact_manifold->debug_draw_points = std::move(debug_draw_points);
 		}
 
+	end:
 
 		return return_intersection_type;
 	}

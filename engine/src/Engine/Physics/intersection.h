@@ -2,6 +2,7 @@
 
 #include <engine/Physics/convex_hull.h>
 #include <Engine/Math/Transform3D.h>
+#include <Engine/ECS/entity.h>
 
 namespace Engine {
 	using namespace Math;
@@ -26,28 +27,22 @@ namespace Physics {
 	intersection_result intersect_ray_half_edge_data_structure(ray _ray, half_edge_data_structure const & _hds, transform3D const& _hull_transform);
 	intersection_result intersect_ray_convex_polygon(ray const& _ray, glm::vec3 const* _vertices, size_t const _size);
 
+	struct contact
+	{
+		glm::vec3	point; //world-space point
+		float		penetration;
+	};
+
 	struct contact_manifold
 	{
 		using half_edge_idx = half_edge_data_structure::half_edge_idx;
 		using face_idx = half_edge_data_structure::face_idx;
 		using vertex_idx = half_edge_data_structure::vertex_idx;
 
-		union
-		{
-			struct
-			{
-				half_edge_idx hull1_edge_idx, hull2_edge_idx;
-				float hull1_edge_t, hull2_edge_t;
-			} edge_edge_contact;
-			struct
-			{
-				face_idx reference_face_idx, incident_face_idx;
-			} face_face_contact;
-		};
-		std::vector<glm::vec3> incident_vertices{};
-		std::vector<float> vertex_penetrations{};
-		bool is_edge_edge : 1;
-		bool reference_is_hull_1 : 1;
+		std::vector<contact> contact_points{};
+		std::vector<glm::vec3> debug_draw_points{};
+		uint16_t hull1_element_idx, hull2_element_idx;
+		bool is_edge_edge;
 	};
 
 	/*
@@ -59,8 +54,8 @@ namespace Physics {
 	@returns	result_convex_hull_intersection
 	*/
 	EIntersectionType intersect_convex_hulls_sat(
-		half_edge_data_structure const& _hull1, transform3D _transform1, 
-		half_edge_data_structure const& _hull2, transform3D _transform2,
+		half_edge_data_structure const& _hull1, transform3D const & _transform1, 
+		half_edge_data_structure const& _hull2, transform3D const & _transform2,
 		contact_manifold * _out_contact_manifold = nullptr
 	);
 
@@ -73,8 +68,9 @@ namespace Physics {
 	*/
 	EIntersectionType intersect_convex_hulls_sat(
 		half_edge_data_structure const& _hull1,
- 
-		half_edge_data_structure const& _hull2, transform3D const& _transform_2_to_1,
+		half_edge_data_structure const& _hull2, 
+		transform3D const & _transform_1,
+		transform3D const& _transform_2_to_1, 
 		contact_manifold* _out_contact_manifold
 	);
 
