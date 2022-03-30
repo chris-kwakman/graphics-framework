@@ -261,7 +261,9 @@ int main(int argc, char* argv[])
 	std::string const cwd = std::filesystem::current_path().string();
 	printf("Working directory: %s\n", cwd.c_str());
 
-	s_load_scene_at_path = argv[1];
+	s_load_scene_at_path = fs::path();
+	if(argc > 1)
+		s_load_scene_at_path = argv[1];
 	
 	Engine::sdl_manager& sdl_manager = Singleton<Engine::sdl_manager>();
 	if (sdl_manager.setup_volumetric_fog(glm::uvec2(SCREEN_WIDTH, SCREEN_HEIGHT)))
@@ -279,7 +281,8 @@ int main(int argc, char* argv[])
 			Singleton<Engine::Graphics::ResourceManager>().Reset();
 			register_resource_loaders();
 
-			load_scene(s_load_scene_at_path);
+			if(!s_load_scene_at_path.empty())
+				load_scene(s_load_scene_at_path);
 
 			import_default_resources();
 

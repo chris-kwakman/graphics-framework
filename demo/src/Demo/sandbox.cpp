@@ -16,6 +16,7 @@
 #include <Engine/Components/Transform.h>
 #include <Engine/Components/Camera.h>
 #include <Engine/Components/Rigidbody.h>
+#include <Engine/Editor/EditorCameraController.h>
 
 #include <Demo/Components/PlayerController.h>
 
@@ -333,8 +334,12 @@ namespace Sandbox
 		else
 		{
 			Singleton<Engine::ECS::EntityManager>().EntityCreationRequest(&editor_camera_entity, 1);
-			Component::Create<Component::Transform>(editor_camera_entity);
-			Component::Create<Component::Camera>(editor_camera_entity);
+			auto transform_comp = Component::Create<Component::Transform>(editor_camera_entity);
+			transform_comp.SetLocalPosition(glm::vec3(0.0f, 5.0f, 5.0f));
+			auto cam_comp = Component::Create<Component::Camera>(editor_camera_entity);
+			cam_comp.SetFarDistance(200.0f);
+			auto editor_cam_controller = Component::Create<Component::EditorCameraController>(editor_camera_entity);
+			editor_cam_controller.SetAsActiveEditorCamera();
 		}
 		s_camera_default_transform = editor_camera_entity.GetComponent<Component::Transform>().GetLocalTransform();
 	}

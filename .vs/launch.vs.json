@@ -9,7 +9,7 @@
       "name": "Demo.exe (Install)",
       "currentDir": "${workspaceRoot}//demo",
       "args": [
-        "data/scenes/test_sat_faces.scene"
+        
       ]
     },
     {
