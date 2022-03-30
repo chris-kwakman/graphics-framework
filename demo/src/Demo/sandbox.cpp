@@ -334,6 +334,7 @@ namespace Sandbox
 		else
 		{
 			Singleton<Engine::ECS::EntityManager>().EntityCreationRequest(&editor_camera_entity, 1);
+			editor_camera_entity.SetName("Editor Camera");
 			auto transform_comp = Component::Create<Component::Transform>(editor_camera_entity);
 			transform_comp.SetLocalPosition(glm::vec3(0.0f, 5.0f, 5.0f));
 			auto cam_comp = Component::Create<Component::Camera>(editor_camera_entity);
