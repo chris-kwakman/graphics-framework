@@ -11,6 +11,7 @@
 #include <Engine/Components/SkeletonAnimator.h>
 #include <Engine/Components/CurveFollower.h>
 #include <Engine/Components/Rigidbody.h>
+#include <Engine/Physics/Collider.h>
 
 #include <Engine/Managers/resource_manager.h>
 
@@ -226,6 +227,8 @@ void update_loop()
 
 		Singleton<Component::CurveFollowerManager>().UpdateFollowers(TEMP_DT);
 		Singleton<Component::SkeletonAnimatorManager>().UpdateAnimatorInstances(TEMP_DT);
+		Singleton<Component::ColliderManager>().TestColliderIntersections();
+		Singleton<Component::ColliderManager>().ComputeCollisionResolution(TEMP_DT);
 		Singleton<Component::RigidBodyManager>().Integrate(TEMP_DT);
 		Singleton<Component::RigidBodyManager>().UpdateTransforms();
 

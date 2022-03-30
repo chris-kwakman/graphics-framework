@@ -861,11 +861,11 @@ namespace Sandbox
 				using hds = half_edge_data_structure;
 
 				// Debug Intersection rendering
-				std::vector<glm::vec3> render_points;
-				std::vector<glm::vec3> render_lines;
+				std::vector<glm::vec3> const & render_points = collider_mgr.m_data.m_global_contact_data.debug_draw_points;
+				std::vector<glm::vec3> const & render_lines = collider_mgr.m_data.m_global_contact_data.debug_draw_lines;
 				for (auto [e_pair, intersection_result] : collider_mgr.m_data.m_intersection_results)
 				{
-					contact_manifold const cm = intersection_result.second;
+					//contact_manifold const cm = intersection_result.second;
 					Entity const e1 = e_pair.first;
 					Entity const e2 = e_pair.second;
 
@@ -877,19 +877,6 @@ namespace Sandbox
 
 					hds const* ch1 = col1.GetConvexHull();
 					hds const* ch2 = col2.GetConvexHull();
-
-					auto const& debug_draw_points = intersection_result.second.debug_draw_points;
-					if (intersection_result.second.is_edge_edge)
-					{
-						// Queue points for rendering
-						render_lines.emplace_back(debug_draw_points[0]);
-						render_lines.emplace_back(debug_draw_points[1]);
-					}
-					else
-					{
-						for (size_t i = 0; i < debug_draw_points.size(); i++)
-							render_points.emplace_back(debug_draw_points[i]);
-					}
 
 				}
 

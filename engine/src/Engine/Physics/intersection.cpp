@@ -1,5 +1,6 @@
 #include "intersection.h"
 
+#include <Engine/Physics/contact.h>
 #include <glm/gtx/norm.hpp>
 
 namespace Engine {
@@ -84,7 +85,8 @@ namespace Physics {
 	EIntersectionType intersect_convex_hulls_sat(
 		half_edge_data_structure const& _hull1, transform3D const & _transform1, 
 		half_edge_data_structure const& _hull2, transform3D const & _transform2,
-		contact_manifold* _out_contact_manifold
+		contact * _out_contacts, size_t * _out_contact_count, 
+		bool* _reference_is_hull1
 	)
 	{
 		// Possible optimization: transform the hull with the least vertices to the space of the hull with the most vertices.
@@ -93,7 +95,8 @@ namespace Physics {
 			_hull1, _hull2,
 			_transform1,
 			(_transform1.GetInverse() * _transform2),
-			_out_contact_manifold
+			_out_contacts, _out_contact_count,
+			_reference_is_hull1
 		);
 	}
 
@@ -102,7 +105,8 @@ namespace Physics {
 		half_edge_data_structure const& _hull2, 
 		transform3D const& _transform_1,
 		transform3D const& _transform_2_to_1,
-		contact_manifold* _out_contact_manifold
+		contact* _out_contacts, size_t* _out_contact_count,
+		bool * _reference_is_hull1
 	)
 	{
 		glm::mat4 const mat_2_to_1 = _transform_2_to_1.GetMatrix();
@@ -243,7 +247,7 @@ namespace Physics {
 			? EIntersectionType::eEdgeIntersection 
 			: EIntersectionType::eFaceIntersection;
 		
-		if (_out_contact_manifold && return_intersection_type == EIntersectionType::eEdgeIntersection)
+		if (_out_contacts && return_intersection_type == EIntersectionType::eEdgeIntersection)
 		{
 			auto const [h1_e_idx, h2_e_idx] = min_sep_edge_pair;
 			half_edge const h1_edge = _hull1.m_edges[h1_e_idx];
@@ -276,22 +280,20 @@ namespace Physics {
 			// Compute contact points in world space.			
 			glm::mat4 const hull1_to_world = _transform_1.GetMatrix();
 			glm::vec4 intersection_points[2] = { hull1_to_world * glm::vec4(p1 + t1 * v1, 1.0f), hull1_to_world * glm::vec4(p2 + t2 * v2, 1.0f) };
-			
+
 			float distance = glm::distance(intersection_points[0], intersection_points[1]);
 
 			contact new_contact;
 			new_contact.point = intersection_points[0];
+			new_contact.normal = glm::normalize(intersection_points[1] - intersection_points[0]);
 			new_contact.penetration = distance;
 
-			_out_contact_manifold->debug_draw_points = { intersection_points[0], intersection_points[1] };
-
-			_out_contact_manifold->hull1_element_idx = h1_e_idx;
-			_out_contact_manifold->hull2_element_idx = h2_e_idx;
-			_out_contact_manifold->is_edge_edge = true;
-			_out_contact_manifold->contact_points.reserve(1);
-			_out_contact_manifold->contact_points.emplace_back(new_contact);
+			// Output data.
+			_out_contacts[0] = new_contact;
+			*_out_contact_count = 1;
+			*_reference_is_hull1 = false;
 		}
-		else if(_out_contact_manifold && return_intersection_type == EIntersectionType::eFaceIntersection)
+		else if(_out_contacts && return_intersection_type == EIntersectionType::eFaceIntersection)
 		{
 			auto const& reference_hull = min_sep_face_pair.reference_is_hull1 ? _hull1 : _hull2;
 			auto const & incident_hull = !min_sep_face_pair.reference_is_hull1 ? _hull1 : _hull2;
@@ -406,6 +408,7 @@ namespace Physics {
 				contact icp;
 				icp.point = mat_1_to_world * glm::vec4(clipped_vertices[i],1.0f);
 				icp.penetration = -glm::dot(clipped_vertices[i] - reference_face_vtx, reference_face_normal);
+				icp.normal = reference_face_normal;
 				if (icp.penetration > glm::epsilon<float>())
 					contact_points.emplace_back(icp);
 			}
@@ -419,17 +422,9 @@ namespace Physics {
 			}
 
 			// Output data
-			_out_contact_manifold->is_edge_edge = false;
-			_out_contact_manifold->hull1_element_idx = reference_face_index;
-			_out_contact_manifold->hull2_element_idx = incident_face_index;
-			_out_contact_manifold->contact_points = std::move(contact_points);
-
-			std::vector<glm::vec3> debug_draw_points;
-			size_t const contact_point_count = _out_contact_manifold->contact_points.size();
-			debug_draw_points.reserve(contact_point_count);
-			for (size_t i = 0; i < contact_point_count; i++)
-				debug_draw_points.emplace_back(_out_contact_manifold->contact_points[i].point);
-			_out_contact_manifold->debug_draw_points = std::move(debug_draw_points);
+			*_out_contact_count = contact_points.size();
+			memcpy(_out_contacts, contact_points.data(), contact_points.size() * sizeof(contact));
+			*_reference_is_hull1 = min_sep_face_pair.reference_is_hull1;
 		}
 
 	end:

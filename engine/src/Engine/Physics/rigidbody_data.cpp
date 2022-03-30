@@ -41,14 +41,14 @@ namespace Physics {
 	glm::mat3 rigidbody_data::get_world_tensor() const
 	{
 		glm::mat3 const rot_mat = glm::toMat3(rotation);
-		glm::mat3 const inv_rot_mat = glm::transpose(inv_rot_mat);
+		glm::mat3 const inv_rot_mat = glm::transpose(rot_mat);
 		return rot_mat * inertial_tensor * inv_rot_mat;
 	}
 
 	glm::mat3 rigidbody_data::get_inv_world_tensor() const
 	{
 		glm::mat3 const rot_mat = glm::toMat3(rotation);
-		glm::mat3 const inv_rot_mat = glm::transpose(inv_rot_mat);
+		glm::mat3 const inv_rot_mat = glm::transpose(rot_mat);
 		return inv_rot_mat * inv_inertial_tensor * rot_mat;
 	}
 

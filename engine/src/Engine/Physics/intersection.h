@@ -11,6 +11,8 @@ namespace Physics {
 
 	enum EIntersectionType : char { eNoIntersection = 0, eEdgeIntersection = 1, eFaceIntersection = 2, eAnyIntersection = 3 };
 
+	struct contact;
+
 	struct ray
 	{
 		glm::vec3 origin;
@@ -27,24 +29,6 @@ namespace Physics {
 	intersection_result intersect_ray_half_edge_data_structure(ray _ray, half_edge_data_structure const & _hds, transform3D const& _hull_transform);
 	intersection_result intersect_ray_convex_polygon(ray const& _ray, glm::vec3 const* _vertices, size_t const _size);
 
-	struct contact
-	{
-		glm::vec3	point; //world-space point
-		float		penetration;
-	};
-
-	struct contact_manifold
-	{
-		using half_edge_idx = half_edge_data_structure::half_edge_idx;
-		using face_idx = half_edge_data_structure::face_idx;
-		using vertex_idx = half_edge_data_structure::vertex_idx;
-
-		std::vector<contact> contact_points{};
-		std::vector<glm::vec3> debug_draw_points{};
-		uint16_t hull1_element_idx, hull2_element_idx;
-		bool is_edge_edge;
-	};
-
 	/*
 	@brief	Test for intersection between two convex hulls
 	@param		convex_hull		Convex hull 1
@@ -56,7 +40,8 @@ namespace Physics {
 	EIntersectionType intersect_convex_hulls_sat(
 		half_edge_data_structure const& _hull1, transform3D const & _transform1, 
 		half_edge_data_structure const& _hull2, transform3D const & _transform2,
-		contact_manifold * _out_contact_manifold = nullptr
+		contact* _out_contacts = nullptr, size_t* _out_contact_count = nullptr, 
+		bool* _reference_is_hull1 = nullptr
 	);
 
 	/*
@@ -71,7 +56,8 @@ namespace Physics {
 		half_edge_data_structure const& _hull2, 
 		transform3D const & _transform_1,
 		transform3D const& _transform_2_to_1, 
-		contact_manifold* _out_contact_manifold
+		contact* _out_contacts = nullptr, size_t* _out_contact_count = nullptr, 
+		bool * _reference_is_hull1 = nullptr
 	);
 
 	void points_inside_planes(

@@ -8,10 +8,12 @@ namespace Engine {
 namespace Physics {
 
 	void integrate_linear(
-		float const _dt, 
-		glm::vec3 * _positions, 
-		glm::vec3 * _velocities, 
+		float const _dt,
+ 
+		glm::vec3 * _positions, glm::vec3 * _linear_momentums,
+ 
 		glm::vec3 const * _forces,
+
 		float const * _inv_masses,
 		size_t const _count
 	);

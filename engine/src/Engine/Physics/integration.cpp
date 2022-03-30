@@ -5,17 +5,17 @@ namespace Engine {
 namespace Physics {
 
 	void integrate_linear(
-		float const _dt, 
+		float const _dt,
 		glm::vec3* _positions, 
-		glm::vec3* _velocities, 
-		glm::vec3 const* _forces, 
+		glm::vec3 * _linear_momentums,
+		glm::vec3 const* _forces,
 		float const* _inv_masses,
 		size_t const _count)
 	{
 		for (size_t i = 0; i < _count; i++)
 		{
-			_velocities[i] += _inv_masses[i] * _forces[i] * _dt;
-			_positions[i] += _velocities[i] * _dt;
+			_linear_momentums[i] += _forces[i] * _dt;
+			_positions[i] += _linear_momentums[i] * _inv_masses[i] * _dt;
 		}
 	}
 

@@ -1,13 +1,18 @@
 #include "Collider.h"
 #include <Engine/Graphics/misc/create_convex_hull_mesh.h>
 #include <Engine/Physics/point_hull.h>
-
+#include <Engine/Components/Rigidbody.h>
 #include <Engine/Components/Transform.h>
+
+#include <Engine/Physics/contact.h>
+#include <Engine/Physics/resolution.hpp>
 
 #include <Engine/Editor/editor.h>
 
 namespace Component
 {
+	using namespace Engine::Physics;
+
 	Engine::Physics::half_edge_data_structure const* Component::Collider::GetConvexHull() const
 	{
 		auto const handle = GetManager().m_data.m_entity_map[Owner()].m_collider_resource.Handle();
@@ -326,6 +331,12 @@ namespace Component
 		m_data.m_intersection_results.clear();
 		m_data.m_entity_intersections.clear();
 
+		global_contact_data& mgr_global_contact_data = m_data.m_global_contact_data;
+		mgr_global_contact_data = global_contact_data();
+
+		std::array<contact, 128>	contact_stack_arr;
+		size_t						contact_stack_size = 0;
+
 		auto it1 = m_data.m_entity_map.begin();
 		while (it1 != m_data.m_entity_map.end())
 		{
@@ -347,24 +358,85 @@ namespace Component
 					continue;
 				}
 
+				contact_stack_size = 0;
+
 				convex_hull_handle const ch_2 = it2->second.m_collider_resource.Handle();
 				auto chi_2 = Singleton<ConvexHullManager>().GetConvexHullInfo(ch_2);
 				Engine::Math::transform3D const tr_2 = it2->first.GetComponent<Component::Transform>().ComputeWorldTransform();
 				Engine::Physics::contact_manifold manifold;
 				std::pair<Entity, Entity> const entity_pair = std::pair(it1->first, it2->first);
-				EIntersectionType result = intersect_convex_hulls_sat(chi_1->m_data, tr_1, chi_2->m_data, tr_2, &manifold);
+
+				bool hull1_is_reference_face = false;
+				EIntersectionType result = intersect_convex_hulls_sat(
+					chi_1->m_data, tr_1, 
+					chi_2->m_data, tr_2, 
+					contact_stack_arr.data(), &contact_stack_size,
+					&hull1_is_reference_face
+				);
+
+				// If an intersection is detected, store results in global contact data.
 				if (result & EIntersectionType::eAnyIntersection)
 				{
-					m_data.m_intersection_results.emplace(
-						entity_pair, std::pair{ result, std::move(manifold) }
-					);
+					// Record intersection
+					m_data.m_intersection_results.emplace(entity_pair, result);
 					m_data.m_entity_intersections[it1->first].emplace_back(it2->first);
 					m_data.m_entity_intersections[it2->first].emplace_back(it1->first);
-					//printf("T1: %.2f, T2: %.2f\n", manifold.edge_edge_contact.hull1_edge_t, manifold.edge_edge_contact.hull2_edge_t);
+					
+					contact_manifold new_cm;
+					// Account for face-face intersection using different collider for reference face.
+					new_cm.rigidbody_A = hull1_is_reference_face ? it1->first : it2->first;
+					new_cm.rigidbody_B = hull1_is_reference_face ? it2->first : it1->first;
+
+					if (new_cm.rigidbody_A.IsValid() && new_cm.rigidbody_B.IsValid())
+					{
+						new_cm.first_contact_index = mgr_global_contact_data.all_contacts.size();
+						new_cm.contact_count = contact_stack_size;
+						new_cm.is_edge_edge = (result == EIntersectionType::eEdgeIntersection);
+
+						mgr_global_contact_data.all_contact_manifolds.push_back(new_cm);
+						mgr_global_contact_data.all_contacts.insert(
+							mgr_global_contact_data.all_contacts.begin(),
+							contact_stack_arr.begin(),
+							contact_stack_arr.begin() + contact_stack_size
+						);
+
+#ifdef DEBUG_RENDER_CONTACTS
+
+						auto const & all_contacts = mgr_global_contact_data.all_contacts;
+						auto const & all_manifolds = mgr_global_contact_data.all_contact_manifolds;
+						if (new_cm.is_edge_edge)
+						{
+							contact cm_contact = all_contacts[new_cm.first_contact_index];
+							mgr_global_contact_data.debug_draw_lines.push_back(cm_contact.point);
+							mgr_global_contact_data.debug_draw_lines.push_back(cm_contact.point + cm_contact.normal * cm_contact.penetration);
+						}
+						else
+						{
+							for (size_t i = new_cm.first_contact_index; i < new_cm.first_contact_index + new_cm.contact_count; i++)
+							{
+								contact cm_contact = all_contacts[i];
+								mgr_global_contact_data.debug_draw_points.push_back(cm_contact.point);
+							}
+						}
+
+#endif // RENDER_CONTACT_POINTS
+					}
+
 				}
 				it2++;
 			}
 			it1++;
 		}
+
+	}
+
+	void ColliderManager::ComputeCollisionResolution(float _dt)
+	{
+		Engine::Physics::compute_resolution_gauss_seidel(
+			m_data.m_global_contact_data,
+			m_data.m_resolution_iterations, 
+			_dt, 
+			m_data.m_resolution_beta
+		);
 	}
 }

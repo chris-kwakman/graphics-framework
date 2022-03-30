@@ -3,7 +3,7 @@
 #include <engine/ECS/component_manager.h>
 #include <Engine/Physics/convex_hull.h>
 #include <Engine/Physics/intersection.h>
-
+#include <Engine/Physics/contact.h>
 #include <Engine/Graphics/manager.h>
 
 #include <unordered_map>
@@ -48,12 +48,16 @@ namespace Component
 			std::unordered_map<Entity, ch_debug_render_instance, Entity::hash> m_entity_map;
 			std::map<Engine::Managers::Resource, ch_debug_meshes> m_ch_debug_meshes;
 
-			std::map<std::pair<Entity,Entity>, std::pair<Engine::Physics::EIntersectionType, Engine::Physics::contact_manifold>> m_intersection_results;
-			std::unordered_map<Entity, std::vector<Entity>, Entity::hash> m_entity_intersections;
+			std::map<std::pair<Entity,Entity>, Engine::Physics::EIntersectionType> m_intersection_results;
+			std::unordered_map<Entity, std::vector<Entity>, Entity::hash>	m_entity_intersections;
+			Engine::Physics::global_contact_data							m_global_contact_data;
 
 			bool m_render_debug_face_mesh = true, m_render_debug_edge_mesh = true;
 
-			NLOHMANN_DEFINE_TYPE_INTRUSIVE(manager_data, m_entity_map, m_render_debug_face_mesh, m_render_debug_edge_mesh);
+			unsigned int m_resolution_iterations = 8;
+			float m_resolution_beta = 0.5f;
+
+			NLOHMANN_DEFINE_TYPE_INTRUSIVE(manager_data, m_entity_map, m_render_debug_face_mesh, m_render_debug_edge_mesh, m_resolution_iterations, m_resolution_beta);
 		};
 
 	public:
@@ -65,6 +69,7 @@ namespace Component
 		void SetColliderResource(Entity _e, Engine::Managers::Resource _resource);
 
 		void TestColliderIntersections();
+		void ComputeCollisionResolution(float _dt);
 
 	private:
 

@@ -1,3 +1,5 @@
+#pragma once
+
 #include <glm/vec3.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <glm/mat3x3.hpp>
