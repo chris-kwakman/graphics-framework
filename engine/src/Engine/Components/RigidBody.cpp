@@ -13,6 +13,7 @@ namespace Component
 {
 	using namespace Engine::ECS;
 
+
 	const char* RigidBodyManager::GetComponentTypeName() const
 	{
 		return "RigidBody";
@@ -39,8 +40,8 @@ namespace Component
 		integrate_linear(
 			_dt,
 			&m_rigidbodies_data.m_positions.front(),
-			&m_rigidbodies_data.m_velocities.front(),
-			&m_rigidbodies_data.m_forces.front(),
+			&m_rigidbodies_data.m_linear_momentums.front(),
+			&m_rigidbodies_data.m_force_accumulators.front(),
 			&m_rigidbodies_data.m_inv_masses.front(),
 			rigidbody_count - m_rigidbodies_data.m_skip_linear_integration_count
 		);
@@ -48,8 +49,8 @@ namespace Component
 		integrate_angular(
 			_dt,
 			&m_rigidbodies_data.m_rotations.front(),
-			&m_rigidbodies_data.m_angular_moments.front(),
-			&m_rigidbodies_data.m_torques.front(),
+			&m_rigidbodies_data.m_angular_momentums.front(),
+			&m_rigidbodies_data.m_torque_accumulators.front(),
 			&m_rigidbodies_data.m_inv_inertial_tensors.front(),
 			rigidbody_count
 		);
@@ -57,8 +58,8 @@ namespace Component
 		// Reset forces
 		for (size_t i = 0; i < rigidbody_count; i++)
 		{
-			m_rigidbodies_data.m_forces[i] = glm::vec3(0.0f);
-			m_rigidbodies_data.m_torques[i] = glm::vec3(0.0f);
+			m_rigidbodies_data.m_force_accumulators[i] = glm::vec3(0.0f);
+			m_rigidbodies_data.m_torque_accumulators[i] = glm::vec3(0.0f);
 		}
 	}
 
@@ -85,14 +86,46 @@ namespace Component
 
 	void RigidBodyManager::ApplyForce(size_t _entity_index, glm::vec3 _force, glm::vec3 _offset)
 	{
-		m_rigidbodies_data.m_forces[_entity_index] += _force;
-		m_rigidbodies_data.m_torques[_entity_index] += glm::cross(_offset, _force);
+		m_rigidbodies_data.m_force_accumulators[_entity_index] += _force;
+		m_rigidbodies_data.m_torque_accumulators[_entity_index] += glm::cross(_offset, _force);
 	}
 
 	void RigidBodyManager::SetInertialTensor(size_t _entity_index, glm::mat3 _inertial_tensor)
 	{
 		m_rigidbodies_data.m_inertial_tensors[_entity_index] = _inertial_tensor;
 		m_rigidbodies_data.m_inv_inertial_tensors[_entity_index] = glm::inverse(_inertial_tensor);
+	}
+
+	Engine::Physics::rigidbody_data RigidBodyManager::GetEntityRigidBodyData(Entity _e) const
+	{
+		Engine::Physics::rigidbody_data rb_data;
+		size_t const entity_index = m_rigidbodies_data.m_entity_map.at(_e);
+		rb_data.position = m_rigidbodies_data.m_positions[entity_index];
+		rb_data.rotation = m_rigidbodies_data.m_rotations[entity_index];
+		rb_data.linear_momentum = m_rigidbodies_data.m_linear_momentums[entity_index];
+		rb_data.force_accumulator = m_rigidbodies_data.m_force_accumulators[entity_index];
+		rb_data.angular_momentum = m_rigidbodies_data.m_angular_momentums[entity_index];
+		rb_data.torque_accumulator = m_rigidbodies_data.m_torque_accumulators[entity_index];
+		rb_data.inertial_tensor = m_rigidbodies_data.m_inertial_tensors[entity_index];
+		rb_data.inv_inertial_tensor= m_rigidbodies_data.m_inv_inertial_tensors[entity_index];
+		rb_data.inv_mass = m_rigidbodies_data.m_inv_masses[entity_index];
+		rb_data.restitution = m_rigidbodies_data.m_restitution[entity_index];
+		return rb_data;
+	}
+
+	void RigidBodyManager::SetEntityRigidBodyData(Entity _e, Engine::Physics::rigidbody_data const& _rb_data)
+	{
+		size_t const entity_index = m_rigidbodies_data.m_entity_map.at(_e);
+		m_rigidbodies_data.m_positions[entity_index] = _rb_data.position;
+		m_rigidbodies_data.m_rotations[entity_index] = _rb_data.rotation;
+		m_rigidbodies_data.m_linear_momentums[entity_index] = _rb_data.linear_momentum;
+		m_rigidbodies_data.m_force_accumulators[entity_index] = _rb_data.force_accumulator;
+		m_rigidbodies_data.m_angular_momentums[entity_index] = _rb_data.angular_momentum;
+		m_rigidbodies_data.m_torque_accumulators[entity_index] = _rb_data.torque_accumulator;
+		m_rigidbodies_data.m_inertial_tensors[entity_index] = _rb_data.inertial_tensor;
+		m_rigidbodies_data.m_inv_inertial_tensors[entity_index] = _rb_data.inv_inertial_tensor;
+		m_rigidbodies_data.m_inv_masses[entity_index] = _rb_data.inv_mass;
+		m_rigidbodies_data.m_restitution[entity_index] = _rb_data.restitution;
 	}
 
 	void RigidBodyManager::impl_clear()
@@ -140,16 +173,17 @@ namespace Component
 	{
 		size_t const entity_index = m_rigidbodies_data.get_entity_index(_entity);
 		ImGui::DragFloat3("Position", (float*)&m_rigidbodies_data.m_positions[entity_index], 1.0f, -FLT_MAX, FLT_MAX, "%.3f", 1.0f);
-		ImGui::DragFloat3("Velocity", (float*)&m_rigidbodies_data.m_velocities[entity_index], 1.0f, -100.0f, 100.0f, "%.3f", 1.0f);
+		ImGui::DragFloat3("Linear Momentum", (float*)&m_rigidbodies_data.m_linear_momentums[entity_index], 1.0f, -100.0f, 100.0f, "%.3f", 1.0f);
 
 		if (ImGui::DragFloat4("Rotation", (float*)&m_rigidbodies_data.m_rotations[entity_index], 0.05f, -1.0f, 1.0f, "%.3f"))
 			m_rigidbodies_data.m_rotations[entity_index] = glm::normalize(m_rigidbodies_data.m_rotations[entity_index]);
-		ImGui::DragFloat3("Angular Moment", (float*)&m_rigidbodies_data.m_angular_moments[entity_index]);
+		ImGui::DragFloat3("Angular Momentum", (float*)&m_rigidbodies_data.m_angular_momentums[entity_index]);
 		float mass = m_rigidbodies_data.m_inv_masses[entity_index];
 		if (mass <= 0.0f)
 			mass = std::clamp(mass, 0.0f, FLT_MAX);
 		else
 			mass = 1.0f / mass;
+		ImGui::DragFloat("Restitution", &m_rigidbodies_data.m_restitution[entity_index], 0.01f, 0.0f, 1.0f, "%.2f");
 		if(ImGui::DragFloat("Mass", &mass, 1.0f, 0.0f, FLT_MAX, "%.3f"))
 		{
 			if (mass <= 0.0f)
@@ -214,8 +248,8 @@ namespace Component
 		if (serializer_version == 1)
 		{
 			m_rigidbodies_data = _j["rigidbody_data"];
-			m_rigidbodies_data.m_forces.resize(m_rigidbodies_data.m_entity_map.size(), glm::vec3(0.0f));
-			m_rigidbodies_data.m_torques.resize(m_rigidbodies_data.m_entity_map.size(), glm::vec3(0.0f));
+			m_rigidbodies_data.m_force_accumulators.resize(m_rigidbodies_data.m_entity_map.size(), glm::vec3(0.0f));
+			m_rigidbodies_data.m_torque_accumulators.resize(m_rigidbodies_data.m_entity_map.size(), glm::vec3(0.0f));
 			m_rigidbodies_data.m_inv_inertial_tensors.resize(m_rigidbodies_data.m_entity_map.size());
 			for (size_t i = 0; i < m_rigidbodies_data.size(); i++)
 				m_rigidbodies_data.m_inv_inertial_tensors[i] = glm::inverse(m_rigidbodies_data.m_inertial_tensors[i]);
@@ -246,17 +280,18 @@ namespace Component
 		// States
 		// Linear
 		m_positions.push_back(_position);
-		m_velocities.push_back(glm::vec3(0.0f));
-		m_forces.push_back(glm::vec3(0.0f));
+		m_linear_momentums.push_back(glm::vec3(0.0f));
+		m_force_accumulators.push_back(glm::vec3(0.0f));
 		// Angular
 		m_rotations.push_back(_rotation);
-		m_angular_moments.push_back(glm::vec3(0.0f));
-		m_torques.push_back(glm::vec3(0.0f));
+		m_angular_momentums.push_back(glm::vec3(0.0f));
+		m_torque_accumulators.push_back(glm::vec3(0.0f));
 
 		// Properties
 		m_inv_masses.push_back(_mass);
 		m_inertial_tensors.push_back(_inertial_tensor);
 		m_inv_inertial_tensors.push_back(glm::inverse(_inertial_tensor));
+		m_restitution.push_back(0.5f);
 
 		// Update enabled & disabled linear integration partitions.
 		m_skip_linear_integration_count += 1;
@@ -307,16 +342,17 @@ namespace Component
 
 		// Linear
 		swap_indices(m_positions);
-		swap_indices(m_velocities);
-		swap_indices(m_forces);
+		swap_indices(m_linear_momentums);
+		swap_indices(m_force_accumulators);
 		// Angular
 		swap_indices(m_rotations);
-		swap_indices(m_angular_moments);
-		swap_indices(m_torques);
+		swap_indices(m_angular_momentums);
+		swap_indices(m_torque_accumulators);
 		// Constant properties
 		swap_indices(m_inv_masses);
 		swap_indices(m_inertial_tensors);
 		swap_indices(m_inv_inertial_tensors);
+		swap_indices(m_restitution);
 
 		return true;
 	}
@@ -326,16 +362,17 @@ namespace Component
 		m_index_entities.pop_back();
 
 		m_positions.pop_back();
-		m_velocities.pop_back();
-		m_forces.pop_back();
+		m_linear_momentums.pop_back();
+		m_force_accumulators.pop_back();
 
 		m_rotations.pop_back();
-		m_angular_moments.pop_back();
-		m_torques.pop_back();
+		m_angular_momentums.pop_back();
+		m_torque_accumulators.pop_back();
 
 		m_inv_masses.pop_back();
 		m_inertial_tensors.pop_back();
 		m_inv_inertial_tensors.pop_back();
+		m_restitution.pop_back();
 
 		m_skip_linear_integration_count -= 1;
 	}
@@ -380,6 +417,16 @@ namespace Component
 
 			m_skip_linear_integration_count += 1;
 		}
+	}
+
+	Engine::Physics::rigidbody_data RigidBody::GetRigidBodyData() const
+	{
+		return GetManager().GetEntityRigidBodyData(Owner());
+	}
+
+	void RigidBody::SetRigidBodyData(Engine::Physics::rigidbody_data const& _rb_data)
+	{
+		GetManager().SetEntityRigidBodyData(Owner(), _rb_data);
 	}
 
 }

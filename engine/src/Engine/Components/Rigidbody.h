@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Engine/ECS/component_manager.h>
+#include <Engine/Physics/rigidbody_data.hpp>
 
 namespace Component
 {
@@ -11,10 +12,15 @@ namespace Component
 	struct RigidBody : public IComp<RigidBodyManager>
 	{
 		DECLARE_COMPONENT(RigidBody);
+
+		Engine::Physics::rigidbody_data	GetRigidBodyData() const;
+		void SetRigidBodyData(Engine::Physics::rigidbody_data const& _rb_data);
 	};
 
 	class RigidBodyManager : public TCompManager<RigidBody>
 	{
+
+		friend RigidBody;
 
 	public:
 
@@ -48,17 +54,18 @@ namespace Component
 			// ### State
 			// Linear
 			std::vector<glm::vec3>	m_positions;
-			std::vector<glm::vec3>	m_velocities;
-			std::vector<glm::vec3>	m_forces;
+			std::vector<glm::vec3>	m_linear_momentums;
+			std::vector<glm::vec3>	m_force_accumulators;
 			// Angular
 			std::vector<glm::quat>	m_rotations;
-			std::vector<glm::vec3>	m_angular_moments;
-			std::vector<glm::vec3>	m_torques;
+			std::vector<glm::vec3>	m_angular_momentums;
+			std::vector<glm::vec3>	m_torque_accumulators;
 
 			// ### Constant Properties
 			std::vector<float>		m_inv_masses;
 			std::vector<glm::mat3>	m_inertial_tensors;
 			std::vector<glm::mat3>	m_inv_inertial_tensors;
+			std::vector<float>		m_restitution;
 
 			NLOHMANN_DEFINE_TYPE_INTRUSIVE(
 				rigidbody_data_collection,
@@ -66,13 +73,14 @@ namespace Component
 				m_index_entities,
 				m_skip_linear_integration_count,
 				m_positions,
-				m_velocities,
-				//m_forces,		// Should always be zero at end of each frame
+				m_linear_momentums,
+				//m_force_accumulators,		// Should always be zero at end of each frame
 				m_rotations,
-				m_angular_moments,
-				//m_torques,	// Should always be zero at end of each frame
+				m_angular_momentums,
+				//m_torque_accumulators,	// Should always be zero at end of each frame
 				m_inv_masses,
-				m_inertial_tensors
+				m_inertial_tensors,
+				m_restitution
 				//m_inv_inertial_tensors // No need to serialize / deserialize, we can derive it from original tensor.
 			)
 		};
@@ -91,6 +99,9 @@ namespace Component
 		void ApplyForce(Entity _entity, glm::vec3 _force, glm::vec3 _offset);
 		void ApplyForce(size_t _entity_index, glm::vec3 _force, glm::vec3 _offset);
 		void SetInertialTensor(size_t _entity_index, glm::mat3 _inertial_tensor);
+
+		Engine::Physics::rigidbody_data	GetEntityRigidBodyData(Entity _e) const;
+		void							SetEntityRigidBodyData(Entity _e, Engine::Physics::rigidbody_data const & _rb_data);
 
 	private:
 
