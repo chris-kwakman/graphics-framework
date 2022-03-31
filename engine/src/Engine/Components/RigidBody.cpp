@@ -37,7 +37,7 @@ namespace Component
 			m_rigidbodies_data.m_rotations[i] = entity_transform_component.GetLocalRotation();
 		}
 
-		integrate_linear(
+		integrate_linear_euler(
 			_dt,
 			&m_rigidbodies_data.m_positions.front(),
 			&m_rigidbodies_data.m_linear_momentums.front(),
@@ -46,7 +46,7 @@ namespace Component
 			rigidbody_count - m_rigidbodies_data.m_skip_linear_integration_count
 		);
 
-		integrate_angular(
+		integrate_angular_euler(
 			_dt,
 			&m_rigidbodies_data.m_rotations.front(),
 			&m_rigidbodies_data.m_angular_momentums.front(),

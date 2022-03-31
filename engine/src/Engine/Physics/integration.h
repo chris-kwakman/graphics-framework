@@ -7,7 +7,7 @@
 namespace Engine {
 namespace Physics {
 
-	void integrate_linear(
+	void integrate_linear_euler(
 		float const _dt,
  
 		glm::vec3 * _positions, glm::vec3 * _linear_momentums,
@@ -18,7 +18,7 @@ namespace Physics {
 		size_t const _count
 	);
 
-	void integrate_angular(
+	void integrate_angular_euler(
 		float const _dt,
 		glm::quat * _rotations,
 		glm::vec3 * _angular_moments,
