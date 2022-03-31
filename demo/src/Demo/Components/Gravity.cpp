@@ -12,9 +12,12 @@ namespace Component
 		for (auto entity : m_data.m_gravity_entities)
 		{
 			auto rb_comp = entity.GetComponent<RigidBody>();
-			auto rb_data = rb_comp.GetRigidBodyData();
-			rb_data.force_accumulator += m_data.m_gravity * rb_data.get_mass();
-			rb_comp.SetRigidBodyData(rb_data);
+			if (rb_comp.IsValid())
+			{
+				auto rb_data = rb_comp.GetRigidBodyData();
+				rb_data.force_accumulator += m_data.m_gravity * rb_data.get_mass();
+				rb_comp.SetRigidBodyData(rb_data);
+			}
 		}
 	}
 	void GravityComponentManager::impl_clear()

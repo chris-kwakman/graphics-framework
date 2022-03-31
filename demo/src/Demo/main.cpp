@@ -245,9 +245,7 @@ void update_loop()
 		if (!scene_physics_mgr.paused || scene_physics_mgr.step)
 		{
 			Singleton<Component::GravityComponentManager>().ApplyGravity();
-			Singleton<Component::ColliderManager>().ComputeCollisionResolution(TEMP_DT);
-			Singleton<Component::RigidBodyManager>().Integrate(TEMP_DT);
-			Singleton<Component::RigidBodyManager>().UpdateTransforms();
+			scene_physics_mgr.PhysicsStep(TEMP_DT);
 		}
 
 		sdl_manager.set_gl_debug_state(false);
@@ -301,6 +299,8 @@ int main(int argc, char* argv[])
 			Singleton<Engine::ECS::EntityManager>().Reset();
 			Singleton<Engine::Graphics::ResourceManager>().Reset();
 			register_resource_loaders();
+
+			Singleton<Engine::Physics::ScenePhysicsManager>().Reset();
 
 			if(!s_load_scene_at_path.empty())
 				load_scene(s_load_scene_at_path);

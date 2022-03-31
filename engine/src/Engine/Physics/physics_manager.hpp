@@ -1,4 +1,5 @@
 #include <imgui.h>
+#include <nlohmann/json.hpp>
 
 namespace Engine {
 namespace Physics {
@@ -7,18 +8,20 @@ namespace Physics {
 	{
 	public:
 
+		struct session_data
+		{
+			std::array<nlohmann::json,200> rigidbody_frame_data;
+			size_t begin = 0;
+			size_t end = 0;
+		};
+
+		session_data m_session_data;
 		bool paused = false;
 		bool step = false;
 
-		void DisplayEditorWindow()
-		{
-			if(ImGui::Begin("Physics Debug"))
-			{
-				ImGui::Checkbox("Paused", &paused);
-				step = ImGui::Button("Physics Step");
-				ImGui::End();
-			}
-		}
+		void Reset();
+		void PhysicsStep(float _dt);
+		void DisplayEditorWindow();
 	};
 
 }

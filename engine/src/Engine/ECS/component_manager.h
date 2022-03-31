@@ -88,13 +88,14 @@ namespace ECS {
 		void			EditComponent(Entity _entity) final;
 
 		virtual const char* GetComponentTypeName() const = 0;
+
+		void	Deserialize(nlohmann::json const& _j) final;
+		void	Serialize(nlohmann::json& _j) const final;
+
 	protected:
 
 		void			CreateComponent(Entity _entity) final { Create(_entity); }
 		void			DestroyComponent(Entity _entity) final { Destroy(&_entity, 1); }
-
-		void	Deserialize(nlohmann::json const& _j) final;
-		void	Serialize(nlohmann::json& _j) const final;
 
 		virtual void impl_clear() = 0;
 
