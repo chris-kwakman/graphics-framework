@@ -61,6 +61,36 @@ namespace Physics {
 			}
 			ImGui::EndDisabled();
 
+
+			// Display contacts this frame
+
+
+			if (paused)
+			{
+				auto const & collider_mgr = Singleton<Component::ColliderManager>();
+				auto const& global_contact_data = collider_mgr.m_data.m_global_contact_data;
+
+				auto const& all_contacts = global_contact_data.all_contacts;;
+				for (contact_manifold const cm : global_contact_data.all_contact_manifolds)
+				{
+					ImGui::Separator();
+					ImGui::Text("RigidBody A: %s (ID: %u)", cm.rigidbody_A.Owner().GetName(), cm.rigidbody_A.Owner().ID());
+					ImGui::Text("RigidBody B: %s (ID: %u)", cm.rigidbody_B.Owner().GetName(), cm.rigidbody_B.Owner().ID());
+					ImGui::Text("Contact Count: %u", cm.contact_count);
+					ImGui::Text("Is edge-edge intersection: %s", cm.is_edge_edge ? "true" : "false");
+					ImGui::Indent(); 
+					for (size_t i = cm.first_contact_index; i < cm.first_contact_index + cm.contact_count; i++)
+					{
+						contact c = all_contacts[i];
+						ImGui::Text("Point: (%.2f, %.2f, %.2f)", c.point.x, c.point.y, c.point.z);
+						ImGui::Text("Normal: (%.2f, %.2f, %.2f)", c.normal.x, c.normal.y, c.normal.z);
+						ImGui::Text("Lambda: %.4f", c.lambda);
+					}
+					ImGui::Unindent();
+				}
+			}
+
+
 			ImGui::End();
 		}
 	}

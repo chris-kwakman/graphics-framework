@@ -46,6 +46,7 @@ static ms const max_frametime(1000 / MAX_FRAMERATE);
 fs::path const scene_directory("data//scenes//");
 
 static fs::path s_load_scene_at_path;
+static bool show_physics_debug_window = false;
 
 
 void load_scene(fs::path _scene_path)
@@ -89,7 +90,6 @@ void load_scene(fs::path _scene_path)
 void menu_bar()
 {
 	static char file_name_buffer[32];
-	static bool show_physics_debug_window = false;
 	fs::directory_iterator const dir_iter(scene_directory);
 
 	bool popup_scene_save = false;
@@ -160,12 +160,6 @@ void menu_bar()
 			ImGui::CloseCurrentPopup();
 		}
 		ImGui::EndPopup();
-	}
-
-	if (show_physics_debug_window)
-	{
-		auto& scene_physics_mgr = Singleton<Engine::Physics::ScenePhysicsManager>();
-		scene_physics_mgr.DisplayEditorWindow();
 	}
 }
 
@@ -247,6 +241,10 @@ void update_loop()
 			Singleton<Component::GravityComponentManager>().ApplyGravity();
 			scene_physics_mgr.PhysicsStep(TEMP_DT);
 		}
+
+
+		if (show_physics_debug_window)
+			Singleton<Engine::Physics::ScenePhysicsManager>().DisplayEditorWindow();
 
 		sdl_manager.set_gl_debug_state(false);
 
