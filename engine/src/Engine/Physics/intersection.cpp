@@ -413,12 +413,15 @@ namespace Physics {
 			// Only keep contact points with positive penetration
 			std::vector<contact> contact_points;
 			glm::mat4 const mat_1_to_world = _transform_1.GetMatrix();
+
+			glm::vec3 const world_normal = glm::transpose(_transform_1.GetInvMatrix()) * glm::vec4(reference_face_normal,0.0f);
+
 			for (size_t i = 0; i < clipped_vertices.size(); i++)
 			{
 				contact icp;
 				icp.point = mat_1_to_world * glm::vec4(clipped_vertices[i],1.0f);
 				icp.penetration = -glm::dot(clipped_vertices[i] - reference_face_vtx, reference_face_normal);
-				icp.normal = reference_face_normal;
+				icp.normal = world_normal;
 				if (icp.penetration > glm::epsilon<float>())
 					contact_points.emplace_back(icp);
 			}
