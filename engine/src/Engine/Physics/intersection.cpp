@@ -118,8 +118,19 @@ namespace Physics {
 		using face = half_edge_data_structure::face;
 		using half_edge = half_edge_data_structure::half_edge;
 
-		struct edge_pair { edge_idx hull1_edge_idx, hull2_edge_idx; };
-		struct face_vertex_pair { face_idx reference_face_index; vertex_idx incident_face_vertex; bool reference_is_hull1 = false; };
+		struct edge_pair { 
+			edge_idx hull1_edge_idx = std::numeric_limits<edge_idx>::max();
+			edge_idx hull2_edge_idx = std::numeric_limits<edge_idx>::max();
+
+			bool valid() const { return hull1_edge_idx != std::numeric_limits<edge_idx>::max() && hull2_edge_idx != hull1_edge_idx; }
+		};
+		struct face_vertex_pair { 
+			face_idx reference_face_index = std::numeric_limits<face_idx>::max(); 
+			vertex_idx incident_face_vertex = std::numeric_limits<vertex_idx>::max();
+			bool reference_is_hull1 = false; 
+
+			bool valid() const { return reference_face_index != std::numeric_limits<face_idx>::max() && incident_face_vertex != std::numeric_limits<vertex_idx>::max(); }
+		};
 
 		std::vector<glm::vec3> const & hull1_vertices = _hull1.m_vertices;
 		// Rather than performing the intersection in world space, we perform the intersection in the local space of one
@@ -242,12 +253,9 @@ namespace Physics {
 			}
 		}
 
-		EIntersectionType return_intersection_type;
-		return_intersection_type = (min_sep_edge_pair.hull1_edge_idx != half_edge::INVALID_EDGE)
-			? EIntersectionType::eEdgeIntersection 
-			: EIntersectionType::eFaceIntersection;
-		
-		if (_out_contacts && return_intersection_type == EIntersectionType::eEdgeIntersection)
+		EIntersectionType return_intersection_type = EIntersectionType::eNoIntersection;
+
+		if (_out_contacts && min_sep_edge_pair.valid())
 		{
 			auto const [h1_e_idx, h2_e_idx] = min_sep_edge_pair;
 			half_edge const h1_edge = _hull1.m_edges[h1_e_idx];
@@ -292,8 +300,10 @@ namespace Physics {
 			_out_contacts[0] = new_contact;
 			*_out_contact_count = 1;
 			*_reference_is_hull1 = false;
+
+			return_intersection_type = EIntersectionType::eEdgeIntersection;
 		}
-		else if(_out_contacts && return_intersection_type == EIntersectionType::eFaceIntersection)
+		else if(_out_contacts && min_sep_face_pair.valid())
 		{
 			auto const& reference_hull = min_sep_face_pair.reference_is_hull1 ? _hull1 : _hull2;
 			auto const & incident_hull = !min_sep_face_pair.reference_is_hull1 ? _hull1 : _hull2;
@@ -304,7 +314,7 @@ namespace Physics {
 			// Find incident face that is most anti-parallel to reference face.
 			face_idx incident_face_index = -1;
 			float min_dot = std::numeric_limits<float>::max();
-			glm::vec3 const reference_face_normal = glm::normalize(compute_hds_face_normal(reference_vertices, reference_hull.m_faces, reference_face_index));
+			glm::vec3 const reference_face_normal = compute_hds_face_normal(reference_vertices, reference_hull.m_faces, reference_face_index);
 			for (face_idx incident_hull_face_idx = 0; incident_hull_face_idx < incident_hull.m_faces.size(); ++incident_hull_face_idx)
 			{
 				float const dot = glm::dot(compute_hds_face_normal(incident_vertices, incident_hull.m_faces, incident_hull_face_idx), reference_face_normal);
@@ -415,19 +425,13 @@ namespace Physics {
 
 			//assert(contact_vec.empty() && "All points have been clipped - bug in implementation.");
 
-			if (contact_points.empty())
-			{
-				return_intersection_type = eNoIntersection;
-				goto end;
-			}
-
 			// Output data
 			*_out_contact_count = contact_points.size();
 			memcpy(_out_contacts, contact_points.data(), contact_points.size() * sizeof(contact));
 			*_reference_is_hull1 = min_sep_face_pair.reference_is_hull1;
-		}
 
-	end:
+			return_intersection_type = EIntersectionType::eFaceIntersection;
+		}
 
 		return return_intersection_type;
 	}

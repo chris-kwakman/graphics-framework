@@ -48,10 +48,10 @@ namespace Physics {
 	glm::vec3 compute_hds_face_normal(std::vector<glm::vec3> const& _vertices, std::vector<half_edge_data_structure::face> const& _faces, half_edge_data_structure::face_idx _get_face_idx_normal)
 	{
 		half_edge_data_structure::face const& face = _faces[_get_face_idx_normal];
-		return glm::cross(
+		return glm::normalize(glm::cross(
 			_vertices[face.m_vertices[1]] - _vertices[face.m_vertices[0]],
 			_vertices[face.m_vertices[2]] - _vertices[face.m_vertices[0]]
-		);
+		));
 	}
 
 	void pair_hds_twin_edges(
@@ -489,7 +489,7 @@ namespace Physics {
 		using vertex_idx = half_edge_data_structure::vertex_idx;
 
 		float max_dot = -std::numeric_limits<float>::max(); 
-		vertex_idx track_max_vertex;
+		vertex_idx track_max_vertex = 0;
 
 		for (vertex_idx i = 0; i < _vertices.size(); i++)
 		{
