@@ -17,6 +17,7 @@
 
 #include <Engine/Physics/convex_hull_loader.h>
 #include <Engine/Physics/point_hull.h>
+#include <Engine/Physics/physics_manager.hpp>
 
 #include "Demo/sandbox.h"
 #include "Demo/Components/SandboxCompManager.h"
@@ -27,6 +28,8 @@
 #include <iostream>
 
 #include <fstream>
+
+#include "Components/Gravity.hpp"
 
 #undef main
 
@@ -86,6 +89,7 @@ void load_scene(fs::path _scene_path)
 void menu_bar()
 {
 	static char file_name_buffer[32];
+	static bool show_physics_debug_window = false;
 	fs::directory_iterator const dir_iter(scene_directory);
 
 	bool popup_scene_save = false;
@@ -117,6 +121,8 @@ void menu_bar()
 			}
 			ImGui::EndMenu();
 		}
+
+		ImGui::MenuItem("Physics", "Ctrl+P", &show_physics_debug_window, &show_physics_debug_window);
 
 		ImGui::EndMainMenuBar();
 
@@ -154,6 +160,12 @@ void menu_bar()
 			ImGui::CloseCurrentPopup();
 		}
 		ImGui::EndPopup();
+	}
+
+	if (show_physics_debug_window)
+	{
+		auto& scene_physics_mgr = Singleton<Engine::Physics::ScenePhysicsManager>();
+		scene_physics_mgr.DisplayEditorWindow();
 	}
 }
 
@@ -224,13 +236,19 @@ void update_loop()
 		
 		Singleton<Engine::Editor::Editor>().Update(TEMP_DT);
 
-
 		Singleton<Component::CurveFollowerManager>().UpdateFollowers(TEMP_DT);
 		Singleton<Component::SkeletonAnimatorManager>().UpdateAnimatorInstances(TEMP_DT);
+
 		Singleton<Component::ColliderManager>().TestColliderIntersections();
-		Singleton<Component::ColliderManager>().ComputeCollisionResolution(TEMP_DT);
-		Singleton<Component::RigidBodyManager>().Integrate(TEMP_DT);
-		Singleton<Component::RigidBodyManager>().UpdateTransforms();
+
+		auto& scene_physics_mgr = Singleton<Engine::Physics::ScenePhysicsManager>();
+		if (!scene_physics_mgr.paused || scene_physics_mgr.step)
+		{
+			Singleton<Component::GravityComponentManager>().ApplyGravity();
+			Singleton<Component::ColliderManager>().ComputeCollisionResolution(TEMP_DT);
+			Singleton<Component::RigidBodyManager>().Integrate(TEMP_DT);
+			Singleton<Component::RigidBodyManager>().UpdateTransforms();
+		}
 
 		sdl_manager.set_gl_debug_state(false);
 
