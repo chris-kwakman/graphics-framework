@@ -2,6 +2,7 @@
 
 #include <Engine/Components/Rigidbody.h>
 #include <Engine/Physics/Collider.h>
+#include "resolution.hpp"
 
 namespace Engine {
 namespace Physics {
@@ -23,7 +24,12 @@ namespace Physics {
 		if (m_session_data.end - m_session_data.begin > m_session_data.rigidbody_frame_data.max_size())
 			m_session_data.begin++;
 
-		Singleton<Component::ColliderManager>().ComputeCollisionResolution(_dt);
+		compute_resolution_gauss_seidel(
+			Singleton<Component::ColliderManager>().m_data.m_global_contact_data,
+			iterations,
+			_dt,
+			beta
+		);
 		rb_mgr.Integrate(_dt);
 		rb_mgr.UpdateTransforms();
 	}
@@ -51,6 +57,11 @@ namespace Physics {
 					peek_frame++;
 				}
 			}
+
+			int iters = iterations;
+			if (ImGui::DragInt("Constraint Solver Iterations", &iters, 0.1f, 1, 128, "%d", ImGuiSliderFlags_AlwaysClamp))
+				iterations = iters;
+			ImGui::SliderFloat("Constraint Solver Beta", &beta, 0.0f, 1.0f, "%.3f");
 
 			ImGui::BeginDisabled(!paused);
 			if (ImGui::SliderInt("Frame Record", &peek_frame, 0, frame_count - 1, "%d"))

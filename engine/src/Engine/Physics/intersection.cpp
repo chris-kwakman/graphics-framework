@@ -255,55 +255,7 @@ namespace Physics {
 
 		EIntersectionType return_intersection_type = EIntersectionType::eNoIntersection;
 
-		if (_out_contacts && min_sep_edge_pair.valid())
-		{
-			auto const [h1_e_idx, h2_e_idx] = min_sep_edge_pair;
-			half_edge const h1_edge = _hull1.m_edges[h1_e_idx];
-			half_edge const h2_edge = _hull2.m_edges[h2_e_idx];
-			glm::vec3 const p1 = hull1_vertices[h1_edge.m_vertex];
-			glm::vec3 const v1 = hull1_vertices[_hull1.m_edges[h1_edge.m_next_edge].m_vertex] - p1;
-			glm::vec3 const p2 = hull2_vertices[h2_edge.m_vertex];
-			glm::vec3 const v2 = hull2_vertices[_hull2.m_edges[h2_edge.m_next_edge].m_vertex] - p2;
-
-			glm::vec3 const diff = p1 - p2;
-			float const a = glm::length2(v1);
-			float const b = glm::dot(v1, v2);
-			float const c = glm::length2(v2);
-			float const d = glm::dot(v1, diff);
-			float const e = glm::dot(v2, diff);
-			
-			// Clamp to line segments defined by hull edges
-			// Clamp between [0,1] since t=0 is current incident_edge vertex and t=1 is next incident_edge vertex.
-
-			// Assume parallel incident_edge case does not occur since gauss map should not trigger
-			// for parallel edges.
-
-			float t2 = (b * d - a * e) / (b * b - a * c);
-			t2 = std::clamp(t2, 0.0f, 1.0f);
-			float t1 = (-d + b * t2) / a;
-			t1 = std::clamp(t1, 0.0f, 1.0f);
-			t2 = (e + t1 * b) / c;
-			t2 = std::clamp(t2, 0.0f, 1.0f);
-
-			// Compute contact points in world space.			
-			glm::mat4 const hull1_to_world = _transform_1.GetMatrix();
-			glm::vec4 intersection_points[2] = { hull1_to_world * glm::vec4(p1 + t1 * v1, 1.0f), hull1_to_world * glm::vec4(p2 + t2 * v2, 1.0f) };
-
-			float distance = glm::distance(intersection_points[0], intersection_points[1]);
-
-			contact new_contact;
-			new_contact.point = intersection_points[0];
-			new_contact.normal = glm::normalize(intersection_points[1] - intersection_points[0]);
-			new_contact.penetration = distance;
-
-			// Output data.
-			_out_contacts[0] = new_contact;
-			*_out_contact_count = 1;
-			*_reference_is_hull1 = false;
-
-			return_intersection_type = EIntersectionType::eEdgeIntersection;
-		}
-		else if(_out_contacts && min_sep_face_pair.valid())
+		if(_out_contacts && min_sep_face_pair.valid())
 		{
 			auto const& reference_hull = min_sep_face_pair.reference_is_hull1 ? _hull1 : _hull2;
 			auto const & incident_hull = !min_sep_face_pair.reference_is_hull1 ? _hull1 : _hull2;
@@ -435,6 +387,55 @@ namespace Physics {
 
 			return_intersection_type = EIntersectionType::eFaceIntersection;
 		}
+		else if (_out_contacts && min_sep_edge_pair.valid())
+		{
+			auto const [h1_e_idx, h2_e_idx] = min_sep_edge_pair;
+			half_edge const h1_edge = _hull1.m_edges[h1_e_idx];
+			half_edge const h2_edge = _hull2.m_edges[h2_e_idx];
+			glm::vec3 const p1 = hull1_vertices[h1_edge.m_vertex];
+			glm::vec3 const v1 = hull1_vertices[_hull1.m_edges[h1_edge.m_next_edge].m_vertex] - p1;
+			glm::vec3 const p2 = hull2_vertices[h2_edge.m_vertex];
+			glm::vec3 const v2 = hull2_vertices[_hull2.m_edges[h2_edge.m_next_edge].m_vertex] - p2;
+
+			glm::vec3 const diff = p1 - p2;
+			float const a = glm::length2(v1);
+			float const b = glm::dot(v1, v2);
+			float const c = glm::length2(v2);
+			float const d = glm::dot(v1, diff);
+			float const e = glm::dot(v2, diff);
+			
+			// Clamp to line segments defined by hull edges
+			// Clamp between [0,1] since t=0 is current incident_edge vertex and t=1 is next incident_edge vertex.
+
+			// Assume parallel incident_edge case does not occur since gauss map should not trigger
+			// for parallel edges.
+
+			float t2 = (b * d - a * e) / (b * b - a * c);
+			t2 = std::clamp(t2, 0.0f, 1.0f);
+			float t1 = (-d + b * t2) / a;
+			t1 = std::clamp(t1, 0.0f, 1.0f);
+			t2 = (e + t1 * b) / c;
+			t2 = std::clamp(t2, 0.0f, 1.0f);
+
+			// Compute contact points in world space.			
+			glm::mat4 const hull1_to_world = _transform_1.GetMatrix();
+			glm::vec4 intersection_points[2] = { hull1_to_world * glm::vec4(p1 + t1 * v1, 1.0f), hull1_to_world * glm::vec4(p2 + t2 * v2, 1.0f) };
+
+			float distance = glm::distance(intersection_points[0], intersection_points[1]);
+
+			contact new_contact;
+			new_contact.point = intersection_points[0];
+			new_contact.normal = glm::normalize(intersection_points[1] - intersection_points[0]);
+			new_contact.penetration = distance;
+
+			// Output data.
+			_out_contacts[0] = new_contact;
+			*_out_contact_count = 1;
+			*_reference_is_hull1 = false;
+
+			return_intersection_type = EIntersectionType::eEdgeIntersection;
+		}
+		
 
 		return return_intersection_type;
 	}

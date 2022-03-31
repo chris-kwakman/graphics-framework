@@ -395,7 +395,7 @@ namespace Component
 
 						mgr_global_contact_data.all_contact_manifolds.push_back(new_cm);
 						mgr_global_contact_data.all_contacts.insert(
-							mgr_global_contact_data.all_contacts.begin(),
+							mgr_global_contact_data.all_contacts.end(),
 							contact_stack_arr.begin(),
 							contact_stack_arr.begin() + contact_stack_size
 						);

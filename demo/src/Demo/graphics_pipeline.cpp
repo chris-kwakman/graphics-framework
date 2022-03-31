@@ -863,22 +863,6 @@ namespace Sandbox
 				// Debug Intersection rendering
 				std::vector<glm::vec3> const & render_points = collider_mgr.m_data.m_global_contact_data.debug_draw_points;
 				std::vector<glm::vec3> const & render_lines = collider_mgr.m_data.m_global_contact_data.debug_draw_lines;
-				for (auto [e_pair, intersection_result] : collider_mgr.m_data.m_intersection_results)
-				{
-					//contact_manifold const cm = intersection_result.second;
-					Entity const e1 = e_pair.first;
-					Entity const e2 = e_pair.second;
-
-					Transform const tr1 = e1.GetComponent<Transform>();
-					Transform const tr2 = e2.GetComponent<Transform>();
-
-					Collider const col1 = e1.GetComponent<Collider>();
-					Collider const col2 = e2.GetComponent<Collider>();
-
-					hds const* ch1 = col1.GetConvexHull();
-					hds const* ch2 = col2.GetConvexHull();
-
-				}
 
 
 				using namespace Engine::Graphics;
