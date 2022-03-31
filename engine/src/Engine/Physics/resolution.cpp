@@ -50,7 +50,7 @@ namespace Physics {
 					float const rel_contact_velocity = glm::dot(c.normal, -vA - glm::cross(wA, rA) + vB + glm::cross(wB, rB));
 					float const restitution_bias = std::min(rbA.restitution, rbB.restitution) * rel_contact_velocity;
 
-					pcd.bias = restitution_bias + _beta * (c.penetration / _dt);
+					pcd.bias = restitution_bias + _beta * (-c.penetration / _dt);
 					pcd.effective_mass =
 						rbA.inv_mass + rbB.inv_mass +
 						glm::dot(cross_rA_n, inv_world_tensor_A * cross_rA_n) +
@@ -90,11 +90,11 @@ namespace Physics {
 					glm::vec3 const cross_rA_n = glm::cross(rA, c.normal);
 					glm::vec3 const cross_rB_n = glm::cross(rB, c.normal);
 					// Equal to relative contact velocity
-					float const JV = glm::dot(c.normal, vA + glm::cross(wA, rA) - vB - glm::cross(wB, rB));
+					float const JV = glm::dot(c.normal, -vA - glm::cross(wA, rA) + vB + glm::cross(wB, rB));
 
 					float const lambda_c = -((JV + pcd.bias) / pcd.effective_mass);
 					float const new_lambda = std::max(c.lambda + lambda_c, 0.0f);
-					float const delta_lambda = c.lambda - new_lambda;
+					float const delta_lambda = new_lambda - c.lambda;
 
 					vA = vA + rbA.inv_mass * -c.normal * delta_lambda;
 					wA = wA + inv_world_tensor_A * -cross_rA_n * delta_lambda;
