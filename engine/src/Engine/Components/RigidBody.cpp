@@ -260,7 +260,12 @@ namespace Component
 			m_rigidbodies_data.m_torque_accumulators.resize(m_rigidbodies_data.m_entity_map.size(), glm::vec3(0.0f));
 			m_rigidbodies_data.m_inv_inertial_tensors.resize(m_rigidbodies_data.m_entity_map.size());
 			for (size_t i = 0; i < m_rigidbodies_data.size(); i++)
-				m_rigidbodies_data.m_inv_inertial_tensors[i] = glm::inverse(m_rigidbodies_data.m_inertial_tensors[i]);
+			{
+				if (m_rigidbodies_data.m_inv_masses[i] <= 0.0f)
+					m_rigidbodies_data.m_inv_inertial_tensors[i] = glm::mat3(0.0f);
+				else
+					m_rigidbodies_data.m_inv_inertial_tensors[i] = glm::inverse(m_rigidbodies_data.m_inertial_tensors[i]);
+			}
 		}
 	}
 

@@ -34,14 +34,23 @@ namespace Physics {
 		if (ImGui::Begin("Physics Debug"))
 		{
 			int frame_count = m_session_data.end - m_session_data.begin;
+			peek_frame = std::clamp(peek_frame, 0, std::max(frame_count - 1,0));
 			if (!paused)
 				peek_frame = frame_count - 1;
 			if (ImGui::Checkbox("Paused", &paused))
 			{
 				if(!paused)
-					m_session_data.end = m_session_data.begin + peek_frame + 1;
+					m_session_data.end = m_session_data.begin + peek_frame;
 			}
 			step = ImGui::Button("Physics Step");
+			if (step)
+			{
+				if (paused)
+				{
+					m_session_data.end = m_session_data.begin + peek_frame + 1;
+					peek_frame++;
+				}
+			}
 
 			ImGui::BeginDisabled(!paused);
 			if (ImGui::SliderInt("Frame Record", &peek_frame, 0, frame_count - 1, "%d"))
