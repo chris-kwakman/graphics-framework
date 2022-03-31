@@ -11,10 +11,21 @@ namespace Physics {
 
 	void rigidbody_data::set_mass(float _mass)
 	{
-		if (_mass <= 0.0f)
+		if (_mass > 0.0f)
+		{
 			inv_mass = 1.0f / _mass;
+			if (inv_mass <= 0.0f)
+			{
+				inertial_tensor = glm::mat3(1.0f);
+				inv_inertial_tensor = glm::mat3(1.0f);
+			}
+		}
 		else
+		{
 			inv_mass = 0.0f;
+			inertial_tensor = glm::mat3(0.0f);
+			inv_inertial_tensor = glm::mat3(0.0f);
+		}
 	}
 
 	glm::vec3 Engine::Physics::rigidbody_data::get_linear_velocity() const

@@ -171,30 +171,23 @@ namespace Component
 
 	void RigidBodyManager::impl_edit_component(Entity _entity)
 	{
+		using namespace Engine::Physics;
+
 		size_t const entity_index = m_rigidbodies_data.get_entity_index(_entity);
-		ImGui::DragFloat3("Position", (float*)&m_rigidbodies_data.m_positions[entity_index], 1.0f, -FLT_MAX, FLT_MAX, "%.3f", 1.0f);
-		ImGui::DragFloat3("Linear Momentum", (float*)&m_rigidbodies_data.m_linear_momentums[entity_index], 1.0f, -100.0f, 100.0f, "%.3f", 1.0f);
+		RigidBody entity_rb_comp = RigidBody(_entity);
+		rigidbody_data rb_data = entity_rb_comp.GetRigidBodyData();
 
-		if (ImGui::DragFloat4("Rotation", (float*)&m_rigidbodies_data.m_rotations[entity_index], 0.05f, -1.0f, 1.0f, "%.3f"))
-			m_rigidbodies_data.m_rotations[entity_index] = glm::normalize(m_rigidbodies_data.m_rotations[entity_index]);
-		ImGui::DragFloat3("Angular Momentum", (float*)&m_rigidbodies_data.m_angular_momentums[entity_index]);
-		float mass = m_rigidbodies_data.m_inv_masses[entity_index];
-		if (mass <= 0.0f)
-			mass = std::clamp(mass, 0.0f, FLT_MAX);
-		else
-			mass = 1.0f / mass;
-		ImGui::DragFloat("Restitution", &m_rigidbodies_data.m_restitution[entity_index], 0.01f, 0.0f, 1.0f, "%.2f");
+		ImGui::DragFloat3("Position", (float*)&rb_data.position, 1.0f, -FLT_MAX, FLT_MAX, "%.3f", 1.0f);
+		ImGui::DragFloat3("Linear Momentum", (float*)&rb_data.linear_momentum, 1.0f, -100.0f, 100.0f, "%.3f", 1.0f);
+
+		if (ImGui::DragFloat4("Rotation", (float*)&rb_data.rotation, 0.05f, -1.0f, 1.0f, "%.3f"))
+			rb_data.rotation = glm::normalize(rb_data.rotation);
+		ImGui::DragFloat3("Angular Momentum", (float*)&rb_data.angular_momentum);
+		ImGui::DragFloat("Restitution", &rb_data.restitution, 0.01f, 0.0f, 1.0f, "%.2f");
+
+		float mass = rb_data.get_mass();
 		if(ImGui::DragFloat("Mass", &mass, 1.0f, 0.0f, FLT_MAX, "%.3f"))
-		{
-			if (mass <= 0.0f)
-				m_rigidbodies_data.m_inv_masses[entity_index] = 0.0f;
-			else
-				m_rigidbodies_data.m_inv_masses[entity_index] = 1.0f / mass;
-		}
-
-		bool linear_integration_active = m_rigidbodies_data.is_linear_integration_enabled(entity_index);
-		if (ImGui::Checkbox("Linear Integration", &linear_integration_active))
-			EnableLinearIntegration(_entity, linear_integration_active);
+			rb_data.set_mass(mass);
 
 		Component::Collider collider_comp = _entity.GetComponent<Component::Collider>();
 		if (collider_comp.IsValid() && ImGui::Button("Use Convex Hull Inertial Tensor"))
@@ -204,7 +197,7 @@ namespace Component
 			SetInertialTensor(
 				entity_index, Engine::Physics::inertialTensorConvexHull(collider_comp.GetConvexHull(), &mass, &cm)
 			);
-			m_rigidbodies_data.m_inv_masses[entity_index] = 1.0f / mass;
+			rb_data.set_mass(mass);
 		}
 
 		auto edit_mat3 = [](glm::mat3& _edit, const char* _name)->bool
@@ -231,14 +224,29 @@ namespace Component
 			return modified;
 		};
 
-		if(edit_mat3(m_rigidbodies_data.m_inertial_tensors[entity_index], "Inertial Tensor"))
-			SetInertialTensor(entity_index, m_rigidbodies_data.m_inertial_tensors[entity_index]);
+		if (edit_mat3(rb_data.inertial_tensor, "Inertial Tensor"))
+		{
+			try {
+				rb_data.inv_inertial_tensor = glm::inverse(rb_data.inertial_tensor);
+			}
+			catch (...)
+			{
+				rb_data.inv_inertial_tensor = glm::mat3(1.0f);
+			}
+		}
 
 		ImGui::BeginDisabled(true);
-		edit_mat3(m_rigidbodies_data.m_inv_inertial_tensors[entity_index], "Inverse Inertial Tensor");
+		edit_mat3(rb_data.inv_inertial_tensor, "Inverse Inertial Tensor");
 		ImGui::EndDisabled();
 
+		entity_rb_comp.SetRigidBodyData(rb_data);
+
+		ImGui::Separator();
+
 		ImGui::Checkbox("Enable Global Integration", &m_integration_enabled);
+		bool linear_integration_active = m_rigidbodies_data.is_linear_integration_enabled(entity_index);
+		if (ImGui::Checkbox("Linear Integration", &linear_integration_active))
+			EnableLinearIntegration(_entity, linear_integration_active);
 
 	}
 
