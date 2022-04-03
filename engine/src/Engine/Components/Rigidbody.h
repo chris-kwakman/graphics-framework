@@ -66,6 +66,7 @@ namespace Component
 			std::vector<glm::mat3>	m_inertial_tensors;
 			std::vector<glm::mat3>	m_inv_inertial_tensors;
 			std::vector<float>		m_restitution;
+			std::vector<float>		m_friction_coefficient; // [0,1]
 
 			NLOHMANN_DEFINE_TYPE_INTRUSIVE(
 				rigidbody_data_collection,
@@ -80,7 +81,8 @@ namespace Component
 				//m_torque_accumulators,	// Should always be zero at end of each frame
 				m_inv_masses,
 				m_inertial_tensors,
-				m_restitution
+				m_restitution,
+				m_friction_coefficient
 				//m_inv_inertial_tensors // No need to serialize / deserialize, we can derive it from original tensor.
 			)
 		};

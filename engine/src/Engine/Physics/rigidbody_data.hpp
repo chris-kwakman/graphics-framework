@@ -19,6 +19,7 @@ namespace Physics {
 		glm::mat3	inertial_tensor;
 		glm::mat3	inv_inertial_tensor;
 		float		restitution;
+		float		friction_coefficient;
 
 		float		get_mass() const;
 		void		set_mass(float _mass);

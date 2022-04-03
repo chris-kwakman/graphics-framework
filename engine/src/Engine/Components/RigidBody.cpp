@@ -110,6 +110,7 @@ namespace Component
 		rb_data.inv_inertial_tensor= m_rigidbodies_data.m_inv_inertial_tensors[entity_index];
 		rb_data.inv_mass = m_rigidbodies_data.m_inv_masses[entity_index];
 		rb_data.restitution = m_rigidbodies_data.m_restitution[entity_index];
+		rb_data.friction_coefficient = m_rigidbodies_data.m_friction_coefficient[entity_index];
 		return rb_data;
 	}
 
@@ -126,6 +127,7 @@ namespace Component
 		m_rigidbodies_data.m_inv_inertial_tensors[entity_index] = _rb_data.inv_inertial_tensor;
 		m_rigidbodies_data.m_inv_masses[entity_index] = _rb_data.inv_mass;
 		m_rigidbodies_data.m_restitution[entity_index] = _rb_data.restitution;
+		m_rigidbodies_data.m_friction_coefficient[entity_index] = _rb_data.friction_coefficient;
 	}
 
 	void RigidBodyManager::impl_clear()
@@ -184,6 +186,7 @@ namespace Component
 			rb_data.rotation = glm::normalize(rb_data.rotation);
 		ImGui::DragFloat3("Angular Momentum", (float*)&rb_data.angular_momentum);
 		ImGui::DragFloat("Restitution", &rb_data.restitution, 0.01f, 0.0f, 1.0f, "%.2f");
+		ImGui::DragFloat("Friction", &rb_data.friction_coefficient, 0.01f, 0.0f, 1.0f, "%.2f");
 
 		float mass = rb_data.get_mass();
 		if(ImGui::DragFloat("Mass", &mass, 1.0f, 0.0f, FLT_MAX, "%.3f"))
@@ -305,6 +308,7 @@ namespace Component
 		m_inertial_tensors.push_back(_inertial_tensor);
 		m_inv_inertial_tensors.push_back(glm::inverse(_inertial_tensor));
 		m_restitution.push_back(0.5f);
+		m_friction_coefficient.push_back(0.8f);
 
 		// Update enabled & disabled linear integration partitions.
 		m_skip_linear_integration_count += 1;
@@ -366,6 +370,7 @@ namespace Component
 		swap_indices(m_inertial_tensors);
 		swap_indices(m_inv_inertial_tensors);
 		swap_indices(m_restitution);
+		swap_indices(m_friction_coefficient);
 
 		return true;
 	}
@@ -386,6 +391,7 @@ namespace Component
 		m_inertial_tensors.pop_back();
 		m_inv_inertial_tensors.pop_back();
 		m_restitution.pop_back();
+		m_friction_coefficient.pop_back();
 
 		m_skip_linear_integration_count -= 1;
 	}
