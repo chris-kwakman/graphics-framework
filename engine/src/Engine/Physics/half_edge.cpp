@@ -482,8 +482,7 @@ namespace Physics {
 	*/
 	half_edge_data_structure::vertex_idx get_hds_support_point_bruteforce(
 		decltype(half_edge_data_structure::m_vertices) const& _vertices, 
-		//decltype(half_edge_data_structure::m_edges) const& _edges, 
-		glm::vec3 _direction
+		glm::vec3 const _direction
 	)
 	{
 		using vertex_idx = half_edge_data_structure::vertex_idx;
@@ -493,7 +492,8 @@ namespace Physics {
 
 		for (vertex_idx i = 0; i < _vertices.size(); i++)
 		{
-			if (float dot = glm::dot(_vertices[i], _direction); dot > max_dot)
+			float const dot = glm::dot(_vertices[i], _direction);
+			if (dot > max_dot)
 			{
 				max_dot = dot;
 				track_max_vertex = i;

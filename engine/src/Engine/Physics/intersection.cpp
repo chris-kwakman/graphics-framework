@@ -81,6 +81,7 @@ namespace Physics {
 		return { t, 0, plane_normal };
 	}
 
+#define DEBUG_IN_WORLD_SPACE
 
 	EIntersectionType intersect_convex_hulls_sat(
 		half_edge_data_structure const& _hull1, transform3D const & _transform1, 
@@ -89,28 +90,6 @@ namespace Physics {
 		bool* _reference_is_hull1
 	)
 	{
-		// Possible optimization: transform the hull with the least vertices to the space of the hull with the most vertices.
-		// We transform vertices from hull2 to hull1 space.
-		return intersect_convex_hulls_sat(
-			_hull1, _hull2,
-			_transform1,
-			(_transform1.GetInverse() * _transform2),
-			_out_contacts, _out_contact_count,
-			_reference_is_hull1
-		);
-	}
-
-	EIntersectionType intersect_convex_hulls_sat(
-		half_edge_data_structure const& _hull1, 
-		half_edge_data_structure const& _hull2, 
-		transform3D const& _transform_1,
-		transform3D const& _transform_2_to_1,
-		contact* _out_contacts, size_t* _out_contact_count,
-		bool * _reference_is_hull1
-	)
-	{
-		glm::mat4 const mat_2_to_1 = _transform_2_to_1.GetMatrix();
-		glm::mat4 const mat_1_to_2 = _transform_2_to_1.GetInvMatrix();
 
 		using edge_idx = half_edge_data_structure::half_edge_idx;
 		using face_idx = half_edge_data_structure::face_idx;
@@ -118,26 +97,49 @@ namespace Physics {
 		using face = half_edge_data_structure::face;
 		using half_edge = half_edge_data_structure::half_edge;
 
-		struct edge_pair { 
+		struct edge_pair {
 			edge_idx hull1_edge_idx = std::numeric_limits<edge_idx>::max();
 			edge_idx hull2_edge_idx = std::numeric_limits<edge_idx>::max();
 
 			bool valid() const { return hull1_edge_idx != std::numeric_limits<edge_idx>::max() && hull2_edge_idx != hull1_edge_idx; }
 		};
-		struct face_vertex_pair { 
-			face_idx reference_face_index = std::numeric_limits<face_idx>::max(); 
+		struct face_vertex_pair {
+			face_idx reference_face_index = std::numeric_limits<face_idx>::max();
 			vertex_idx incident_face_vertex = std::numeric_limits<vertex_idx>::max();
-			bool reference_is_hull1 = false; 
+			bool reference_is_hull1 = false;
 
 			bool valid() const { return reference_face_index != std::numeric_limits<face_idx>::max() && incident_face_vertex != std::numeric_limits<vertex_idx>::max(); }
 		};
 
-		std::vector<glm::vec3> const & hull1_vertices = _hull1.m_vertices;
+		// Used later for edge-edge intersection tests.
+		glm::vec3 hull1_center(0.0f);
+
+#ifdef DEBUG_IN_WORLD_SPACE
+		std::vector<glm::vec3> hull1_vertices(_hull1.m_vertices);
+		std::vector<glm::vec3> hull2_vertices(_hull2.m_vertices);
+
+		glm::mat4 const mat_1_to_world = _transform1.GetMatrix();
+		glm::mat4 const mat_2_to_world = _transform2.GetMatrix();
+
+		for (size_t i = 0; i < hull1_vertices.size(); i++)
+		{
+			hull1_vertices[i] = mat_1_to_world * glm::vec4(hull1_vertices[i], 1.0f);
+			hull1_center += hull1_vertices[i];
+		}
+		for (size_t i = 0; i < hull2_vertices.size(); i++)
+			hull2_vertices[i] = mat_2_to_world * glm::vec4(hull2_vertices[i], 1.0f);
+		hull1_center /= float( hull1_vertices.size());
+#else
+		std::vector<glm::vec3> const& hull1_vertices = _hull1.m_vertices;
+		std::vector<glm::vec3> hull2_vertices(_hull2.m_vertices);
+
 		// Rather than performing the intersection in world space, we perform the intersection in the local space of one
 		// of the passed convex hulls. This way, we only have to transform one set of vertices rather than both.
-		std::vector<glm::vec3> hull2_vertices(_hull2.m_vertices);
+		glm::mat4 const mat_2_to_1 = (_transform1.GetInverse() * _transform2).GetMatrix();
 		for (size_t i = 0; i < hull2_vertices.size(); i++)
 			hull2_vertices[i] = mat_2_to_1 * glm::vec4(hull2_vertices[i], 1.0f);
+#endif // DEBUG_IN_WORLD_SPACE
+
 
 		float minimum_separation = -std::numeric_limits<float>::max();
 		face_vertex_pair min_sep_face_pair;
@@ -160,8 +162,8 @@ namespace Physics {
 			);
 			glm::vec3 const support_vertex = hull2_vertices[sup_vtx_idx];
 			glm::vec3 const proj_vertex = project_point_to_plane(
-				hull1_vertices[_hull1.m_faces[h1_f_idx].m_vertices.front()], 
-				-face_normal, 
+				hull1_vertices[_hull1.m_faces[h1_f_idx].m_vertices.front()],
+				-face_normal,
 				support_vertex
 			);
 			float const separation = glm::dot(-face_normal, proj_vertex - support_vertex);
@@ -212,16 +214,14 @@ namespace Physics {
 				glm::vec3 const C = hull2_normals[h2_twin_edge.m_edge_face];
 				glm::vec3 const D = hull2_normals[h2_edge.m_edge_face];
 
-				glm::vec3 const cross_d_c = glm::cross(D, C);
 				glm::vec3 const cross_c_b = glm::cross(C, B);
-				
-				float const c_dot_cross_b_a = glm::dot(C, cross_b_a);
-				float const b_dot_cross_d_c = glm::dot(B, cross_d_c);
-				
+				glm::vec3 const cross_d_b = glm::cross(D, B);
+				glm::vec3 const cross_d_c = glm::cross(D, C);
+
 				bool arcs_intersect = (
-					(c_dot_cross_b_a * glm::dot(D, cross_b_a) < 0.0f) &&
-					(glm::dot(A, cross_d_c) *  b_dot_cross_d_c < 0.0f) &&
-					(c_dot_cross_b_a * b_dot_cross_d_c) < 0.0f
+					(glm::dot(A, cross_c_b) * glm::dot(A, cross_d_b) < 0.0f) &&
+					(glm::dot(A, cross_d_c) * glm::dot(B, cross_d_c) < 0.0f) &&
+					(glm::dot(A, cross_c_b) * glm::dot(B, cross_d_c) < 0.0f)
 				);
 
 				// If true, separation is signed distance between intersection edges.
@@ -234,9 +234,6 @@ namespace Physics {
 
 				// Compute separation plane between edges
 				glm::vec3 separating_plane_normal = glm::normalize(glm::cross(e1_vec, e2_vec));
-
-				// Compute center of current hull. TODO: Cache?
-				glm::vec3 const hull1_center(0.0f);
 
 				if (glm::dot(separating_plane_normal, hull1_vertices[h1_twin_edge.m_vertex] - hull1_center) < 0.0f)
 					separating_plane_normal = -separating_plane_normal;
@@ -255,12 +252,12 @@ namespace Physics {
 
 		EIntersectionType return_intersection_type = EIntersectionType::eNoIntersection;
 
-		if(_out_contacts && min_sep_face_pair.valid())
+		if (_out_contacts && min_sep_face_pair.valid())
 		{
 			auto const& reference_hull = min_sep_face_pair.reference_is_hull1 ? _hull1 : _hull2;
-			auto const & incident_hull = !min_sep_face_pair.reference_is_hull1 ? _hull1 : _hull2;
+			auto const& incident_hull = !min_sep_face_pair.reference_is_hull1 ? _hull1 : _hull2;
 			auto const& reference_vertices = min_sep_face_pair.reference_is_hull1 ? hull1_vertices : hull2_vertices;
-			auto const & incident_vertices = !min_sep_face_pair.reference_is_hull1 ? hull1_vertices : hull2_vertices;
+			auto const& incident_vertices = !min_sep_face_pair.reference_is_hull1 ? hull1_vertices : hull2_vertices;
 			face_idx const reference_face_index = min_sep_face_pair.reference_face_index;
 
 			// Find incident face that is most anti-parallel to reference face.
@@ -360,23 +357,40 @@ namespace Physics {
 				for (size_t i = 0; i < iter_clipped_vertices; i++)
 					clipped_vertices[i] = tmp_clipped_vertices[i];
 			}
-			
+
 			// Compute penetration of each clipped point.
 			// Only keep contact points with positive penetration
 			std::vector<contact> contact_points;
-			glm::mat4 const mat_1_to_world = _transform_1.GetMatrix();
 
-			glm::vec3 const world_normal = glm::transpose(_transform_1.GetInvMatrix()) * glm::vec4(reference_face_normal,0.0f);
-
+#ifdef DEBUG_IN_WORLD_SPACE
+			glm::vec3 const world_normal = reference_face_normal;
 			for (size_t i = 0; i < clipped_vertices.size(); i++)
 			{
 				contact icp;
-				icp.point = mat_1_to_world * glm::vec4(clipped_vertices[i],1.0f);
-				icp.penetration = -glm::dot(clipped_vertices[i] - reference_face_vtx, reference_face_normal);
+
+				icp.point = clipped_vertices[i];
+				icp.penetration = -glm::dot(clipped_vertices[i] - reference_face_vtx, world_normal);
 				icp.normal = world_normal;
+
 				if (icp.penetration > glm::epsilon<float>())
 					contact_points.emplace_back(icp);
 			}
+#else
+			glm::mat4 const mat_1_to_world = _transform1.GetMatrix();
+			glm::vec3 const world_normal = glm::inverse(glm::transpose(mat_1_to_world)) * glm::vec4(reference_face_normal, 0.0f);
+			for (size_t i = 0; i < clipped_vertices.size(); i++)
+			{
+				contact icp;
+
+				icp.point = mat_1_to_world * glm::vec4(clipped_vertices[i], 1.0f);
+				glm::vec3 world_ref_face_vtx = mat_1_to_world * glm::vec4(reference_face_vtx, 1.0f);
+				icp.penetration = -glm::dot(icp.point - world_ref_face_vtx, world_normal);
+				icp.normal = world_normal;
+
+				if (icp.penetration > glm::epsilon<float>())
+					contact_points.emplace_back(icp);
+			}
+#endif // DEBUG_IN_WORLD_SPACE
 
 			//assert(contact_vec.empty() && "All points have been clipped - bug in implementation.");
 
@@ -403,7 +417,7 @@ namespace Physics {
 			float const c = glm::length2(v2);
 			float const d = glm::dot(v1, diff);
 			float const e = glm::dot(v2, diff);
-			
+
 			// Clamp to line segments defined by hull edges
 			// Clamp between [0,1] since t=0 is current incident_edge vertex and t=1 is next incident_edge vertex.
 
@@ -418,14 +432,18 @@ namespace Physics {
 			t2 = std::clamp(t2, 0.0f, 1.0f);
 
 			// Compute contact points in world space.			
-			glm::mat4 const hull1_to_world = _transform_1.GetMatrix();
-			glm::vec4 intersection_points[2] = { hull1_to_world * glm::vec4(p1 + t1 * v1, 1.0f), hull1_to_world * glm::vec4(p2 + t2 * v2, 1.0f) };
+#ifdef DEBUG_IN_WORLD_SPACE
+			glm::vec3 intersection_points[2] = { p1 + t1 * v1, p2 + t2 * v2};
+#else
+			glm::mat4 const mat_1_to_world = _transform1.GetMatrix();
+			glm::vec4 intersection_points[2] = { mat_1_to_world * glm::vec4(p1 + t1 * v1, 1.0f), mat_1_to_world * glm::vec4(p2 + t2 * v2, 1.0f) };
+#endif // DEBUG_IN_WORLD_SPACE
 
 			float distance = glm::distance(intersection_points[0], intersection_points[1]);
 
 			contact new_contact;
 			new_contact.point = intersection_points[0];
-			new_contact.normal = glm::normalize(intersection_points[1] - intersection_points[0]);
+			new_contact.normal = (intersection_points[1] - intersection_points[0]) / distance;
 			new_contact.penetration = distance;
 
 			// Output data.
@@ -435,10 +453,11 @@ namespace Physics {
 
 			return_intersection_type = EIntersectionType::eEdgeIntersection;
 		}
-		
+
 
 		return return_intersection_type;
 	}
+
 
 	void points_inside_planes(
 		glm::vec3 const* _plane_vertices, 

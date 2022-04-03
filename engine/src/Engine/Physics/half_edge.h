@@ -116,8 +116,7 @@ namespace Physics {
 
 	half_edge_data_structure::vertex_idx get_hds_support_point_bruteforce(
 		decltype(half_edge_data_structure::m_vertices) const& _vertices,
-		//decltype(half_edge_data_structure::m_edges) const& _edges,
-		glm::vec3	_direction
+		glm::vec3 const	_direction
 	);
 
 	/*

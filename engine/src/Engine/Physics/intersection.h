@@ -44,22 +44,6 @@ namespace Physics {
 		bool* _reference_is_hull1 = nullptr
 	);
 
-	/*
-	@brief	Internal method for intersecting two convex hulls
-	@param		convex_hull		Convex hull 1
-	@param		convex_hull		Convex hull 2
-	@param		mat4			Matrix that transforms vertices of hull 2 to space of hull 1.
-	@returns	result_convex_hull_intersection
-	*/
-	EIntersectionType intersect_convex_hulls_sat(
-		half_edge_data_structure const& _hull1,
-		half_edge_data_structure const& _hull2, 
-		transform3D const & _transform_1,
-		transform3D const& _transform_2_to_1, 
-		contact* _out_contacts = nullptr, size_t* _out_contact_count = nullptr, 
-		bool * _reference_is_hull1 = nullptr
-	);
-
 	void points_inside_planes(
 		glm::vec3 const* _plane_vertices,
 		glm::vec3 const* _plane_normals,
