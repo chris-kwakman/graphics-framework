@@ -4,12 +4,24 @@
 namespace Engine {
 namespace Physics {
 
+	/*
+	* @brief	Gauss-Seidel algorithm for contact and friction resolution between
+	*			rigidbodies described by contact manifolds
+	* @param	global_contact_data &		Contact data for all colliding rigidbodies
+	* @param	unsigned int				Iterations for resolving contacts
+	* @param	float						Delta time this frame
+	* @param	float						Beta variable used for contact resolution
+	* 
+	* @details	8 iterations are used for resolving friction between rigidbodies.
+	*/
 	void compute_resolution_gauss_seidel(
 		global_contact_data& _global_contact_data, 
-		unsigned int _iterations,
+		unsigned int _contact_iterations,
 		float _dt, float _beta
 	)
 	{
+		constexpr size_t FRICTION_ITERATIONS = 8;
+
 		struct precomputed_contact_data
 		{
 			glm::vec3 friction_u;
@@ -74,12 +86,14 @@ namespace Physics {
 						glm::dot(cross_rB_n, inv_world_tensor_B * cross_rB_n);
 
 					// Precompute data required for friction resolution.
-
-					pcd.friction_u = glm::normalize(
-						!glm::epsilonEqual(glm::dot(glm::normalize(c.normal), glm::vec3(0.0f, 1.0f, 0.0f)), 1.0f, glm::epsilon<float>())
-						? glm::cross(c.normal, glm::vec3(0.0f, 1.0f, 0.0f))
-						: glm::cross(c.normal, glm::vec3(1.0f, 0.0f, 0.0f)
-						));
+					constexpr glm::vec3 up(0.0f, 1.0f, 0.0f);
+					constexpr float epsilon = glm::epsilon<float>();
+					bool const normal_up_parallel = glm::all(glm::epsilonEqual(c.normal, up, epsilon)) || glm::all(glm::epsilonEqual(c.normal, -up, epsilon));
+					// Compute two vectors (u and v) that are tangent and bitangent to normal.
+					pcd.friction_u = glm::normalize(normal_up_parallel
+						? glm::cross(c.normal, glm::vec3(1.0f, 0.0f, 0.0f))
+						: glm::cross(c.normal, glm::vec3(0.0f, 1.0f, 0.0f))
+					);
 					pcd.friction_v = glm::normalize(glm::cross(c.normal, pcd.friction_u));
 
 					glm::vec3 const cross_rA_u = glm::cross(rA, pcd.friction_u);
@@ -94,18 +108,18 @@ namespace Physics {
 						glm::dot(cross_rA_v, inv_world_tensor_A * cross_rA_v) +
 						glm::dot(cross_rB_v, inv_world_tensor_A * cross_rB_v);
 
+					// Store precomputed contact data into array
 					cached_contact_data[contact_idx] = pcd;
 				}
 			}
 		}
 
-		// Core Gauss-Seidel algorithm.
-		for (size_t iteration = 0; iteration < _iterations; iteration++)
+		// First pass for contact resolution
+		for (size_t iteration = 0; iteration < _contact_iterations; iteration++)
 		{
 			size_t contact_idx = 0;
 			size_t manifold_end_contact_idx = 0;
 
-			// First pass for contact resolution.
 			for (size_t i = 0; i < all_contact_manifolds.size(); i++)
 			{
 				// Precompute common data.
@@ -163,12 +177,12 @@ namespace Physics {
 			}
 		}
 
-		for (size_t iteration = 0; iteration < 8; iteration++)
+		// Second pass for friction resolution
+		for (size_t iteration = 0; iteration < FRICTION_ITERATIONS; iteration++)
 		{
 			size_t contact_idx = 0;
 			size_t manifold_end_contact_idx = 0;
 
-			// First pass for contact resolution.
 			for (size_t i = 0; i < all_contact_manifolds.size(); i++)
 			{
 				// Precompute common data.
