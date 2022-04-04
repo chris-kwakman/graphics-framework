@@ -1,2 +1,3 @@
 DECLARE_MANAGER(PlayerControllerManager)
 DECLARE_MANAGER(VolumetricFogManager)
+DECLARE_MANAGER(GravityComponentManager)

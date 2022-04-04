@@ -16,6 +16,7 @@
 #include <Engine/Components/Transform.h>
 #include <Engine/Components/Camera.h>
 #include <Engine/Components/Rigidbody.h>
+#include <Engine/Editor/EditorCameraController.h>
 
 #include <Demo/Components/PlayerController.h>
 
@@ -333,8 +334,13 @@ namespace Sandbox
 		else
 		{
 			Singleton<Engine::ECS::EntityManager>().EntityCreationRequest(&editor_camera_entity, 1);
-			Component::Create<Component::Transform>(editor_camera_entity);
-			Component::Create<Component::Camera>(editor_camera_entity);
+			editor_camera_entity.SetName("Editor Camera");
+			auto transform_comp = Component::Create<Component::Transform>(editor_camera_entity);
+			transform_comp.SetLocalPosition(glm::vec3(0.0f, 5.0f, 5.0f));
+			auto cam_comp = Component::Create<Component::Camera>(editor_camera_entity);
+			cam_comp.SetFarDistance(200.0f);
+			auto editor_cam_controller = Component::Create<Component::EditorCameraController>(editor_camera_entity);
+			editor_cam_controller.SetAsActiveEditorCamera();
 		}
 		s_camera_default_transform = editor_camera_entity.GetComponent<Component::Transform>().GetLocalTransform();
 	}
@@ -616,29 +622,30 @@ namespace Sandbox
 
 			auto const & rb_data = rb_mgr.m_rigidbodies_data;
 			auto & col_data = collider_mgr.m_data;
-			for (auto const & entity_collider_pair : col_data.m_entity_map)
+			for (auto & [entity, debug_render_instance] : col_data.m_entity_map)
 			{
 				using namespace Engine::Physics;
-				convex_hull_handle const ch_handle = entity_collider_pair.second.Handle();
 
+				convex_hull_handle const ch_handle = debug_render_instance.m_collider_resource.Handle();
+
+				RigidBody rb_comp = entity.GetComponent<RigidBody>();
 				auto ch_info = Singleton<ConvexHullManager>().GetConvexHullInfo(ch_handle);
-				if (ch_info)
+				if (ch_info && rb_comp.IsValid())
 				{
-					Entity const rb_entity = entity_collider_pair.first;
-					Transform rb_transform = rb_entity.GetComponent<Transform>();
+					Transform rb_transform = entity.GetComponent<Transform>();
 					Engine::Math::transform3D const rb_world_transform = rb_transform.ComputeWorldTransform();
 					glm::vec3 const rb_world_position = rb_world_transform.position;
 
-					intersection_result result = intersect_ray_convex_hull(camera_ray, ch_info->m_data, rb_world_transform);
+					intersection_result result = intersect_ray_half_edge_data_structure(camera_ray, ch_info->m_data, rb_world_transform);
 
 					if (result.t >= 0.0f)
 					{
 						rb_mgr.ApplyForce(
-							rb_entity,
+							entity,
 							ray_direction * std::clamp(holddown_timer * 500.0f, 0.0f, 1000.0f),
 							 (camera_ray.origin + result.t * camera_ray.dir) - rb_world_position
 						);
-						col_data.m_ch_debug_meshes.at(ch_handle).m_highlight_face_index = result.face_index;
+						debug_render_instance.m_highlight_face_index = result.face_index;
 					}
 				}
 			}

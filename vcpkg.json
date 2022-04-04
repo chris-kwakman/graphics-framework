@@ -1,0 +1,20 @@
+{
+  "name": "framework",
+  "version-string": "0.1",
+  "dependencies": [
+    "glew",
+    "glm",
+    "gtest",
+    "imgui",
+    {
+      "name": "imgui",
+      "features": [ "docking-experimental", "sdl2-binding", "opengl3-binding" ],
+      "platform": "windows"
+    },
+    "imguizmo",
+    "sdl2",
+    "nlohmann-json",
+    "stb",
+    "tinygltf"
+  ]
+}

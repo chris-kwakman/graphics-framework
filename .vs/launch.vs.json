@@ -9,14 +9,14 @@
       "name": "Demo.exe (Install)",
       "currentDir": "${workspaceRoot}//demo",
       "args": [
-        "data/scenes/rigidbody.scene"
+        
       ]
     },
     {
       "type": "default",
       "project": "CMakeLists.txt",
-      "projectTarget": "Tests.exe (Install)",
-      "name": "Tests.exe (Install)",
+      "projectTarget": "test_engine.exe (Install)",
+      "name": "test_engine.exe (Install)",
       "currentDir": "${workspaceRoot}//tests"
     }
   ]

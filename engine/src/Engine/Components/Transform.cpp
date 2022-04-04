@@ -609,7 +609,7 @@ namespace Component
 	void TransformManager::impl_deserialize_data(nlohmann::json const& _j)
 	{
 		int const serializer_version = _j.at("serializer_version");
-		if (serializer_version == 1)
+		if (serializer_version <= 2)
 		{
 			m_entity_indexer_map = _j["m_entity_indexer_map"].get<decltype(m_entity_indexer_map)>();
 			m_transform_owners = _j["m_transform_owners"].get<decltype(m_transform_owners)>();
@@ -617,10 +617,18 @@ namespace Component
 			m_parent = _j["m_parent"].get<decltype(m_parent)>();
 			m_first_child = _j["m_first_child"].get<decltype(m_first_child)>();
 			m_next_sibling = _j["m_next_sibling"].get<decltype(m_next_sibling)>();
-			m_world_matrix_owners = _j["m_world_matrix_owners"].get<decltype(m_world_matrix_owners)>();
 			m_root_entities = _j["m_root_entities"].get<decltype(m_root_entities)>();
+
+			m_world_matrix_data.resize(m_entity_indexer_map.size());
+			m_world_matrix_owners.resize(m_entity_indexer_map.size());
+			size_t i = 0;
+			for (auto& [entity, entity_indexer_data] : m_entity_indexer_map)
+			{
+				m_world_matrix_owners[i] = entity;
+				entity_indexer_data.matrix = i++;
+			}
 		}
-		m_dirty_matrix_count = m_world_matrix_owners.size();
+		m_dirty_matrix_count = m_entity_indexer_map.size();
 	}
 
 	void TransformManager::impl_serialize_data(nlohmann::json& _j) const
@@ -633,7 +641,7 @@ namespace Component
 		_j["m_next_sibling"] = m_next_sibling;
 		_j["m_world_matrix_owners"] = m_world_matrix_owners;
 		_j["m_root_entities"] = m_root_entities;
-		_j["serializer_version"] = 1;
+		_j["serializer_version"] = 2;
 	}
 
 
@@ -717,33 +725,34 @@ namespace Component
 	glm::mat4x4 Transform::ComputeWorldMatrix() const
 	{
 		using indexer_data = TransformManager::indexer_data;
-		indexer_data owner_indexer = GetManager().get_entity_indexer_data(m_owner);
+		auto& mgr = GetManager();
+		indexer_data owner_indexer = mgr.get_entity_indexer_data(m_owner);
 		// If owner index is NOT dirty, use pre-computed matrix
-		if (!GetManager().check_matrix_dirty(owner_indexer.matrix))
+		if (!mgr.check_matrix_dirty(owner_indexer.matrix))
 		{
-			return GetManager().m_world_matrix_data[owner_indexer.matrix];
+			return mgr.m_world_matrix_data[owner_indexer.matrix];
 		}
 		// If owner index IS dirty, re-compute model to world matrix.
 		else
 		{
-			glm::mat4x4 transformation_matrix = GetManager().m_local_transforms[owner_indexer.transform].GetMatrix();
-			Entity parent_iter = GetManager().m_parent[owner_indexer.transform];
+			glm::mat4x4 transformation_matrix = mgr.m_local_transforms[owner_indexer.transform].GetMatrix();
+			Entity parent_iter = mgr.m_parent[owner_indexer.transform];
 			if (parent_iter != Entity::InvalidEntity)
 			{
 				while (parent_iter != Entity::InvalidEntity)
 				{
-					indexer_data parent_indexer = GetManager().get_entity_indexer_data(parent_iter);
+					indexer_data const parent_indexer = mgr.get_entity_indexer_data(parent_iter);
 					// If parent is NOT dirty, use precomputed matrix and exit early.
-					if (!GetManager().check_matrix_dirty(parent_indexer.matrix))
+					if (!mgr.check_matrix_dirty(parent_indexer.matrix))
 					{
-						transformation_matrix = GetManager().m_world_matrix_data[parent_indexer.matrix] * transformation_matrix;
+						transformation_matrix = mgr.m_world_matrix_data[parent_indexer.matrix] * transformation_matrix;
 						break;
 					}
 					// Otherwise, keep going up the hierarchy until we reach the end or reach a valid precomputed matrix
 					else
 					{
-						transformation_matrix = GetManager().m_world_matrix_data[parent_indexer.matrix] * transformation_matrix;
-						parent_iter = GetManager().m_parent[parent_indexer.transform];
+						transformation_matrix = mgr.m_world_matrix_data[parent_indexer.matrix] * transformation_matrix;
+						parent_iter = mgr.m_parent[parent_indexer.transform];
 					}
 				}
 			}

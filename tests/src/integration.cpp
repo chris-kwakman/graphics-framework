@@ -24,7 +24,7 @@ TEST(RigidBody, LinearIntegration_ForceFree)
 	glm::vec3 const forces[] = { glm::vec3(0.0f), glm::vec3(0.0f) };
 	float const inv_masses[] = { 1.0f, 1.0f };
 
-	integrate_linear(1.0f, positions, velocities, forces, inv_masses, 2);
+	integrate_linear_euler(1.0f, positions, velocities, forces, inv_masses, 2);
 
 	EXPECT_VEC3_EQ(positions[0], glm::vec3(0.0f), 0.00001f);
 	EXPECT_VEC3_EQ(positions[1], glm::vec3(1.0f), 0.00001f);
@@ -37,7 +37,7 @@ TEST(RigidBody, LinearIntegration_Force)
 	glm::vec3 const forces[] = { glm::vec3(1.0f), glm::vec3(1.0f) };
 	float const inv_masses[] = { 1.0f, 1.0f };
 
-	integrate_linear(1.0f, positions, velocities, forces, inv_masses, 2);
+	integrate_linear_euler(1.0f, positions, velocities, forces, inv_masses, 2);
 
 	EXPECT_VEC3_EQ(positions[0], glm::vec3(1.0f), 0.00001f);
 	EXPECT_VEC3_EQ(positions[1], glm::vec3(2.0f), 0.00001f);

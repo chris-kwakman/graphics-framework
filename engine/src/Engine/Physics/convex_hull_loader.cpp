@@ -4,16 +4,18 @@
 #include <fstream>
 #include <string>
 
+#include "point_hull.h"
+
+#include <glm/gtc/epsilon.hpp>
 #include <engine/Utils/singleton.h>
 
 namespace Engine {
 namespace Physics {
 
-	uint32_t LoadConvexHull_OBJ(fs::path const& _path)
-	{
-		if (!fs::exists(_path))
-			return 0;
+	uint32_t LoadConvexHull_CS350(fs::path const & _path);
 
+	half_edge_data_structure ConstructConvexHull_OBJ(fs::path const& _path, bool _quickhull)
+	{
 		std::vector<glm::vec3> vertices;
 		std::vector<glm::uvec3> face_vertex_indices;
 
@@ -22,6 +24,11 @@ namespace Physics {
 		std::string name = _path.string();
 
 		bool present_v = false, present_vn = false, present_vt = false;
+
+		if (!fs::exists(_path))
+		{
+			throw std::runtime_error("[convex_hull_loader] File not found.");
+		}
 
 		std::ifstream in_file(_path);
 		char buffer[128];
@@ -59,7 +66,7 @@ namespace Physics {
 				if (present_v && !present_vt && !present_vn)
 				{
 					format = "f %u %u %u";
-					sscanf(file_line.c_str(), format, 
+					sscanf(file_line.c_str(), format,
 						&indices.x, &indices.y, &indices.z
 					);
 				}
@@ -79,7 +86,7 @@ namespace Physics {
 				}
 				else if (present_v && present_vt && present_vn)
 				{
-					format = "f %u/%u/%u %u/%u/%u, %u/%u/%u";
+					format = "f %u/%u/%u %u/%u/%u %u/%u/%u";
 					sscanf(file_line.c_str(), format,
 						&indices.x, &tmp, &tmp,
 						&indices.y, &tmp, &tmp,
@@ -92,15 +99,64 @@ namespace Physics {
 			}
 		}
 
-		convex_hull new_hull = construct_convex_hull(
-			&vertices.front(), vertices.size(),
-			&face_vertex_indices.front(), face_vertex_indices.size()
-		);
+		if (face_vertex_indices.empty() || _quickhull)
+		{
+			return construct_convex_hull(
+				&vertices.front(), vertices.size()
+			);
+		}
+		else
+		{
+			try {
+				return construct_half_edge_data_structure(
+					&vertices.front(), vertices.size(),
+					&face_vertex_indices.front(), face_vertex_indices.size()
+				);
+			}
+			catch (...)
+			{
+				return construct_convex_hull(
+					&vertices.front(), vertices.size()
+				);
+			}
+		}
 
-		return Singleton<ConvexHullManager>().RegisterConvexHull(std::move(new_hull), name);
 	}
 
-	void UnloadConvexHull_OBJ(uint32_t _handle)
+	uint32_t LoadConvexHull(fs::path const& _path)
+	{
+		if (!fs::exists(_path))
+			return 0;
+
+		auto ext = _path.extension();
+		if (ext == ".obj")
+			return LoadConvexHull_OBJ(_path);
+		else if (ext == ".cs350")
+			return LoadConvexHull_CS350(_path);
+		else
+			return 0;
+	}
+
+	uint32_t LoadConvexHull_OBJ(fs::path const& _path)
+	{
+		half_edge_data_structure new_hull = ConstructConvexHull_OBJ(_path);
+
+		return Singleton<ConvexHullManager>().RegisterConvexHull(std::move(new_hull), _path.string());
+	}
+
+
+	uint32_t LoadConvexHull_CS350(fs::path const& _path)
+	{
+		auto vertices = load_point_hull_vertices(_path);
+
+		half_edge_data_structure new_hull = construct_convex_hull(
+			&vertices.front(), vertices.size()
+		);
+
+		return Singleton<ConvexHullManager>().RegisterConvexHull(std::move(new_hull), _path.string());
+	}
+
+	void UnloadConvexHull(uint32_t _handle)
 	{
 		Singleton<ConvexHullManager>().DeleteConvexHull(_handle);
 	}

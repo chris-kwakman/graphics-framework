@@ -21,18 +21,18 @@ namespace Misc {
 		// This means we can create a triangle fan list for each face.
 
 		// Copied directly to index buffer object (IBO) for triangle rendering.
-		std::vector<convex_hull::vertex_idx> triangle_vertex_indices;
+		std::vector<half_edge_data_structure::vertex_idx> triangle_vertex_indices;
 		// Vertex attributes
 		// Vertex positions
 		std::vector<glm::vec3> mesh_vertices;
 		// Shaders* can use this to know which triangles belong to a given face.
-		std::vector<convex_hull::face_idx> triangle_face_indices;
+		std::vector<half_edge_data_structure::face_idx> triangle_face_indices;
 
 		size_t vertex_count = 0;
 
 		for (size_t face_idx = 0; face_idx < ch.m_faces.size(); face_idx++)
 		{
-			convex_hull::face const& face = ch.m_faces[face_idx];
+			half_edge_data_structure::face const& face = ch.m_faces[face_idx];
 			vertex_count += face.m_vertices.size() * 3;
 			for (size_t i = 1; i <= face.m_vertices.size() - 2; i++)
 			{
@@ -64,7 +64,7 @@ namespace Misc {
 
 		glBindVertexArray(mesh_vao);
 		//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh_ibo);
-		//glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(convex_hull::vertex_idx) * triangle_vertex_indices.size(), &triangle_vertex_indices.front(), GL_STATIC_DRAW);
+		//glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(half_edge_data_structure::vertex_idx) * triangle_vertex_indices.size(), &triangle_vertex_indices.front(), GL_STATIC_DRAW);
 
 		glBindBuffer(GL_ARRAY_BUFFER, mesh_buffer_vertices);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * mesh_vertices.size(), &mesh_vertices.front(), GL_STATIC_DRAW);
@@ -79,7 +79,7 @@ namespace Misc {
 		);
 
 		glBindBuffer(GL_ARRAY_BUFFER, mesh_buffer_face_indices);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(convex_hull::face_idx) * triangle_face_indices.size(), &triangle_face_indices.front(), GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(half_edge_data_structure::face_idx) * triangle_face_indices.size(), &triangle_face_indices.front(), GL_STATIC_DRAW);
 		glEnableVertexArrayAttrib(mesh_vao, 1);
 		glVertexAttribPointer(
 			1,
@@ -147,12 +147,12 @@ namespace Misc {
 		auto& rm = Singleton<RM>();
 
 		std::vector<glm::vec3> line_vertices;
-		std::vector<convex_hull::vertex_idx> line_edge_indices;
+		std::vector<half_edge_data_structure::vertex_idx> line_edge_indices;
 
 		size_t half_edge_count = 0;
 		for (size_t face_idx = 0; face_idx < ch.m_faces.size(); face_idx++)
 		{
-			convex_hull::face const& face = ch.m_faces[face_idx];
+			half_edge_data_structure::face const& face = ch.m_faces[face_idx];
 			for (size_t i = 0; i < face.m_vertices.size() - 1; i++)
 			{
 				line_vertices.emplace_back(ch.m_vertices[face.m_vertices[i]]);
@@ -187,7 +187,7 @@ namespace Misc {
 		);
 
 		glBindBuffer(GL_ARRAY_BUFFER, mesh_buffer_edge_indices);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(convex_hull::half_edge_idx) * line_edge_indices.size(), &line_edge_indices.front(), GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(half_edge_data_structure::half_edge_idx) * line_edge_indices.size(), &line_edge_indices.front(), GL_STATIC_DRAW);
 		glEnableVertexArrayAttrib(mesh_vao, 1);
 		glVertexAttribPointer(
 			1,

@@ -11,10 +11,13 @@
 #include <Engine/Components/SkeletonAnimator.h>
 #include <Engine/Components/CurveFollower.h>
 #include <Engine/Components/Rigidbody.h>
+#include <Engine/Physics/Collider.h>
 
 #include <Engine/Managers/resource_manager.h>
 
 #include <Engine/Physics/convex_hull_loader.h>
+#include <Engine/Physics/point_hull.h>
+#include <Engine/Physics/physics_manager.hpp>
 
 #include "Demo/sandbox.h"
 #include "Demo/Components/SandboxCompManager.h"
@@ -25,6 +28,8 @@
 #include <iostream>
 
 #include <fstream>
+
+#include "Components/Gravity.hpp"
 
 #undef main
 
@@ -41,6 +46,7 @@ static ms const max_frametime(1000 / MAX_FRAMERATE);
 fs::path const scene_directory("data//scenes//");
 
 static fs::path s_load_scene_at_path;
+static bool show_physics_debug_window = false;
 
 
 void load_scene(fs::path _scene_path)
@@ -116,6 +122,8 @@ void menu_bar()
 			ImGui::EndMenu();
 		}
 
+		ImGui::MenuItem("Physics", "Ctrl+P", &show_physics_debug_window, &show_physics_debug_window);
+
 		ImGui::EndMainMenuBar();
 
 	}
@@ -166,7 +174,8 @@ void register_resource_loaders()
 
 	resource_type const type_texture = resource_manager.register_type("Texture", dummy_loader, dummy_unloader);
 	resource_type const type_model = resource_manager.register_type("Model", dummy_loader, dummy_unloader);
-	resource_type const type_convex_hull = resource_manager.register_type("Collider", Engine::Physics::LoadConvexHull_OBJ, Engine::Physics::UnloadConvexHull_OBJ);
+	resource_type const type_convex_hull = resource_manager.register_type("Collider", Engine::Physics::LoadConvexHull, Engine::Physics::UnloadConvexHull);
+	resource_type const type_point_hull = resource_manager.register_type("Point Hull", Engine::Physics::LoadPointHull, Engine::Physics::UnloadPointHull);
 
 	resource_manager.register_type_extension(type_texture, ".png");
 	resource_manager.register_type_extension(type_texture, ".jpeg");
@@ -175,6 +184,9 @@ void register_resource_loaders()
 	//resource_manager.register_type_extension(type_model, ".obj");
 
 	resource_manager.register_type_extension(type_convex_hull, ".obj");
+	//resource_manager.register_type_extension(type_convex_hull, ".cs350");
+
+	resource_manager.register_type_extension(type_point_hull, ".cs350");
 }
 
 void update_loop()
@@ -218,11 +230,21 @@ void update_loop()
 		
 		Singleton<Engine::Editor::Editor>().Update(TEMP_DT);
 
-
 		Singleton<Component::CurveFollowerManager>().UpdateFollowers(TEMP_DT);
 		Singleton<Component::SkeletonAnimatorManager>().UpdateAnimatorInstances(TEMP_DT);
-		Singleton<Component::RigidBodyManager>().Integrate(TEMP_DT);
-		Singleton<Component::RigidBodyManager>().UpdateTransforms();
+
+		Singleton<Component::ColliderManager>().TestColliderIntersections();
+
+		auto& scene_physics_mgr = Singleton<Engine::Physics::ScenePhysicsManager>();
+		if (!scene_physics_mgr.paused || scene_physics_mgr.step)
+		{
+			Singleton<Component::GravityComponentManager>().ApplyGravity();
+			scene_physics_mgr.PhysicsStep(TEMP_DT);
+		}
+
+
+		if (show_physics_debug_window)
+			Singleton<Engine::Physics::ScenePhysicsManager>().DisplayEditorWindow();
 
 		sdl_manager.set_gl_debug_state(false);
 
@@ -256,7 +278,9 @@ int main(int argc, char* argv[])
 	std::string const cwd = std::filesystem::current_path().string();
 	printf("Working directory: %s\n", cwd.c_str());
 
-	s_load_scene_at_path = argv[1];
+	s_load_scene_at_path = fs::path();
+	if(argc > 1)
+		s_load_scene_at_path = argv[1];
 	
 	Engine::sdl_manager& sdl_manager = Singleton<Engine::sdl_manager>();
 	if (sdl_manager.setup_volumetric_fog(glm::uvec2(SCREEN_WIDTH, SCREEN_HEIGHT)))
@@ -274,7 +298,10 @@ int main(int argc, char* argv[])
 			Singleton<Engine::Graphics::ResourceManager>().Reset();
 			register_resource_loaders();
 
-			load_scene(s_load_scene_at_path);
+			Singleton<Engine::Physics::ScenePhysicsManager>().Reset();
+
+			if(!s_load_scene_at_path.empty())
+				load_scene(s_load_scene_at_path);
 
 			import_default_resources();
 
