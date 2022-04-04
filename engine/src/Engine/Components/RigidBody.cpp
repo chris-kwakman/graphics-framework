@@ -197,9 +197,8 @@ namespace Component
 		{
 			glm::vec3 cm;
 			float mass;
-			SetInertialTensor(
-				entity_index, Engine::Physics::inertialTensorConvexHull(collider_comp.GetConvexHull(), &mass, &cm)
-			);
+			rb_data.inertial_tensor = Engine::Physics::inertialTensorConvexHull(collider_comp.GetConvexHull(), &mass, &cm);
+			rb_data.inv_inertial_tensor = glm::inverse(rb_data.inertial_tensor);
 			rb_data.set_mass(mass);
 		}
 
