@@ -105,10 +105,10 @@ namespace Physics {
 
 					pcd.effective_mass_friction_u = rbA.inv_mass + rbB.inv_mass +
 						glm::dot(cross_rA_u, inv_world_tensor_A * cross_rA_u) +
-						glm::dot(cross_rB_u, inv_world_tensor_A * cross_rB_u);
+						glm::dot(cross_rB_u, inv_world_tensor_B * cross_rB_u);
 					pcd.effective_mass_friction_v = rbA.inv_mass + rbB.inv_mass +
 						glm::dot(cross_rA_v, inv_world_tensor_A * cross_rA_v) +
-						glm::dot(cross_rB_v, inv_world_tensor_A * cross_rB_v);
+						glm::dot(cross_rB_v, inv_world_tensor_B * cross_rB_v);
 
 					// Store precomputed contact data into array
 					cached_contact_data[contact_idx] = pcd;
