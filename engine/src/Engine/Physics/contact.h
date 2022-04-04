@@ -14,7 +14,6 @@ namespace Physics {
 		glm::vec3		point;			//world-space point. Originates from Object A.
 		float			penetration;
 		glm::vec3		normal;			// world-space normal. Originates from Object B.
-		float			lambda;			// Only modified by collision resolution.
 	};
 
 	struct contact_manifold

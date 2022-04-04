@@ -34,13 +34,15 @@ namespace Physics {
 
 		struct contact_friction_lambdas
 		{
-			float lambda_u = 0.0f, lambda_v = 0.0f;
+			float lambda_contact = 0.0f;
+			float lambda_friction_u = 0.0f;
+			float lambda_friction_v = 0.0f;
 		};
 
 		auto & all_contacts = _global_contact_data.all_contacts;
 		auto const& all_contact_manifolds = _global_contact_data.all_contact_manifolds;
 		std::vector<precomputed_contact_data> cached_contact_data(all_contacts.size());
-		std::vector<contact_friction_lambdas> cached_contact_friction_lambdas(all_contacts.size());
+		std::vector<contact_friction_lambdas> cached_contact_lambdas(all_contacts.size());
 
 		// Pre-compute effective masses for all contacts.
 		{
@@ -64,11 +66,11 @@ namespace Physics {
 				{
 					precomputed_contact_data pcd;
 					contact & c = all_contacts[contact_idx];
-					contact_friction_lambdas& cfl = cached_contact_friction_lambdas[contact_idx];
+					contact_friction_lambdas& cfl = cached_contact_lambdas[contact_idx];
 
-					c.lambda = 0.0f;
-					cfl.lambda_u = 0.0f;
-					cfl.lambda_v = 0.0f;
+					cfl.lambda_contact = 0.0f;
+					cfl.lambda_friction_u = 0.0f;
+					cfl.lambda_friction_v = 0.0f;
 
 					// Precompute data required for contact resolution.
 
@@ -138,6 +140,7 @@ namespace Physics {
 				for (size_t contact_idx = cm.first_contact_index; contact_idx < manifold_end_contact_idx; contact_idx++)
 				{
 					precomputed_contact_data const pcd = cached_contact_data[contact_idx];
+					contact_friction_lambdas& cfl = cached_contact_lambdas[contact_idx];
 					contact & c = all_contacts[contact_idx];
 					glm::vec3 const rA = c.point - rbA.position;
 					glm::vec3 const rB = c.point - rbB.position;
@@ -152,9 +155,9 @@ namespace Physics {
 					float const JV = glm::dot(c.normal, relative_vel);
 
 					float const lambda_c = -((JV + pcd.bias) / pcd.effective_mass_contact);
-					float const new_lambda = std::max(c.lambda + lambda_c, 0.0f);
-					float const delta_lambda = new_lambda - c.lambda;
-					c.lambda = new_lambda;
+					float const new_lambda = std::max(cfl.lambda_contact + lambda_c, 0.0f);
+					float const delta_lambda = new_lambda - cfl.lambda_contact;
+					cfl.lambda_contact = new_lambda;
 
 					// Update lambdas in contact, and update rigidbody velocities.
 
@@ -203,7 +206,7 @@ namespace Physics {
 				for (size_t contact_idx = cm.first_contact_index; contact_idx < manifold_end_contact_idx; contact_idx++)
 				{
 					precomputed_contact_data const pcd = cached_contact_data[contact_idx];
-					contact_friction_lambdas& cfl = cached_contact_friction_lambdas[contact_idx];
+					contact_friction_lambdas& cfl = cached_contact_lambdas[contact_idx];
 					contact& c = all_contacts[contact_idx];
 					glm::vec3 const rA = c.point - rbA.position;
 					glm::vec3 const rB = c.point - rbB.position;
@@ -221,10 +224,11 @@ namespace Physics {
 					float const lambda_friction_u = -(constraint_fric_u / pcd.effective_mass_friction_u);
 					float const lambda_friction_v = -(constraint_fric_v / pcd.effective_mass_friction_v);
 
-					float const new_lambda_friction_u = std::clamp( cfl.lambda_u + lambda_friction_u, -friction_coefficient*c.lambda, friction_coefficient*c.lambda);
-					float const new_lambda_friction_v = std::clamp( cfl.lambda_v + lambda_friction_v, -friction_coefficient*c.lambda, friction_coefficient*c.lambda);
-					float const delta_lambda_friction_u = new_lambda_friction_u - cfl.lambda_u;
-					float const delta_lambda_friction_v = new_lambda_friction_v - cfl.lambda_v;
+					float const max_friction_force = friction_coefficient * cfl.lambda_contact;
+					float const new_lambda_friction_u = std::clamp( cfl.lambda_friction_u + lambda_friction_u, -max_friction_force, max_friction_force);
+					float const new_lambda_friction_v = std::clamp( cfl.lambda_friction_v + lambda_friction_v, -max_friction_force, max_friction_force);
+					float const delta_lambda_friction_u = new_lambda_friction_u - cfl.lambda_friction_u;
+					float const delta_lambda_friction_v = new_lambda_friction_v - cfl.lambda_friction_v;
 
 					// Update lambdas in contact, and update rigidbody velocities.
 
@@ -233,8 +237,8 @@ namespace Physics {
 					vB = vB + rbB.inv_mass * (pcd.friction_u * delta_lambda_friction_u + pcd.friction_v * delta_lambda_friction_v);
 					wB = wB + inv_world_tensor_B * (cross_rB_u * delta_lambda_friction_u + cross_rB_v * delta_lambda_friction_v);
 
-					cfl.lambda_u = new_lambda_friction_u;
-					cfl.lambda_v = new_lambda_friction_v;
+					cfl.lambda_friction_u = new_lambda_friction_u;
+					cfl.lambda_friction_v = new_lambda_friction_v;
 				}
 
 				rbA.set_linear_velocity(vA);

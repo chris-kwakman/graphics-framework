@@ -95,7 +95,6 @@ namespace Physics {
 						contact c = all_contacts[i];
 						ImGui::Text("Point: (%.2f, %.2f, %.2f)", c.point.x, c.point.y, c.point.z);
 						ImGui::Text("Normal: (%.2f, %.2f, %.2f)", c.normal.x, c.normal.y, c.normal.z);
-						ImGui::Text("Lambda: %.4f", c.lambda);
 					}
 					ImGui::Unindent();
 				}
