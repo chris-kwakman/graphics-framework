@@ -622,32 +622,43 @@ namespace Sandbox
 
 			auto const & rb_data = rb_mgr.m_rigidbodies_data;
 			auto & col_data = collider_mgr.m_data;
+
+			Entity closest_entity = Entity::InvalidEntity;
+			Engine::Physics::intersection_result closest_entity_ir;
+			closest_entity_ir.t = std::numeric_limits<float>::max();
+
 			for (auto & [entity, debug_render_instance] : col_data.m_entity_map)
 			{
 				using namespace Engine::Physics;
 
 				convex_hull_handle const ch_handle = debug_render_instance.m_collider_resource.Handle();
 
-				RigidBody rb_comp = entity.GetComponent<RigidBody>();
-				auto ch_info = Singleton<ConvexHullManager>().GetConvexHullInfo(ch_handle);
-				if (ch_info && rb_comp.IsValid())
+				RigidBody const rb_comp = entity.GetComponent<RigidBody>();
+				Collider const collider_comp = entity.GetComponent<Collider>();
+				half_edge_data_structure const* collider_hds = collider_comp.GetConvexHull();
+				if (collider_comp.IsValid() && rb_comp.IsValid() && collider_hds)
 				{
 					Transform rb_transform = entity.GetComponent<Transform>();
 					Engine::Math::transform3D const rb_world_transform = rb_transform.ComputeWorldTransform();
-					glm::vec3 const rb_world_position = rb_world_transform.position;
+					intersection_result result = intersect_ray_half_edge_data_structure(camera_ray, *collider_hds, rb_world_transform);
 
-					intersection_result result = intersect_ray_half_edge_data_structure(camera_ray, ch_info->m_data, rb_world_transform);
-
-					if (result.t >= 0.0f)
+					if (result.t >= 0.0f && result.t < closest_entity_ir.t)
 					{
-						rb_mgr.ApplyForce(
-							entity,
-							ray_direction * std::clamp(holddown_timer * 500.0f, 0.0f, 1000.0f),
-							 (camera_ray.origin + result.t * camera_ray.dir) - rb_world_position
-						);
-						debug_render_instance.m_highlight_face_index = result.face_index;
+						closest_entity = entity;
+						closest_entity_ir = result;
 					}
 				}
+			}
+			if (closest_entity.Alive())
+			{
+				using namespace Engine::Physics;
+				Transform closest_entity_transform = closest_entity.GetComponent<Transform>();
+				rb_mgr.ApplyForce(
+					closest_entity,
+					ray_direction * std::clamp(holddown_timer * 500.0f, 0.0f, 1000.0f),
+					(camera_ray.origin + closest_entity_ir.t * camera_ray.dir) - closest_entity_transform.ComputeWorldTransform().position
+				);
+				Singleton<ColliderManager>().m_data.m_entity_map[closest_entity].m_highlight_face_index = closest_entity_ir.face_index;
 			}
 
 			holddown_timer = 0.0f;
