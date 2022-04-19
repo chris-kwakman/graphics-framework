@@ -18,8 +18,14 @@ namespace Physics {
 		session_data m_session_data;
 		bool paused = false;
 		bool step = false;
-		unsigned int iterations = 8;
+		unsigned int resolution_iterations_penetration = 8;
+		unsigned int resolution_iterations_friction = 8;
 		float		 beta = 0.5f;
+
+		bool render_penetration = false;
+		bool render_penetration_resolution = false;
+		bool render_friction_resolution = false;
+		float scale_lambda_resolution_vectors = 10.0f;
 
 		void Reset();
 		void PhysicsStep(float _dt);

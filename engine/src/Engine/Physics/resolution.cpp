@@ -12,15 +12,17 @@ namespace Physics {
 	* @param	float						Delta time this frame
 	* @param	float						Beta variable used for contact resolution
 	* 
-	* @details	8 iterations are used for resolving friction between rigidbodies.
+	* @details	8 resolution_iterations_penetration are used for resolving friction between rigidbodies.
 	*/
 	void compute_resolution_gauss_seidel(
-		global_contact_data& _global_contact_data, 
-		unsigned int _contact_iterations,
-		float _dt, float _beta
+		global_contact_data& _global_contact_data,
+		unsigned int _contact_iterations, 
+		unsigned int _friction_iterations, 
+		float _dt, 
+		float _beta
 	)
 	{
-		constexpr size_t FRICTION_ITERATIONS = 8;
+		constexpr size_t FRICTION_ITERATIONS = 16;
 
 		struct precomputed_contact_data
 		{
@@ -32,17 +34,10 @@ namespace Physics {
 			float bias;
 		};
 
-		struct contact_friction_lambdas
-		{
-			float lambda_contact = 0.0f;
-			float lambda_friction_u = 0.0f;
-			float lambda_friction_v = 0.0f;
-		};
-
 		auto & all_contacts = _global_contact_data.all_contacts;
 		auto const& all_contact_manifolds = _global_contact_data.all_contact_manifolds;
 		std::vector<precomputed_contact_data> cached_contact_data(all_contacts.size());
-		std::vector<contact_friction_lambdas> cached_contact_lambdas(all_contacts.size());
+		std::vector<contact_lambdas> cached_contact_lambdas(all_contacts.size());
 
 		// Pre-compute effective masses for all contacts.
 		{
@@ -66,7 +61,7 @@ namespace Physics {
 				{
 					precomputed_contact_data pcd;
 					contact & c = all_contacts[contact_idx];
-					contact_friction_lambdas& cfl = cached_contact_lambdas[contact_idx];
+					contact_lambdas& cfl = cached_contact_lambdas[contact_idx];
 
 					cfl.lambda_contact = 0.0f;
 					cfl.lambda_friction_u = 0.0f;
@@ -97,6 +92,8 @@ namespace Physics {
 						: glm::cross(c.normal, glm::vec3(0.0f, 1.0f, 0.0f))
 					);
 					pcd.friction_v = glm::normalize(glm::cross(c.normal, pcd.friction_u));
+
+					assert(glm::epsilonEqual(glm::dot(pcd.friction_u, pcd.friction_v), 0.0f, glm::epsilon<float>()));
 
 					glm::vec3 const cross_rA_u = glm::cross(rA, pcd.friction_u);
 					glm::vec3 const cross_rB_u = glm::cross(rA, pcd.friction_u);
@@ -140,7 +137,7 @@ namespace Physics {
 				for (size_t contact_idx = cm.first_contact_index; contact_idx < manifold_end_contact_idx; contact_idx++)
 				{
 					precomputed_contact_data const pcd = cached_contact_data[contact_idx];
-					contact_friction_lambdas& cfl = cached_contact_lambdas[contact_idx];
+					contact_lambdas& cfl = cached_contact_lambdas[contact_idx];
 					contact & c = all_contacts[contact_idx];
 					glm::vec3 const rA = c.point - rbA.position;
 					glm::vec3 const rB = c.point - rbB.position;
@@ -206,7 +203,7 @@ namespace Physics {
 				for (size_t contact_idx = cm.first_contact_index; contact_idx < manifold_end_contact_idx; contact_idx++)
 				{
 					precomputed_contact_data const pcd = cached_contact_data[contact_idx];
-					contact_friction_lambdas& cfl = cached_contact_lambdas[contact_idx];
+					contact_lambdas& cfl = cached_contact_lambdas[contact_idx];
 					contact& c = all_contacts[contact_idx];
 					glm::vec3 const rA = c.point - rbA.position;
 					glm::vec3 const rB = c.point - rbB.position;
@@ -252,6 +249,19 @@ namespace Physics {
 				cm.rigidbody_B.SetRigidBodyData(rbB);
 			}
 		}
+
+#ifdef DEBUG_RENDER_CONTACTS
+		_global_contact_data.debug_resolved_contacts.resize(_global_contact_data.all_contacts.size());
+		for (size_t i = 0; i < _global_contact_data.all_contacts.size(); i++)
+		{
+			resolved_contact new_resolved_contact;
+			new_resolved_contact.contact = _global_contact_data.all_contacts[i];
+			new_resolved_contact.contact_lambdas = cached_contact_lambdas[i];
+			new_resolved_contact.vec_u = cached_contact_data[i].friction_u;
+			new_resolved_contact.vec_v = cached_contact_data[i].friction_v;
+			_global_contact_data.debug_resolved_contacts[i] = new_resolved_contact;
+		}
+#endif // DEBUG_RENDER_CONTACTS
 
 	}
 

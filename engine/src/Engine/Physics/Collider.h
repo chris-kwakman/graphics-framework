@@ -54,10 +54,7 @@ namespace Component
 
 			bool m_render_debug_face_mesh = true, m_render_debug_edge_mesh = true;
 
-			unsigned int m_resolution_iterations = 8;
-			float m_resolution_beta = 0.5f;
-
-			NLOHMANN_DEFINE_TYPE_INTRUSIVE(manager_data, m_entity_map, m_render_debug_face_mesh, m_render_debug_edge_mesh, m_resolution_iterations, m_resolution_beta);
+			NLOHMANN_DEFINE_TYPE_INTRUSIVE(manager_data, m_entity_map, m_render_debug_face_mesh, m_render_debug_edge_mesh);
 		};
 
 	public:
@@ -69,7 +66,6 @@ namespace Component
 		void SetColliderResource(Entity _e, Engine::Managers::Resource _resource);
 
 		void TestColliderIntersections();
-		void ComputeCollisionResolution(float _dt);
 
 	private:
 

@@ -288,10 +288,10 @@ namespace Component
 		{
 			set_entity_pointhull_resource(_entity, entry.m_pointhull_resource);
 		}
-		int iterations = (int)entry.m_convex_hull_creation_iterations;
-		if (ImGui::InputInt("Iterations", &iterations, 1, 5))
+		int resolution_iterations_penetration = (int)entry.m_convex_hull_creation_iterations;
+		if (ImGui::InputInt("Iterations", &resolution_iterations_penetration, 1, 5))
 		{
-			entry.m_convex_hull_creation_iterations = std::clamp(iterations, 0, std::numeric_limits<int>::max());
+			entry.m_convex_hull_creation_iterations = std::clamp(resolution_iterations_penetration, 0, std::numeric_limits<int>::max());
 			set_entity_pointhull_creation_iterations(_entity, entry.m_convex_hull_creation_iterations);
 		}
 		
@@ -428,15 +428,5 @@ namespace Component
 			it1++;
 		}
 
-	}
-
-	void ColliderManager::ComputeCollisionResolution(float _dt)
-	{
-		Engine::Physics::compute_resolution_gauss_seidel(
-			m_data.m_global_contact_data,
-			m_data.m_resolution_iterations, 
-			_dt, 
-			m_data.m_resolution_beta
-		);
 	}
 }

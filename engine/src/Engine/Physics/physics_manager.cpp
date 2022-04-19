@@ -26,7 +26,8 @@ namespace Physics {
 
 		compute_resolution_gauss_seidel(
 			Singleton<Component::ColliderManager>().m_data.m_global_contact_data,
-			iterations,
+			resolution_iterations_penetration,
+			resolution_iterations_friction,
 			_dt,
 			beta
 		);
@@ -58,10 +59,19 @@ namespace Physics {
 				}
 			}
 
-			int iters = iterations;
-			if (ImGui::DragInt("Constraint Solver Iterations", &iters, 0.1f, 1, 128, "%d", ImGuiSliderFlags_AlwaysClamp))
-				iterations = iters;
+			int iters = 0;
+			iters = resolution_iterations_penetration;
+			if (ImGui::DragInt("Penetration Constraint Iterations", &iters, 0.1f, 1, 128, "%d", ImGuiSliderFlags_AlwaysClamp))
+				resolution_iterations_penetration = iters;
+			iters = resolution_iterations_friction;
+			if (ImGui::DragInt("Friction Constraint Iterations", &iters, 0.1f, 1, 128, "%d", ImGuiSliderFlags_AlwaysClamp))
+				resolution_iterations_friction = iters;
 			ImGui::SliderFloat("Constraint Solver Beta", &beta, 0.0f, 1.0f, "%.3f");
+
+			ImGui::Checkbox("Render Penetration Vectors", &render_penetration);
+			ImGui::Checkbox("Render Penetration Resolution", &render_penetration_resolution);
+			ImGui::Checkbox("Render Friction Resolution", &render_friction_resolution);
+			ImGui::SliderFloat("Scale Resolution Lambda Vectors", &scale_lambda_resolution_vectors, 1.0f, 25.0f, "%.2f");
 
 			ImGui::BeginDisabled(!paused);
 			if (ImGui::SliderInt("Frame Record", &peek_frame, 0, frame_count - 1, "%d"))

@@ -25,6 +25,24 @@ namespace Physics {
 		bool					is_edge_edge;			// Whether manifold is edge-edge.
 	};
 
+
+	struct contact_lambdas
+	{
+		float lambda_contact = 0.0f;
+		float lambda_friction_u = 0.0f;
+		float lambda_friction_v = 0.0f;
+	};
+
+#ifdef DEBUG_RENDER_CONTACTS
+	struct resolved_contact
+	{
+		contact			contact;
+		contact_lambdas contact_lambdas;
+		glm::vec3		vec_u, vec_v;
+	};
+#endif // DEBUG_RENDER_CONTACTS
+
+
 	struct global_contact_data
 	{
 		std::vector<contact>			all_contacts;
@@ -33,6 +51,7 @@ namespace Physics {
 #ifdef DEBUG_RENDER_CONTACTS
 		std::vector<glm::vec3>			debug_draw_points;
 		std::vector<glm::vec3>			debug_draw_lines;
+		std::vector<resolved_contact>	debug_resolved_contacts;
 #endif // DEBUG_RENDER_CONTACTS
 	};
 

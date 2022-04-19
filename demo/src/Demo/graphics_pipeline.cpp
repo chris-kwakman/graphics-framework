@@ -20,6 +20,7 @@
 #include <Engine/Components/Transform.h>
 #include <Engine/Physics/Collider.h>
 #include <Engine/Physics/convex_hull.h>
+#include <Engine/Physics/physics_manager.hpp>
 
 // GLM
 #include <glm/gtx/transform.hpp>
@@ -50,7 +51,7 @@ namespace Sandbox
 		using GraphicsManager = ResourceManager;
 		auto& gfx_mgr = Singleton<GraphicsManager>();
 
-		// Create mesh for displaying points / lines.
+		// Create mesh for displaying penetration_points / lines.
 		GLuint line_point_mesh_vao = 0, line_point_mesh_vbo = 0;
 		glCreateVertexArrays(1, &line_point_mesh_vao);
 		glCreateBuffers(1, &line_point_mesh_vbo);
@@ -892,6 +893,73 @@ namespace Sandbox
 				}
 				glBindVertexArray(0);
 			}
+			auto const & debug_resolved_contacts = collider_mgr.m_data.m_global_contact_data.debug_resolved_contacts;
+			if (!debug_resolved_contacts.empty())
+			{
+				using namespace Engine::Graphics;
+				using GraphicsManager = ResourceManager;
+				auto const& gfx_mgr = Singleton<GraphicsManager>();
+				auto const& line_point_prim_data = gfx_mgr.GetMeshPrimitives(
+					s_pipeline_resources.line_point_mesh_handle
+				);
+				auto const& physics_mgr = Singleton<Engine::Physics::ScenePhysicsManager>();
+
+				res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, matrix_vp);
+				res_mgr.SetBoundProgramUniform(LOC_HIGHLIGHT_INDEX, (int)-1);
+
+				glBindVertexArray(line_point_prim_data.front().m_vao_gl_id);
+				glLineWidth(8.0f);
+
+				float scale_lambda_normals = physics_mgr.scale_lambda_resolution_vectors;
+				if (physics_mgr.render_penetration)
+				{
+					std::vector<glm::vec3> penetration_points(debug_resolved_contacts.size() * 2);
+					for (auto const contact : debug_resolved_contacts)
+					{
+						penetration_points.emplace_back(contact.contact.point);
+						penetration_points.emplace_back(contact.contact.point + contact.contact.normal * contact.contact.penetration);
+					}
+					res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, glm::vec4(1.0f, 1.0f, 0.0f, 1.0f));
+					s_pipeline_resources.upload_line_point_data(penetration_points.data(), penetration_points.size());
+					glDrawArrays(GL_LINES, 0, penetration_points.size());
+				}
+				if (physics_mgr.render_penetration_resolution)
+				{
+					std::vector<glm::vec3> penetration_points(debug_resolved_contacts.size()*2);
+					for (auto const contact : debug_resolved_contacts)
+					{
+						penetration_points.emplace_back(contact.contact.point);
+						penetration_points.emplace_back(contact.contact.point + contact.contact.normal * contact.contact_lambdas.lambda_contact * scale_lambda_normals);
+					}
+					res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+					s_pipeline_resources.upload_line_point_data(penetration_points.data(), penetration_points.size());
+					glDrawArrays(GL_LINES, 0, penetration_points.size());
+				}
+				if (physics_mgr.render_friction_resolution)
+				{
+					std::vector<glm::vec3> u_points(debug_resolved_contacts.size() * 2);
+					std::vector<glm::vec3> v_points(debug_resolved_contacts.size() * 2);
+					for (auto const contact : debug_resolved_contacts)
+					{
+						u_points.emplace_back(contact.contact.point);
+						u_points.emplace_back(contact.contact.point + contact.vec_u * contact.contact_lambdas.lambda_friction_u * scale_lambda_normals);
+						v_points.emplace_back(contact.contact.point);
+						v_points.emplace_back(contact.contact.point + contact.vec_v * contact.contact_lambdas.lambda_friction_v * scale_lambda_normals);
+
+						res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
+						s_pipeline_resources.upload_line_point_data(u_points.data(), v_points.size());
+						glDrawArrays(GL_LINES, 0, u_points.size());
+
+						res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, glm::vec4(0.0f, 0.0f, 1.0f, 1.0f));
+						s_pipeline_resources.upload_line_point_data(v_points.data(), v_points.size());
+						glDrawArrays(GL_LINES, 0, v_points.size());
+					}
+
+
+				}
+				
+				glBindVertexArray(0);
+			}
 
 			glLineWidth(2.0f);
 			for (auto [e, ch_handle] : collider_mgr.m_data.m_entity_map)
@@ -928,7 +996,7 @@ namespace Sandbox
 					for (auto& primitive : primitive_list)
 					{
 						glm::vec4 use_base_color;
-						if (set_intersection_base_color)
+						if (set_intersection_base_color && false /*Disable coloring on collision*/)
 							use_base_color = glm::vec4(0.0f, 1.0f, 0.0f, 0.75f);
 						else
 							use_base_color = res_mgr.GetMaterial(primitive.m_material_handle).m_pbr_metallic_roughness.m_base_color_factor;

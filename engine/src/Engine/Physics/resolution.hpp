@@ -9,8 +9,10 @@ namespace Physics {
 
 	void compute_resolution_gauss_seidel(
 		global_contact_data& _global_contact_data,
-		unsigned int _iterations,
-		float _dt, float _beta
+		unsigned int _iterations, 
+		unsigned int _friction_iterations, 
+		float _dt, 
+		float _beta
 	);
 
 }
