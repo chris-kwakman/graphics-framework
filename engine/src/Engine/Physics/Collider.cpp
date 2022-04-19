@@ -332,7 +332,10 @@ namespace Component
 		m_data.m_entity_intersections.clear();
 
 		global_contact_data& mgr_global_contact_data = m_data.m_global_contact_data;
-		mgr_global_contact_data = global_contact_data();
+		mgr_global_contact_data.all_contacts.clear();
+		mgr_global_contact_data.all_contact_manifolds.clear();
+		mgr_global_contact_data.debug_draw_lines.clear();
+		mgr_global_contact_data.debug_draw_points.clear();
 
 		std::array<contact, 128>	contact_stack_arr;
 		size_t						contact_stack_size = 0;

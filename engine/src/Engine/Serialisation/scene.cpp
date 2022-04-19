@@ -16,7 +16,7 @@ namespace Serialisation {
 
 		nlohmann::json const& json_component_managers = _j["ComponentManagers"];
 		auto& component_managers = ICompManager::GetRegisteredComponentManagers();
-		for each (ICompManager * mgr in component_managers)
+		for (ICompManager * mgr : component_managers)
 			mgr->Deserialize(json_component_managers);
 	}
 
@@ -28,7 +28,7 @@ namespace Serialisation {
 
 		nlohmann::json & json_component_managers = _j["ComponentManagers"];
 		auto& component_managers = ICompManager::GetRegisteredComponentManagers();
-		for each (ICompManager * mgr in component_managers)
+		for (ICompManager * mgr : component_managers)
 			mgr->Serialize(json_component_managers);
 	}
 

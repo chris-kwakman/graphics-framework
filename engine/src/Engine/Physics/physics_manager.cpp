@@ -49,6 +49,7 @@ namespace Physics {
 				if(!paused)
 					m_session_data.end = m_session_data.begin + peek_frame;
 			}
+			ImGui::BeginDisabled(!paused);
 			step = ImGui::Button("Physics Step");
 			if (step)
 			{
@@ -58,6 +59,13 @@ namespace Physics {
 					peek_frame++;
 				}
 			}
+			if (ImGui::SliderInt("Frame Record", &peek_frame, 0, frame_count - 1, "%d"))
+			{
+				size_t const frame_index = (m_session_data.begin + peek_frame) % m_session_data.rigidbody_frame_data.max_size();
+				Singleton<Component::RigidBodyManager>().Deserialize(m_session_data.rigidbody_frame_data[frame_index]);
+				Singleton<Component::RigidBodyManager>().UpdateTransforms();
+			}
+			ImGui::EndDisabled();
 
 			int iters = 0;
 			iters = resolution_iterations_penetration;
@@ -72,15 +80,6 @@ namespace Physics {
 			ImGui::Checkbox("Render Penetration Resolution", &render_penetration_resolution);
 			ImGui::Checkbox("Render Friction Resolution", &render_friction_resolution);
 			ImGui::SliderFloat("Scale Resolution Lambda Vectors", &scale_lambda_resolution_vectors, 1.0f, 25.0f, "%.2f");
-
-			ImGui::BeginDisabled(!paused);
-			if (ImGui::SliderInt("Frame Record", &peek_frame, 0, frame_count - 1, "%d"))
-			{
-				size_t const frame_index = (m_session_data.begin + peek_frame) % m_session_data.rigidbody_frame_data.max_size();
-				Singleton<Component::RigidBodyManager>().Deserialize(m_session_data.rigidbody_frame_data[frame_index]);
-				Singleton<Component::RigidBodyManager>().UpdateTransforms();
-			}
-			ImGui::EndDisabled();
 
 
 			// Display contacts this frame

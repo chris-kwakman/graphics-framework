@@ -447,16 +447,15 @@ namespace Physics {
 				for (half_edge_data_structure::vertex_idx const vtx_idx : horizon_face_conflict_vertices)
 					process_vertices.push_back(vtx_idx);
 
-				merge_conflict_queues(
-					vertex_conflicts_queue,
-					create_hull_conflict_lists(
-						hull,
-						face_conflict_lists,
-						existing_vertices,
-						process_vertices,
-						new_faces
-					)
+				auto hull_conflict_list = create_hull_conflict_lists(
+					hull,
+					face_conflict_lists,
+					existing_vertices,
+					process_vertices,
+					new_faces
 				);
+
+				merge_conflict_queues(vertex_conflicts_queue, hull_conflict_list);
 
 			}
 		}
