@@ -5,6 +5,8 @@
 #include <Engine/Components/Camera.h>
 #include <Engine/Components/Nameable.h>
 
+#include <Engine/Components/Rigidbody.h>
+
 #include <Engine/Editor/editor.h>
 
 #include <SDL2/SDL_scancode.h>
@@ -532,6 +534,9 @@ namespace Component
 		else
 			transform_matrix = transform_component.GetLocalTransform().GetMatrix();
 
+		auto world_transform = transform_component.ComputeWorldTransform();
+		glm::vec3 old_pos = world_transform.position;
+
 		bool is_manipulated = false;
 		is_manipulated = ImGuizmo::Manipulate(
 			&matrix_view[0][0],
@@ -557,6 +562,19 @@ namespace Component
 					(transform_component.ComputeWorldTransform() * transform_component.GetLocalTransform().GetInverse()).GetInverse()
 					* transform
 				);
+			}
+
+			world_transform = transform_component.ComputeWorldTransform();
+
+			glm::vec3 new_pos = world_transform.position;
+
+			auto rigidbody = _entity.GetComponent<Component::RigidBody>();
+			if (rigidbody.IsValid())
+			{
+				auto rb_data = rigidbody.GetRigidBodyData();
+				rb_data.angular_momentum = glm::vec3(0.0f);
+				rb_data.set_linear_velocity((new_pos - old_pos) / 60.0f);
+				rigidbody.SetRigidBodyData(rb_data);
 			}
 		}
 
