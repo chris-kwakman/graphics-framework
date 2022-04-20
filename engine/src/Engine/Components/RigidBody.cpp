@@ -448,4 +448,20 @@ namespace Component
 		GetManager().SetEntityRigidBodyData(Owner(), _rb_data);
 	}
 
+	void RigidBody::UseColliderInertia()
+	{
+		Component::Collider collider_comp = Owner().GetComponent<Component::Collider>();
+		if (collider_comp.IsValid())
+		{
+			auto rb_data = GetRigidBodyData();
+			glm::vec3 const scale = Owner().GetComponent<Component::Transform>().ComputeWorldTransform().scale;
+			glm::vec3 cm;
+			float mass;
+			rb_data.inertial_tensor = Engine::Physics::inertialTensorConvexHull(collider_comp.GetConvexHull(), &mass, &cm, scale);
+			rb_data.inv_inertial_tensor = glm::inverse(rb_data.inertial_tensor);
+			rb_data.set_mass(mass);
+			SetRigidBodyData(rb_data);
+		}
+	}
+
 }

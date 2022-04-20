@@ -15,6 +15,7 @@ namespace Component
 
 		Engine::Physics::rigidbody_data	GetRigidBodyData() const;
 		void SetRigidBodyData(Engine::Physics::rigidbody_data const& _rb_data);
+		void UseColliderInertia();
 	};
 
 	class RigidBodyManager : public TCompManager<RigidBody>
