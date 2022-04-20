@@ -112,8 +112,10 @@ namespace Physics {
         float const I_yz = (a.accum_int_y2z) - mass * (cm.y * cm.z);
         float const I_xz = (a.accum_int_z2x) - mass * (cm.x * cm.z);
 
-        *out_mass = mass;
-        *out_cm = cm;
+        if (out_mass)
+            *out_mass = mass;
+        if (out_cm)
+            *out_cm = cm;
 
         return glm::mat3(
             I_xx, -I_xy, -I_xz,

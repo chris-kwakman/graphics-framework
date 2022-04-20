@@ -14,6 +14,7 @@
 #include <glm/gtc/epsilon.hpp>
 #include <glm/geometric.hpp>
 
+#include "inertia.hpp"
 
 namespace Engine {
 namespace Physics {
@@ -102,7 +103,7 @@ namespace Physics {
 				glm::vec3 const proj_point = project_point_to_plane(curr_face_plane_point, curr_face_normal, point);
 				float const dot = glm::dot(curr_face_normal, point - proj_point);
 				// TODO: Consider fat planes.
-				if (dot > FLT_EPSILON)
+				if (dot > 0.00001f)
 				{
 					// Keep track of all vertices that are visible to the current face.
 					// This will be used for re-partitioning vertices
@@ -184,39 +185,44 @@ namespace Physics {
 			//TODO: Create largest possible initial tetrahedron rather than taking a
 			// random triangle and picking the furthest vertex.
 
-			//// Get vertices in maximum directions along all axes.
-			//struct axis_max_vertex
-			//{
-			//	float		abs_distance = -std::numeric_limits<float>::max();
-			//	vertex_idx	vertex = -1;
-			//};
-			//axis_max_vertex maximal_vertices[6];
-			//for (vertex_idx v = 0; v < _vertex_count; v++)
-			//{
-			//	for (int i = 0; i < 6; i++)
-			//	{
-			//		float sign = float(-1+2*(i % 2));
-			//		if (float dist = _vertices[v][i / 2]; sign * dist > maximal_vertices[i].abs_distance)
-			//		{
-			//			maximal_vertices[i].abs_distance = sign * dist;
-			//			maximal_vertices[i].vertex = v;
-			//		}
-			//	}
-			//}
-			//int max_axis = 0;
-			//float max_dist = 0.0f;
-			//for (size_t i = 0; i < 3; i++)
-			//{
-			//	float new_dist = maximal_vertices[2 * i + 1].abs_distance - maximal_vertices[2 * i].abs_distance;
-			//	if (new_dist > max_dist)
-			//	{
-			//		max_axis = i;
-			//		max_dist = new_dist;
-			//	}
-			//}
+			// Get vertices in maximum directions along all axes.
+			struct axis_max_vertex
+			{
+				float		abs_distance = -std::numeric_limits<float>::max();
+				vertex_idx	vertex = -1;
+			};
+			axis_max_vertex maximal_vertices[6];
+			for (vertex_idx v = 0; v < _vertex_count; v++)
+			{
+				for (int i = 0; i < 6; i++)
+				{
+					float sign = float(-1+2*(i % 2));
+					if (float dist = _vertices[v][i / 2]; sign * dist > maximal_vertices[i].abs_distance)
+					{
+						maximal_vertices[i].abs_distance = sign * dist;
+						maximal_vertices[i].vertex = v;
+					}
+				}
+			}
+			int max_axis = 0;
+			float max_dist = 0.0f;
+			for (size_t i = 0; i < 3; i++)
+			{
+				float new_dist = maximal_vertices[2 * i + 1].abs_distance - maximal_vertices[2 * i].abs_distance;
+				if (new_dist > max_dist)
+				{
+					max_axis = i;
+					max_dist = new_dist;
+				}
+			}
 
 
-			glm::vec3 const init_triangle[3] = { _vertices[0], _vertices[1], _vertices[2] };
+			glm::vec3 const init_triangle[3] = {
+				_vertices[maximal_vertices[0].vertex],
+				_vertices[maximal_vertices[1].vertex],
+				_vertices[maximal_vertices[2].vertex]
+			};
+			//glm::vec3 const init_triangle[3] = { _vertices[0], _vertices[1], _vertices[2] };
 			glm::vec3 const init_tri_normal = glm::cross(_vertices[1] - _vertices[0], _vertices[2] - _vertices[0]);
 			vertex_idx extreme_vtx_idx = -1;
 			float max_dot = 0.0f;
@@ -487,6 +493,12 @@ namespace Physics {
 			existing_edges,
 			existing_faces
 		);
+
+		// Move vertices such that center of mass becomes origin of the half-edge data structure.
+		glm::vec3 out_cm;
+		inertialTensorConvexHull(&hull, nullptr, &out_cm);
+		for (auto& vertex : hull.m_vertices)
+			vertex -= out_cm;
 
 		return hull;
 	}

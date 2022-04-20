@@ -141,7 +141,7 @@ namespace Physics {
 		using half_edge = half_edge_data_structure::half_edge;
 		using face = half_edge_data_structure::face;
 		using half_edge_idx = half_edge_data_structure::half_edge_idx;
-		using face_idx = half_edge_data_structure::half_edge_idx;
+		using face_idx = half_edge_data_structure::face_idx;
 
 		auto get_twin_index = [&](half_edge_idx _edge)->half_edge_idx& {return _ch.m_edges[_edge].m_twin_edge; };
 		auto get_next_index = [&](half_edge_idx _edge)->half_edge_idx& {return _ch.m_edges[_edge].m_next_edge; };
@@ -296,7 +296,7 @@ namespace Physics {
 		using half_edge = half_edge_data_structure::half_edge;
 		using face = half_edge_data_structure::face;
 		using half_edge_idx = half_edge_data_structure::half_edge_idx;
-		using face_idx = half_edge_data_structure::half_edge_idx;
+		using face_idx = half_edge_data_structure::face_idx;
 
 		auto get_twin_index = [&](half_edge_idx _edge)->half_edge_idx& {return _ch.m_edges[_edge].m_twin_edge; };
 		auto get_next_index = [&](half_edge_idx _edge)->half_edge_idx& {return _ch.m_edges[_edge].m_next_edge; };
