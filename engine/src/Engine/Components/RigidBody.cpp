@@ -195,9 +195,10 @@ namespace Component
 		Component::Collider collider_comp = _entity.GetComponent<Component::Collider>();
 		if (collider_comp.IsValid() && ImGui::Button("Use Convex Hull Inertial Tensor"))
 		{
+			glm::vec3 const scale = _entity.GetComponent<Component::Transform>().ComputeWorldTransform().scale;
 			glm::vec3 cm;
 			float mass;
-			rb_data.inertial_tensor = Engine::Physics::inertialTensorConvexHull(collider_comp.GetConvexHull(), &mass, &cm);
+			rb_data.inertial_tensor = Engine::Physics::inertialTensorConvexHull(collider_comp.GetConvexHull(), &mass, &cm, scale);
 			rb_data.inv_inertial_tensor = glm::inverse(rb_data.inertial_tensor);
 			rb_data.set_mass(mass);
 		}

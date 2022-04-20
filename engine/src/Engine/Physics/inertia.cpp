@@ -4,7 +4,7 @@
 namespace Engine {
 namespace Physics {
 
-    glm::mat3 inertialTensorConvexHull(half_edge_data_structure const* _convex_hull, float * _out_mass, glm::vec3 * _out_cm)
+    glm::mat3 inertialTensorConvexHull(half_edge_data_structure const* _convex_hull, float * _out_mass, glm::vec3 * _out_cm, glm::vec3 _scale)
     {
         if (!_convex_hull)
             return glm::mat3(1.0f);
@@ -17,16 +17,16 @@ namespace Physics {
             for (size_t i = 1; i < face.m_vertices.size() - 2; i++)
             {
                 arr = {
-                    _convex_hull->m_vertices[face.m_vertices[0]],
-                    _convex_hull->m_vertices[face.m_vertices[i]],
-                    _convex_hull->m_vertices[face.m_vertices[i + 1]]
-                };
+                    _convex_hull->m_vertices[face.m_vertices[0]] * _scale,
+                    _convex_hull->m_vertices[face.m_vertices[i]] * _scale,
+                    _convex_hull->m_vertices[face.m_vertices[i + 1]] * _scale
+                };                                                  
                 hull_triangles.emplace_back(std::move(arr));
             }
             arr = { 
-                _convex_hull->m_vertices[face.m_vertices[0]],
-                _convex_hull->m_vertices[face.m_vertices[face.m_vertices.size() - 2]],
-                _convex_hull->m_vertices[face.m_vertices[face.m_vertices.size() - 1]]
+                _convex_hull->m_vertices[face.m_vertices[0]] * _scale,
+                _convex_hull->m_vertices[face.m_vertices[face.m_vertices.size() - 2]]* _scale,
+                _convex_hull->m_vertices[face.m_vertices[face.m_vertices.size() - 1]]* _scale
             };
             hull_triangles.emplace_back(std::move(arr));
         }
