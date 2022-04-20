@@ -81,11 +81,9 @@ namespace Physics {
 		return { t, 0, plane_normal };
 	}
 
-#define DEBUG_IN_WORLD_SPACE
-
 	EIntersectionType intersect_convex_hulls_sat(
-		half_edge_data_structure const& _hull1, transform3D const & _transform1, 
-		half_edge_data_structure const& _hull2, transform3D const & _transform2,
+		half_edge_data_structure const& _hull1, transform3D const & _transform1, uint16_t _entity_id_1, 
+		half_edge_data_structure const& _hull2, transform3D const & _transform2, uint16_t _entity_id_2,
 		contact * _out_contacts, size_t * _out_contact_count, 
 		bool* _reference_is_hull1
 	)
@@ -114,7 +112,6 @@ namespace Physics {
 		// Used later for edge-edge intersection tests.
 		glm::vec3 hull1_center(0.0f);
 
-#ifdef DEBUG_IN_WORLD_SPACE
 		std::vector<glm::vec3> hull1_vertices(_hull1.m_vertices);
 		std::vector<glm::vec3> hull2_vertices(_hull2.m_vertices);
 
@@ -129,16 +126,6 @@ namespace Physics {
 		for (size_t i = 0; i < hull2_vertices.size(); i++)
 			hull2_vertices[i] = mat_2_to_world * glm::vec4(hull2_vertices[i], 1.0f);
 		hull1_center /= float( hull1_vertices.size());
-#else
-		std::vector<glm::vec3> const& hull1_vertices = _hull1.m_vertices;
-		std::vector<glm::vec3> hull2_vertices(_hull2.m_vertices);
-
-		// Rather than performing the intersection in world space, we perform the intersection in the local space of one
-		// of the passed convex hulls. This way, we only have to transform one set of vertices rather than both.
-		glm::mat4 const mat_2_to_1 = (_transform1.GetInverse() * _transform2).GetMatrix();
-		for (size_t i = 0; i < hull2_vertices.size(); i++)
-			hull2_vertices[i] = mat_2_to_1 * glm::vec4(hull2_vertices[i], 1.0f);
-#endif // DEBUG_IN_WORLD_SPACE
 
 
 		float minimum_separation = -std::numeric_limits<float>::max();
@@ -289,108 +276,104 @@ namespace Physics {
 					half_edge const ref_face_edge = reference_hull.m_edges[reference_face.m_edges[i]];
 					half_edge const ref_sideplane_edge = reference_hull.m_edges[ref_face_edge.m_twin_edge];
 					ref_sideplane_vertices[i] = reference_vertices[reference_face.m_vertices[i]];
-					ref_sideplane_normals[i] = glm::normalize(
-						compute_hds_face_normal(reference_vertices, reference_hull.m_faces, ref_sideplane_edge.m_edge_face)
-					);
+					ref_sideplane_normals[i] = compute_hds_face_normal(reference_vertices, reference_hull.m_faces, ref_sideplane_edge.m_edge_face);
 				}
 			}
 
+			uint16_t const reference_entity_id = _reference_is_hull1 ? _entity_id_1 : _entity_id_2;
+			uint16_t const incident_entity_id = !_reference_is_hull1 ? _entity_id_1 : _entity_id_2;
+
 			// Copy vertices of current incident face to vector.
-			std::vector<glm::vec3> vertices_to_clip(incident_face.m_vertices.size());
-			for (size_t i = 0; i < incident_face.m_vertices.size(); i++)
-				vertices_to_clip[i] = incident_vertices[incident_face.m_vertices[i]];
+			// Create list of contacts to clip.
+			std::vector<contact> contacts_to_clip(incident_face.m_vertices.size());
+			for (int i = 0; i < contacts_to_clip.size(); i++)
+			{
+				contact & new_contact = contacts_to_clip[i];
+				contact_identifier identifier;
+				identifier.edge_index_1 = incident_face.m_edges[(i - 1) % contacts_to_clip.size()];
+				identifier.edge_index_2 = incident_face.m_edges[i];
+				identifier.entity_id_1 = incident_entity_id;
+				identifier.entity_id_2 = incident_entity_id;
+				new_contact.point = incident_vertices[incident_face.m_vertices[i]];
+				new_contact.normal = reference_face_normal;
+				new_contact.identifier = identifier;
+				// Set penetration later
+			}
 
 			// Clip segments formed by point list against sideplanes one-by-one.
-			std::vector<glm::vec3> clipped_vertices;
+			// Sutherland-Hodgeman clipping algorithm.
+			std::vector<contact> clipped_contacts(std::move(contacts_to_clip));
 			{
-				// Allocate block for storing clipped vertices on stack.
-				size_t const MAX_TEMP_VERTICES = 64;
-				bool vtx_inside[MAX_TEMP_VERTICES];
-				glm::vec3 tmp_clipped_vertices[MAX_TEMP_VERTICES];
-				size_t iter_clipped_vertices = 0;
-
-				for (size_t i = 0; i < ref_sideplane_vertices.size(); i++)
+				for (int clipping_sideplane_idx = 0; clipping_sideplane_idx < ref_sideplane_vertices.size(); clipping_sideplane_idx++)
 				{
-					glm::vec3 const sideplane_vtx = ref_sideplane_vertices[i];
-					glm::vec3 const sideplane_normal = ref_sideplane_normals[i];
+					contacts_to_clip = std::move(clipped_contacts);
+					glm::vec3 const sideplane_n = ref_sideplane_normals[clipping_sideplane_idx];
+					glm::vec3 const sideplane_p = ref_sideplane_vertices[clipping_sideplane_idx];
 
-					iter_clipped_vertices = 0;
-
-					// Compute which points are inside the volume for all clipping points simultaneously.
-					points_inside_planes(
-						&ref_sideplane_vertices[i], &ref_sideplane_normals[i], 1,
-						vertices_to_clip.data(), vertices_to_clip.size(), vtx_inside
-					);
-
-					// Sutherland-Hodgeman algorithm
-					for (size_t j = 0; j < vertices_to_clip.size(); j++)
+					for (int i = 0; i < contacts_to_clip.size(); i++)
 					{
-						size_t const k = (j + 1) % (vertices_to_clip.size());
-						glm::vec3 const p1 = vertices_to_clip[j]; // Prev
-						glm::vec3 const p2 = vertices_to_clip[k]; // Current
+						int const prev_point_idx = (i == 0) ? contacts_to_clip.size() - 1 : i-1;
+						glm::vec3 const contact_points[2] = { 
+							contacts_to_clip[prev_point_idx].point,
+							contacts_to_clip[i].point
+						};
+						glm::vec3 const & cp_prev = contact_points[0];
+						glm::vec3 const & cp_current = contact_points[1];
+						contact_identifier const identifier_curr = contacts_to_clip[1].identifier;
 
-						// If either the start OR end point (not both) are
-						// inside the volumes defined by the side planes,
-						// add the segment to the list of clipped points.
-						if (vtx_inside[j] != vtx_inside[k])
+						float const intersection_t = -glm::dot(cp_prev - sideplane_p, sideplane_n) / glm::dot(cp_current - cp_prev, sideplane_n);
+
+						bool contact_points_inside[2];
+						points_behind_planes(
+							&ref_sideplane_vertices[clipping_sideplane_idx],
+							&ref_sideplane_normals[clipping_sideplane_idx],
+							1,
+							contact_points,
+							2,
+							contact_points_inside
+						);
+						if (contact_points_inside[1])
 						{
-							float const t = intersect_segment_planes(
-								p1, p2, &sideplane_vtx, &sideplane_normal, 1
-							);
-							tmp_clipped_vertices[iter_clipped_vertices++] = p1 + t * (p2 - p1);
+							if (!contact_points_inside[0])
+							{
+								contact contact_intersect;
+								contact_intersect.point = cp_prev + intersection_t * (cp_current - cp_prev);
+								contact_intersect.normal = reference_face_normal;
+								contact_intersect.identifier = identifier_curr;
+								contact_intersect.identifier.entity_id_1 = reference_entity_id;
+								contact_intersect.identifier.edge_index_1 = reference_face.m_edges[clipping_sideplane_idx];
+								clipped_contacts.emplace_back(contact_intersect);
+							}
+							clipped_contacts.emplace_back(contacts_to_clip[i]);
 						}
-
-						// If the end point is inside the volume, add the end point
-						// to the list of clipped points.
-						if (!vtx_inside[k])
-							tmp_clipped_vertices[iter_clipped_vertices++] = p2;
+						else if (contact_points_inside[0])
+						{
+							contact contact_intersect;
+							contact_intersect.point = cp_prev + intersection_t * (cp_current - cp_prev);
+							contact_intersect.normal = reference_face_normal;
+							contact_intersect.identifier = identifier_curr;
+							contact_intersect.identifier.entity_id_2 = reference_entity_id;
+							contact_intersect.identifier.edge_index_2 = reference_face.m_edges[clipping_sideplane_idx];
+							clipped_contacts.emplace_back(contact_intersect);
+						}
 					}
 
-					// Load clipped vertices back into vertices_to_clip.
-					vertices_to_clip.resize(iter_clipped_vertices);
-					for (size_t i = 0; i < iter_clipped_vertices; i++)
-						vertices_to_clip[i] = tmp_clipped_vertices[i];
 				}
-
-				// Load clipped vertices into final vector for processing.
-				clipped_vertices.resize(iter_clipped_vertices);
-				for (size_t i = 0; i < iter_clipped_vertices; i++)
-					clipped_vertices[i] = tmp_clipped_vertices[i];
 			}
 
 			// Compute penetration of each clipped point.
 			// Only keep contact points with positive penetration
 			std::vector<contact> contact_points;
+			contact_points.reserve(clipped_contacts.size());
 
-#ifdef DEBUG_IN_WORLD_SPACE
-			glm::vec3 const world_normal = reference_face_normal;
-			for (size_t i = 0; i < clipped_vertices.size(); i++)
+			for (size_t i = 0; i < clipped_contacts.size(); i++)
 			{
-				contact icp;
-
-				icp.point = clipped_vertices[i];
-				icp.penetration = -glm::dot(clipped_vertices[i] - reference_face_vtx, world_normal);
-				icp.normal = world_normal;
+				contact & icp = clipped_contacts[i];
+				icp.penetration = -glm::dot(icp.point - reference_face_vtx, icp.normal);
 
 				if (icp.penetration > glm::epsilon<float>())
 					contact_points.emplace_back(icp);
 			}
-#else
-			glm::mat4 const mat_1_to_world = _transform1.GetMatrix();
-			glm::vec3 const world_normal = glm::inverse(glm::transpose(mat_1_to_world)) * glm::vec4(reference_face_normal, 0.0f);
-			for (size_t i = 0; i < clipped_vertices.size(); i++)
-			{
-				contact icp;
-
-				icp.point = mat_1_to_world * glm::vec4(clipped_vertices[i], 1.0f);
-				glm::vec3 world_ref_face_vtx = mat_1_to_world * glm::vec4(reference_face_vtx, 1.0f);
-				icp.penetration = -glm::dot(icp.point - world_ref_face_vtx, world_normal);
-				icp.normal = world_normal;
-
-				if (icp.penetration > glm::epsilon<float>())
-					contact_points.emplace_back(icp);
-			}
-#endif // DEBUG_IN_WORLD_SPACE
 
 			//assert(contact_vec.empty() && "All points have been clipped - bug in implementation.");
 
@@ -432,12 +415,7 @@ namespace Physics {
 			t2 = std::clamp(t2, 0.0f, 1.0f);
 
 			// Compute contact points in world space.			
-#ifdef DEBUG_IN_WORLD_SPACE
 			glm::vec3 intersection_points[2] = { p1 + t1 * v1, p2 + t2 * v2};
-#else
-			glm::mat4 const mat_1_to_world = _transform1.GetMatrix();
-			glm::vec4 intersection_points[2] = { mat_1_to_world * glm::vec4(p1 + t1 * v1, 1.0f), mat_1_to_world * glm::vec4(p2 + t2 * v2, 1.0f) };
-#endif // DEBUG_IN_WORLD_SPACE
 
 			float distance = glm::distance(intersection_points[0], intersection_points[1]);
 
@@ -445,6 +423,11 @@ namespace Physics {
 			new_contact.point = intersection_points[0];
 			new_contact.normal = (intersection_points[1] - intersection_points[0]) / distance;
 			new_contact.penetration = distance;
+			contact_identifier new_identifier;
+			new_identifier.entity_id_1 = _entity_id_1;
+			new_identifier.entity_id_2 = _entity_id_2;
+			new_identifier.edge_index_1 = h1_e_idx;
+			new_identifier.edge_index_2 = h2_e_idx;
 
 			// Output data.
 			_out_contacts[0] = new_contact;
@@ -459,7 +442,7 @@ namespace Physics {
 	}
 
 
-	void points_inside_planes(
+	void points_behind_planes(
 		glm::vec3 const* _plane_vertices, 
 		glm::vec3 const* _plane_normals, 
 		size_t const _plane_count,
@@ -474,7 +457,7 @@ namespace Physics {
 			for (size_t j = 0; j < _plane_count; j++)
 			{
 				float const dot = glm::dot(_p[i] - _plane_vertices[j], _plane_normals[j]);
-				inside_planes &= dot > -glm::epsilon<float>();
+				inside_planes &= dot < glm::epsilon<float>();
 			}
 			_out_results[i] = inside_planes;
 		}

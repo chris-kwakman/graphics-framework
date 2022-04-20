@@ -848,6 +848,7 @@ namespace Sandbox
 			// Debug convex hull rendering for physics objects
 			using namespace Engine::Physics;
 			auto const & collider_mgr = Singleton<Component::ColliderManager>();
+			auto const& physics_mgr = Singleton<Engine::Physics::ScenePhysicsManager>();
 
 			glDepthMask(GL_TRUE);
 			glEnable(GL_DEPTH_TEST);
@@ -855,7 +856,7 @@ namespace Sandbox
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-			if (!collider_mgr.m_data.m_intersection_results.empty())
+			if (!collider_mgr.m_data.m_intersection_results.empty() && physics_mgr.render_contacts)
 			{
 				using namespace Component;
 				using namespace Engine::Physics;
@@ -902,7 +903,6 @@ namespace Sandbox
 				auto const& line_point_prim_data = gfx_mgr.GetMeshPrimitives(
 					s_pipeline_resources.line_point_mesh_handle
 				);
-				auto const& physics_mgr = Singleton<Engine::Physics::ScenePhysicsManager>();
 
 				res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, matrix_vp);
 				res_mgr.SetBoundProgramUniform(LOC_HIGHLIGHT_INDEX, (int)-1);
@@ -929,7 +929,7 @@ namespace Sandbox
 					for (auto const contact : debug_resolved_contacts)
 					{
 						penetration_points.emplace_back(contact.contact.point);
-						penetration_points.emplace_back(contact.contact.point + contact.contact.normal * contact.contact_lambdas.lambda_contact * scale_lambda_normals);
+						penetration_points.emplace_back(contact.contact.point + contact.contact.normal * contact.contact_lambdas.lambda_penetration * scale_lambda_normals);
 					}
 					res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
 					s_pipeline_resources.upload_line_point_data(penetration_points.data(), penetration_points.size());

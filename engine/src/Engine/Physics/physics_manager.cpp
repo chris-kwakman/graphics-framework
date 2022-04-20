@@ -75,7 +75,9 @@ namespace Physics {
 			if (ImGui::DragInt("Friction Constraint Iterations", &iters, 0.1f, 1, 128, "%d", ImGuiSliderFlags_AlwaysClamp))
 				resolution_iterations_friction = iters;
 			ImGui::SliderFloat("Constraint Solver Beta", &beta, 0.0f, 1.0f, "%.3f");
+			ImGui::Checkbox("Contact Caching", &contact_caching);
 
+			ImGui::Checkbox("Render Contacts", &render_contacts);
 			ImGui::Checkbox("Render Penetration Vectors", &render_penetration);
 			ImGui::Checkbox("Render Penetration Resolution", &render_penetration_resolution);
 			ImGui::Checkbox("Render Friction Resolution", &render_friction_resolution);
@@ -94,12 +96,12 @@ namespace Physics {
 				for (contact_manifold const cm : global_contact_data.all_contact_manifolds)
 				{
 					ImGui::Separator();
-					ImGui::Text("RigidBody A: %s (ID: %u)", cm.rigidbody_A.Owner().GetName(), cm.rigidbody_A.Owner().ID());
-					ImGui::Text("RigidBody B: %s (ID: %u)", cm.rigidbody_B.Owner().GetName(), cm.rigidbody_B.Owner().ID());
-					ImGui::Text("Contact Count: %u", cm.contact_count);
-					ImGui::Text("Is edge-edge intersection: %s", cm.is_edge_edge ? "true" : "false");
+					ImGui::Text("RigidBody A: %s (ID: %u)", cm.rigidbodies.first.Owner().GetName(), cm.rigidbodies.first.Owner().ID());
+					ImGui::Text("RigidBody B: %s (ID: %u)", cm.rigidbodies.second.Owner().GetName(), cm.rigidbodies.second.Owner().ID());
+					ImGui::Text("Contact Count: %u", cm.data.contact_count);
+					ImGui::Text("Is edge-edge intersection: %s", cm.data.is_edge_edge ? "true" : "false");
 					ImGui::Indent(); 
-					for (size_t i = cm.first_contact_index; i < cm.first_contact_index + cm.contact_count; i++)
+					for (size_t i = cm.data.first_contact_index; i < cm.data.first_contact_index + cm.data.contact_count; i++)
 					{
 						contact c = all_contacts[i];
 						ImGui::Text("Point: (%.2f, %.2f, %.2f)", c.point.x, c.point.y, c.point.z);

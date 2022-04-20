@@ -32,7 +32,7 @@ TEST(Sat, cubeIntersectionFace)
     rhs_m2w.rotation = glm::quat(glm::radians(glm::vec3({ 0, 60, 0 })));
     rhs_m2w.position = glm::vec3({ 1,0,0 });
 
-    auto result = intersect_convex_hulls_sat(shape, lhs_m2w, shape, rhs_m2w);
+    auto result = intersect_convex_hulls_sat(shape, lhs_m2w, 0, shape, rhs_m2w, 1);
     ASSERT_TRUE(result & EIntersectionType::eAnyIntersection);
     ASSERT_TRUE(result & EIntersectionType::eFaceIntersection);
 }
@@ -49,7 +49,7 @@ TEST(Sat, cubeIntersectionEdges)
     rhs_m2w.rotation = glm::quat(glm::radians(glm::vec3({ 45, 45, 0 })));
     rhs_m2w.position = glm::vec3({ 1, 0.75, -2 });
 
-    auto result = intersect_convex_hulls_sat(shape, lhs_m2w, shape, rhs_m2w);
+    auto result = intersect_convex_hulls_sat(shape, lhs_m2w, 0, shape, rhs_m2w, 1);
     ASSERT_TRUE(result & EIntersectionType::eAnyIntersection);
     ASSERT_TRUE(result & EIntersectionType::eEdgeIntersection);
 }
@@ -67,7 +67,7 @@ TEST(Sat, convexHullIntersectionFace)
     rhs_m2w.rotation = glm::quat(glm::radians(glm::vec3({ 0, 60, 0 })));
     rhs_m2w.position = glm::vec3({ 2.07,0,0 });
 
-    auto result = intersect_convex_hulls_sat(shape, lhs_m2w, shape, rhs_m2w);
+    auto result = intersect_convex_hulls_sat(shape, lhs_m2w, 0, shape, rhs_m2w, 1);
     ASSERT_TRUE(result & EIntersectionType::eAnyIntersection);
     ASSERT_TRUE(result & EIntersectionType::eFaceIntersection);
 }
@@ -84,7 +84,7 @@ TEST(Sat, convexHullIntersectionEdges)
     rhs_m2w.rotation = glm::quat(glm::radians(glm::vec3({ 45,45, 0 })));
     rhs_m2w.position = glm::vec3({ 1,0.75,-2 });
 
-    auto result = intersect_convex_hulls_sat(shape, lhs_m2w, shape, rhs_m2w);
+    auto result = intersect_convex_hulls_sat(shape, lhs_m2w, 0, shape, rhs_m2w, 1);
     ASSERT_TRUE(result & EIntersectionType::eAnyIntersection);
     ASSERT_TRUE(result & EIntersectionType::eEdgeIntersection);
 }

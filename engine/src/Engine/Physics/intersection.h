@@ -38,13 +38,13 @@ namespace Physics {
 	@returns	result_convex_hull_intersection
 	*/
 	EIntersectionType intersect_convex_hulls_sat(
-		half_edge_data_structure const& _hull1, transform3D const & _transform1, 
-		half_edge_data_structure const& _hull2, transform3D const & _transform2,
+		half_edge_data_structure const& _hull1, transform3D const & _transform1, uint16_t _entity_id_1, 
+		half_edge_data_structure const& _hull2, transform3D const & _transform2, uint16_t _entity_id_2,
 		contact* _out_contacts = nullptr, size_t* _out_contact_count = nullptr, 
 		bool* _reference_is_hull1 = nullptr
 	);
 
-	void points_inside_planes(
+	void points_behind_planes(
 		glm::vec3 const* _plane_vertices,
 		glm::vec3 const* _plane_normals,
 		size_t const _plane_count,

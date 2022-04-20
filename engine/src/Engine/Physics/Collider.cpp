@@ -371,8 +371,8 @@ namespace Component
 
 				bool hull1_is_reference_face = false;
 				EIntersectionType result = intersect_convex_hulls_sat(
-					chi_1->m_data, tr_1, 
-					chi_2->m_data, tr_2, 
+					chi_1->m_data, tr_1, it1->first.ID(), 
+					chi_2->m_data, tr_2, it2->first.ID(), 
 					contact_stack_arr.data(), &contact_stack_size,
 					&hull1_is_reference_face
 				);
@@ -387,14 +387,14 @@ namespace Component
 					
 					contact_manifold new_cm;
 					// Account for face-face intersection using different collider for reference face.
-					new_cm.rigidbody_A = hull1_is_reference_face ? it1->first : it2->first;
-					new_cm.rigidbody_B = hull1_is_reference_face ? it2->first : it1->first;
+					new_cm.rigidbodies.first = hull1_is_reference_face ? it1->first : it2->first;
+					new_cm.rigidbodies.second = hull1_is_reference_face ? it2->first : it1->first;
 
-					if (new_cm.rigidbody_A.IsValid() && new_cm.rigidbody_B.IsValid())
+					if (new_cm.rigidbodies.first.IsValid() && new_cm.rigidbodies.second.IsValid())
 					{
-						new_cm.first_contact_index = mgr_global_contact_data.all_contacts.size();
-						new_cm.contact_count = contact_stack_size;
-						new_cm.is_edge_edge = (result == EIntersectionType::eEdgeIntersection);
+						new_cm.data.first_contact_index = mgr_global_contact_data.all_contacts.size();
+						new_cm.data.contact_count = contact_stack_size;
+						new_cm.data.is_edge_edge = (result == EIntersectionType::eEdgeIntersection);
 
 						mgr_global_contact_data.all_contact_manifolds.push_back(new_cm);
 						mgr_global_contact_data.all_contacts.insert(
@@ -407,15 +407,15 @@ namespace Component
 
 						auto const & all_contacts = mgr_global_contact_data.all_contacts;
 						auto const & all_manifolds = mgr_global_contact_data.all_contact_manifolds;
-						if (new_cm.is_edge_edge)
+						if (new_cm.data.is_edge_edge)
 						{
-							contact cm_contact = all_contacts[new_cm.first_contact_index];
+							contact cm_contact = all_contacts[new_cm.data.first_contact_index];
 							mgr_global_contact_data.debug_draw_lines.push_back(cm_contact.point);
 							mgr_global_contact_data.debug_draw_lines.push_back(cm_contact.point + cm_contact.normal * cm_contact.penetration);
 						}
 						else
 						{
-							for (size_t i = new_cm.first_contact_index; i < new_cm.first_contact_index + new_cm.contact_count; i++)
+							for (size_t i = new_cm.data.first_contact_index; i < new_cm.data.first_contact_index + new_cm.data.contact_count; i++)
 							{
 								contact cm_contact = all_contacts[i];
 								mgr_global_contact_data.debug_draw_points.push_back(cm_contact.point);
