@@ -227,6 +227,8 @@ void update_loop()
 
 		Singleton<Engine::Editor::Editor>().NewFrame();
 
+		menu_bar();
+
 		Sandbox::Update();
 
 		//TODO: Use frame rate controller DT
@@ -256,7 +258,6 @@ void update_loop()
 
 
 		Singleton<Engine::Managers::ResourceManager>().DisplayEditorWidget();
-		menu_bar();
 		Singleton<Engine::Editor::Editor>().Render();
 
 		sdl_manager.set_gl_debug_state(true);

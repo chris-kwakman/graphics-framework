@@ -16,6 +16,9 @@
 #include <Engine/Components/Transform.h>
 #include <Engine/Components/Camera.h>
 #include <Engine/Components/Rigidbody.h>
+#include <Engine/Components/Renderable.h>
+#include <Engine/Components/RigidBody.h>
+#include "Components/Gravity.hpp"
 #include <Engine/Editor/EditorCameraController.h>
 
 #include <Demo/Components/PlayerController.h>
@@ -407,6 +410,25 @@ namespace Sandbox
 		else return "Undefined";
 	}
 
+	struct physics_object_spawner
+	{
+		enum EObjType { eCube, eSphere, eIcosahedron, eOctohedron, eCylinder, eSuzanne, eBunny };
+		std::unordered_map<EObjType, fs::path> const map {
+			{eCube, "data//meshes//cube.obj"},
+			{eSphere, "data//meshes//sphere.obj" },
+			{eIcosahedron, "data//meshes//icosahedron.obj"},
+			{eOctohedron, "data//meshes//octohedron.obj"},
+			{eCylinder, "data//meshes//cylinder.obj"},
+			{eSuzanne, "data//meshes//suzanne.obj"},
+			{eBunny, "data//meshes//bunny.obj"}
+		};
+		glm::vec3 scale = { 1.0f,1.0f,1.0f };
+		EObjType current_spawn_type = eCube;
+		bool inert = false;
+		bool gravity = true;
+		unsigned int object_counter = 0;
+	} static s_physics_object_spawner;;
+
 	void DummyEditorRender()
 	{
 		// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
@@ -414,6 +436,111 @@ namespace Sandbox
 			ImGui::ShowDemoWindow(&show_demo_window);
 
 		auto& system_resource_manager = Singleton<Engine::Graphics::ResourceManager>();
+
+		static bool show_object_spawner = false;
+		static glm::vec3 object_spawn_scale = glm::vec3(1.0f);
+		if (ImGui::BeginMainMenuBar())
+		{
+			ImGui::MenuItem("Physics Object Spawner", "Ctrl+G", &show_object_spawner);
+			ImGui::EndMainMenuBar();
+		}
+
+		if (ImGui::Begin("Physics Object Spawner", &show_object_spawner))
+		{
+			auto& spawner = s_physics_object_spawner;
+			std::string const obj_name = spawner.map.at(spawner.current_spawn_type).filename().string();
+			if (ImGui::BeginCombo("Object Type", obj_name.c_str(), ImGuiComboFlags_HeightRegular))
+			{
+				auto iter = spawner.map.begin();
+				while (iter != spawner.map.end())
+				{
+					bool selected = false;
+					if (iter->first == spawner.current_spawn_type)
+						selected = true;
+					std::string const obj_name = iter->second.filename().string();
+					if (ImGui::Selectable(obj_name.c_str(), &selected))
+						spawner.current_spawn_type = iter->first;
+					++iter;
+				}
+				ImGui::EndCombo();
+			}
+			ImGui::DragFloat3("Scale", &spawner.scale.x, 0.1f, 0.1f, 25.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+			ImGui::Checkbox("Gravity", &spawner.gravity);
+			ImGui::Checkbox("Inert", &spawner.inert);
+			if (ImGui::Button("Spawn"))
+			{
+				spawner.object_counter++;
+
+				using namespace Engine::ECS;
+				using namespace Engine::Math;
+				using namespace Component;
+				Entity new_entity = Singleton<EntityManager>().EntityCreationRequest();
+				auto transform_comp = Component::Create<Transform>(new_entity);
+				auto collider = Component::Create<Collider>(new_entity);
+				auto renderable = Component::Create<Renderable>(new_entity);
+				auto rigidbody = Component::Create<RigidBody>(new_entity);
+				if(spawner.gravity)
+					auto gravity = Singleton<GravityComponentManager>().Create(new_entity);
+				auto const editor_cam_entity = Singleton<Engine::Editor::Editor>().EditorCameraEntity;
+				transform3D const editor_cam_transform = editor_cam_entity.GetComponent<Transform>().ComputeWorldTransform();
+
+				// Spawn location of new entity
+				transform3D new_entity_transform;
+				new_entity_transform.position = 
+					editor_cam_transform.position + 
+					editor_cam_transform.rotation * glm::vec3(0.0f, 0.0f, -1.0f) * 2.0f * glm::max(spawner.scale.x, glm::max(spawner.scale.y,spawner.scale.z));
+				new_entity_transform.scale = spawner.scale;
+				transform_comp.SetLocalTransform(new_entity_transform);
+
+				// Retrieve (and create if necessary) the collider / mesh resources.
+				auto &actual_res_mgr = Singleton<Engine::Managers::ResourceManager>();
+				fs::path const resource_path = spawner.map.at(spawner.current_spawn_type);
+				auto const mesh_type = actual_res_mgr.find_named_type("Mesh");
+				auto const collider_type = actual_res_mgr.find_named_type("Collider");
+
+				std::string const obj_name = spawner.map.at(spawner.current_spawn_type).filename().string();
+				char buffer[64];
+				snprintf(buffer, sizeof(buffer), "%s %u", obj_name.c_str(), spawner.object_counter);
+				new_entity.SetName(buffer);
+
+
+				bool retried = false;
+				retry:
+				auto obj_resources = actual_res_mgr.get_path_resources(resource_path);
+				Engine::Managers::Resource mesh_resource, collider_resource;
+				for (auto const & resource : obj_resources)
+				{
+					if (resource.m_type == mesh_type)
+						mesh_resource = resource;
+					else if (resource.m_type == collider_type)
+						collider_resource = resource;
+				}
+
+				if (!mesh_resource.Handle() || !collider_resource.Handle())
+				{
+					assert(!retried);
+					actual_res_mgr.load_resource(resource_path, mesh_type);
+					actual_res_mgr.load_resource(resource_path, collider_type);
+					goto retry;
+				}
+
+				collider.SetColliderResource(Engine::Managers::Resource(collider_resource));
+				renderable.SetMesh(Engine::Managers::Resource(mesh_resource));
+
+				if (spawner.inert)
+				{
+					auto rb_data = rigidbody.GetRigidBodyData();
+					rb_data.set_mass(0.0f);
+					rigidbody.SetRigidBodyData(rb_data);
+				}
+				else
+				{
+					rigidbody.UseColliderInertia();
+				}
+			}
+		}
+		ImGui::End();
+
 
 		if (ImGui::Begin("Graphics"))
 		{
