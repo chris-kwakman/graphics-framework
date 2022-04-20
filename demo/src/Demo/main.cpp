@@ -181,10 +181,10 @@ void register_resource_loaders()
 	resource_manager.register_type_extension(type_texture, ".jpeg");
 
 	resource_manager.register_type_extension(type_model, ".gltf");
-	//resource_manager.register_type_extension(type_model, ".obj");
+	resource_manager.register_type_extension(type_model, ".obj");
 
 	resource_manager.register_type_extension(type_convex_hull, ".obj");
-	//resource_manager.register_type_extension(type_convex_hull, ".cs350");
+	resource_manager.register_type_extension(type_convex_hull, ".cs350");
 
 	resource_manager.register_type_extension(type_point_hull, ".cs350");
 }

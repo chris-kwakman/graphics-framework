@@ -96,6 +96,7 @@ namespace Managers
 		uint32_t 			get_resource_handle(resource_id const _id) const;
 		fs::path const&		get_resource_path(resource_id const _id) const;
 		resource_type		get_resource_type(resource_id const _id) const;
+		std::set<resource_typeid> get_path_resources(fs::path const & _path) const;
 
 		resource_id			load_resource(fs::path _path, resource_type _type);
 		resource_id			register_resource(uint32_t const _handle, resource_type const _type, resource_id const _force_id = 0);

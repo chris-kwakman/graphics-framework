@@ -145,6 +145,15 @@ namespace Managers {
 		return data->m_path;
 	}
 
+	std::set<resource_typeid> resource_manager_data::get_path_resources(fs::path const& _path) const
+	{
+		std::set<resource_typeid> set;
+		auto iter = m_map_path_to_resource_id.find(_path);
+		if (iter != m_map_path_to_resource_id.end())
+			set = iter->second;
+		return set;
+	}
+
 	resource_type resource_manager_data::get_resource_type(resource_id const _id) const
 	{
 		auto resource_iter = m_map_resource_id_to_data.find(_id);
