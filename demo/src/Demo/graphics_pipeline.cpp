@@ -237,7 +237,7 @@ namespace Sandbox
 		for (unsigned int renderable_idx = 0; renderable_idx < sorted_renderables.size(); ++renderable_idx)
 		{
 			Engine::ECS::Entity const renderable_entity = sorted_renderables[renderable_idx].first;
-			mesh_handle const renderable_mesh = sorted_renderables[renderable_idx].second;
+			mesh_handle const renderable_mesh = sorted_renderables[renderable_idx].second.Handle();
 			if (renderable_mesh == 0)
 				continue;
 

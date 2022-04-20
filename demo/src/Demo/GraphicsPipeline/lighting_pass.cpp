@@ -245,7 +245,7 @@ namespace Sandbox {
 		for (auto pair : entity_to_renderable_map)
 		{
 			entity_world_matrices.push_back(pair.first.GetComponent<Transform>().ComputeWorldTransform().GetMatrix());
-			entity_renderable_meshes.push_back(pair.second);
+			entity_renderable_meshes.push_back(pair.second.Handle());
 		}
 
 		// TODO: Optimizations like sorting by renderable type, culling against partition AABB's, etc...

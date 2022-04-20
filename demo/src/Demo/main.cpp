@@ -13,6 +13,8 @@
 #include <Engine/Components/Rigidbody.h>
 #include <Engine/Physics/Collider.h>
 
+#include <Engine/Graphics/misc/load_obj_mesh.hpp>
+
 #include <Engine/Managers/resource_manager.h>
 
 #include <Engine/Physics/convex_hull_loader.h>
@@ -173,20 +175,22 @@ void register_resource_loaders()
 	auto dummy_unloader = [](uint32_t _handle) {};
 
 	resource_type const type_texture = resource_manager.register_type("Texture", dummy_loader, dummy_unloader);
-	resource_type const type_model = resource_manager.register_type("Model", dummy_loader, dummy_unloader);
+	resource_type const type_model = resource_manager.register_type("Model", Engine::Graphics::load_obj, Engine::Graphics::unload_obj_mesh);
 	resource_type const type_convex_hull = resource_manager.register_type("Collider", Engine::Physics::LoadConvexHull, Engine::Physics::UnloadConvexHull);
 	resource_type const type_point_hull = resource_manager.register_type("Point Hull", Engine::Physics::LoadPointHull, Engine::Physics::UnloadPointHull);
+	resource_type const type_mesh = resource_manager.register_type("Mesh", Engine::Graphics::load_obj, Engine::Graphics::unload_obj_mesh);
 
 	resource_manager.register_type_extension(type_texture, ".png");
 	resource_manager.register_type_extension(type_texture, ".jpeg");
 
 	resource_manager.register_type_extension(type_model, ".gltf");
-	resource_manager.register_type_extension(type_model, ".obj");
 
 	resource_manager.register_type_extension(type_convex_hull, ".obj");
 	resource_manager.register_type_extension(type_convex_hull, ".cs350");
 
 	resource_manager.register_type_extension(type_point_hull, ".cs350");
+
+	resource_manager.register_type_extension(type_mesh, ".obj");
 }
 
 void update_loop()

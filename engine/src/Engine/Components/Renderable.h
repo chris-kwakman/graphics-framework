@@ -18,7 +18,7 @@ namespace Component
 
 		std::string		GetMeshName() const;
 		mesh_handle		GetMeshHandle() const;
-		void			SetMesh(mesh_handle _mesh);
+		void			SetMesh(Engine::Managers::Resource _mesh_resource);
 	};
 
 	class SkinManager;
@@ -46,7 +46,7 @@ namespace Component
 	{
 		friend struct Renderable;
 
-		std::unordered_map<Entity, mesh_handle, Entity::hash> m_mesh_map;
+		std::unordered_map<Entity, Engine::Managers::Resource, Entity::hash> m_mesh_map;
 
 		void impl_clear() final;
 		bool impl_create(Entity _e) final;

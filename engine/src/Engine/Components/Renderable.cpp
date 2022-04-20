@@ -60,12 +60,12 @@ namespace Component
 
 	mesh_handle Renderable::GetMeshHandle() const
 	{
-		return GetManager().m_mesh_map.at(m_owner);
+		return GetManager().m_mesh_map.at(m_owner).Handle();
 	}
 
-	void Renderable::SetMesh(mesh_handle _mesh)
+	void Renderable::SetMesh(Engine::Managers::Resource _mesh_resource)
 	{
-		GetManager().m_mesh_map.find(m_owner)->second = _mesh;
+		GetManager().m_mesh_map.find(m_owner)->second = _mesh_resource;
 	}
 
 
@@ -82,7 +82,7 @@ namespace Component
 		if(!_e.HasComponent<Transform>())
 			return false;
 
-		m_mesh_map.emplace(_e, 0);
+		m_mesh_map.emplace(_e, Engine::Managers::Resource());
 
 		return true;
 	}
@@ -102,19 +102,7 @@ namespace Component
 
 	void RenderableManager::impl_edit_component(Entity _entity)
 	{
-		auto component = Get(_entity);
-		std::string mesh_name = component.GetMeshName();
-		mesh_handle my_mesh = component.GetMeshHandle();
-
-
-		mesh_handle payload_mesh_handle = 0;
-		ImGui::InputText("Mesh Name", (char*)mesh_name.c_str(), mesh_name.size(), ImGuiInputTextFlags_ReadOnly);
-		payload_mesh_handle |= accept_resource_handle_payload<mesh_handle>("RESOURCE_MESH");
-		//ImGui::InputInt("Mesh ID", (int*)&my_mesh, 0, 0, ImGuiInputTextFlags_ReadOnly);
-		//mesh_payload_accepted |= accept_mesh_handle_payload();
-
-		if (payload_mesh_handle)
-			component.SetMesh(payload_mesh_handle);
+		Engine::Managers::resource_dragdrop_target(m_mesh_map.at(_entity), "Mesh");
 	}
 
 	void RenderableManager::impl_deserialize_data(nlohmann::json const& _j)
