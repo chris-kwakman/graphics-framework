@@ -686,7 +686,7 @@ namespace Sandbox
 		}
 		ImGui::End();
 
-		system_resource_manager.EditorDisplay();
+		//system_resource_manager.EditorDisplay();
 
 	}
 
