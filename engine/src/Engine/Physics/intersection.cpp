@@ -13,72 +13,74 @@ namespace Physics {
 	* @param	convex_hull		Hull we want to perform test against
 	* @param	transform3D		World transform of hull.
 	* @details	Transforms ray into local space of convex hull object.
+	*			Ray does not collide with back faces.
 	*/
-	intersection_result intersect_ray_half_edge_data_structure(
+	intersection_result intersect_ray_convex_hull(
 		ray _ray, half_edge_data_structure const & _hds, 
 		transform3D const& _hull_transform
 	)
 	{
 		// Transform ray into local space of convex hull object.
-		glm::mat2x4 const data = _hull_transform.GetInvMatrix() * glm::mat2x4(glm::vec4(_ray.origin, 1.0f), glm::vec4(_ray.dir, 0.0f));
+		glm::mat4 const inv_mat = _hull_transform.GetInvMatrix();
+		glm::mat2x4 const data = inv_mat * glm::mat2x4(glm::vec4(_ray.origin, 1.0f), glm::vec4(_ray.origin + _ray.dir, 1.0f));
 		_ray.origin = data[0];
-		_ray.dir = glm::normalize(data[1]);
+		_ray.dir = data[1] - data[0];
 
-		uint16_t const INVALID_FACE_INDEX = -1;
-		intersection_result minimum_intersection_face{ std::numeric_limits<float>::max(), INVALID_FACE_INDEX, glm::vec3(0.0f)};
-		glm::vec3 vertices_stack[256];
 		for (half_edge_data_structure::face_idx face_index = 0; face_index < _hds.m_faces.size(); face_index++)
 		{
-			// Copy vertices to vector.
-			size_t face_vertex_count = 0;
-			for (size_t face_vtx_idx = 0; face_vtx_idx < _hds.m_faces[face_index].m_vertices.size(); face_vtx_idx++)
+			auto const& face = _hds.m_faces[face_index];
+			glm::vec3 const face_normal = _hds.compute_face_normal(face_index);
+
+			glm::vec3 const vtx_0 = _hds.m_vertices[face.m_vertices[0]];
+			glm::vec3 vtx_1 = _hds.m_vertices[face.m_vertices[1]];
+
+			// Skip face if ray is pointing away from face or starting point is behind plane.
+			if(glm::dot(face_normal, _ray.dir) >= 0.0f || glm::dot(face_normal, _ray.origin - vtx_0) <= 0.0f)
+				continue;
+
+			// Intersect ray against plane formed by convex face first.
+			float const face_t = glm::dot(vtx_0 - _ray.origin, face_normal) / glm::dot(_ray.dir, face_normal);
+
+			glm::vec3 P = _ray.origin + face_t * _ray.dir;
+			bool intersects = false;
+
+			// Check whether ray intersects any triangle defined by convex face.
+			for (size_t i = 2; i < face.m_vertices.size(); i++)
 			{
-				vertices_stack[face_vertex_count++] = _hds.m_vertices[_hds.m_faces[face_index].m_vertices[face_vtx_idx]];
+				glm::vec3 const vtx_2 = _hds.m_vertices[face.m_vertices[i]];
+				// Length of triangle normal is important for barycentric coordinate computation.
+				// Thats why we compute the triangle normal even though we have the face normal.
+				glm::vec3 const tri_normal = glm::cross(vtx_1 - vtx_0, vtx_2 - vtx_1);
+				float const reciprocal_tri_normal_length = 1.0f / glm::length(tri_normal);
+
+				// Inline triangle intersection.
+				//glm::vec3 const P_01 = glm::cross(vtx_1 - vtx_0, P - vtx_1);
+				glm::vec3 const P_12 = glm::cross(vtx_2 - vtx_1, P - vtx_2);
+				glm::vec3 const P_20 = glm::cross(vtx_0 - vtx_2, P - vtx_0);
+
+				float const P_12_length = glm::length(P_12);
+				float const P_20_length = glm::length(P_20);
+
+				float const u = P_12_length * reciprocal_tri_normal_length;
+				float const v = P_20_length * reciprocal_tri_normal_length;
+
+				intersects |= (u >= 0.0f && v >= 0.0f && u + v <= 1.0f);
+
+				vtx_1 = vtx_2;
 			}
-			intersection_result const face_result = intersect_ray_convex_polygon(_ray, vertices_stack, face_vertex_count);
-			if (face_result.t > 0.0f && face_result.t < minimum_intersection_face.t /*&& glm::dot(face_result.normal, _ray.dir) < 0*/)
-			{
-				minimum_intersection_face = face_result;
-				minimum_intersection_face.face_index = face_index;
-			}
+
+			if (intersects)
+				return intersection_result{
+					.t = face_t,
+					.face_index = face_index,
+					.normal = glm::transpose(inv_mat) * glm::vec4(face_normal,0.0f),
+				};
 		}
 
-		return minimum_intersection_face.face_index == INVALID_FACE_INDEX
-			? intersection_result{ -1.0f, INVALID_FACE_INDEX, glm::vec3(0.0f) }
-			: minimum_intersection_face;
-	}
-
-	/*
-	* Perform intersection test of ray against convex polygon
-	* @param	ray				NORMALIZED intersection ray
-	* @param	glm::vec3 *		Pointer to array of convex polygon vertices, CCW order
-	* @param	size_t			Size of support_vertex array
-	* @details	Ray and vertices must be in the same space. Normal of polygon face
-	*			is assumed to be defined by vertices in CCW order.
-	*/
-	intersection_result intersect_ray_convex_polygon(ray const& _ray, glm::vec3 const* _vertices, size_t const _size)
-	{
-		// Intersect ray against plane formed by vertices, and compute the resulting point.
-		glm::vec3 const plane_normal = glm::cross(_vertices[2] - _vertices[1], _vertices[0] - _vertices[1]);
-		if (glm::epsilonEqual(glm::dot(plane_normal, _ray.dir), 0.0f, 0.00001f))
-			return { -1.0f, 0, plane_normal };
-		float const t = -glm::dot(_ray.origin - _vertices[1], plane_normal) / glm::dot(_ray.dir, plane_normal);
-		glm::vec3 const p = _ray.origin + t * _ray.dir;
-
-		//  Check if computed point is "outside" the boundary planes formed by the edges.
-		for (size_t face_index = 0; face_index < _size-1; face_index++)
-		{
-			glm::vec3 const edge_normal = glm::cross(_vertices[face_index + 1] - _vertices[face_index], plane_normal);
-			if (glm::dot(p - _vertices[face_index], edge_normal) > 0)
-				return { -1.0f, 0, plane_normal };
-		}
-		// Separate check for last incident_edge (to avoid using modulus)
-		{
-			glm::vec3 const edge_normal = glm::cross(_vertices[0] - _vertices[_size - 1], plane_normal);
-			if (glm::dot(p - _vertices[_size - 1], edge_normal) > 0)
-				return { -1.0f, 0, plane_normal };
-		}
-		return { t, 0, plane_normal };
+		return intersection_result{
+				.t = -1.0f,
+				.face_index = (uint32_t)-1
+		};
 	}
 
 	EIntersectionType intersect_convex_hulls_sat(

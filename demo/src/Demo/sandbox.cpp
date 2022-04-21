@@ -767,7 +767,7 @@ namespace Sandbox
 				{
 					Transform rb_transform = entity.GetComponent<Transform>();
 					Engine::Math::transform3D const rb_world_transform = rb_transform.ComputeWorldTransform();
-					intersection_result result = intersect_ray_half_edge_data_structure(camera_ray, *collider_hds, rb_world_transform);
+					intersection_result result = intersect_ray_convex_hull(camera_ray, *collider_hds, rb_world_transform);
 
 					if (result.t >= 0.0f && result.t < closest_entity_ir.t)
 					{
