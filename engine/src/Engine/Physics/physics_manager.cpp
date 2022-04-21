@@ -69,12 +69,12 @@ namespace Physics {
 
 			int iters = 0;
 			iters = resolution_iterations_penetration;
-			if (ImGui::DragInt("Penetration Constraint Iterations", &iters, 0.1f, 1, 128, "%d", ImGuiSliderFlags_AlwaysClamp))
+			if (ImGui::DragInt("Penetration Iterations", &iters, 0.1f, 1, 128, "%d", ImGuiSliderFlags_AlwaysClamp))
 				resolution_iterations_penetration = iters;
 			iters = resolution_iterations_friction;
-			if (ImGui::DragInt("Friction Constraint Iterations", &iters, 0.1f, 1, 128, "%d", ImGuiSliderFlags_AlwaysClamp))
+			if (ImGui::DragInt("Friction Iterations", &iters, 0.1f, 1, 128, "%d", ImGuiSliderFlags_AlwaysClamp))
 				resolution_iterations_friction = iters;
-			ImGui::SliderFloat("Constraint Solver Beta", &beta, 0.0f, 1.0f, "%.3f");
+			ImGui::SliderFloat("Baumgarte Coefficient", &beta, 0.0f, 1.0f, "%.3f");
 			ImGui::DragFloat("Slop", &slop, 0.001f, 0.0f, 0.1f, "%.3f");
 			ImGui::Checkbox("Contact Caching", &contact_caching);
 
