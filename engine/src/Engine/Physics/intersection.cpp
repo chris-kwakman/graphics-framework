@@ -34,10 +34,6 @@ namespace Physics {
 			glm::vec3 const vtx_0 = _hds.m_vertices[face.m_vertices[0]];
 			glm::vec3 vtx_1 = _hds.m_vertices[face.m_vertices[1]];
 
-			// Skip face if ray is pointing away from face or starting point is behind plane.
-			if(glm::dot(face_normal, _ray.dir) >= 0.0f || glm::dot(face_normal, _ray.origin - vtx_0) <= 0.0f)
-				continue;
-
 			// Intersect ray against plane formed by convex face first.
 			float const face_t = glm::dot(vtx_0 - _ray.origin, face_normal) / glm::dot(_ray.dir, face_normal);
 
@@ -48,24 +44,24 @@ namespace Physics {
 			for (size_t i = 2; i < face.m_vertices.size(); i++)
 			{
 				glm::vec3 const vtx_2 = _hds.m_vertices[face.m_vertices[i]];
-				// Length of triangle normal is important for barycentric coordinate computation.
-				// Thats why we compute the triangle normal even though we have the face normal.
-				glm::vec3 const tri_normal = glm::cross(vtx_1 - vtx_0, vtx_2 - vtx_1);
-				float const reciprocal_tri_normal_length = 1.0f / glm::length(tri_normal);
+				
+				// Moller-Trumbore Algorithm
+				glm::vec3 const v0v1 = vtx_1 - vtx_0;
+				glm::vec3 const v0v2 = vtx_2 - vtx_0;
+				glm::vec3 const pvec = glm::cross(_ray.dir, v0v2);
+				float const det = glm::dot(v0v1, pvec);
+				if (det < glm::epsilon<float>())
+					break;
 
-				// Inline triangle intersection.
-				//glm::vec3 const P_01 = glm::cross(vtx_1 - vtx_0, P - vtx_1);
-				glm::vec3 const P_12 = glm::cross(vtx_2 - vtx_1, P - vtx_2);
-				glm::vec3 const P_20 = glm::cross(vtx_0 - vtx_2, P - vtx_0);
+				float const inv_det = 1.0f / det;
+				glm::vec3 const tvec = _ray.origin - vtx_0;
+				float const u = glm::dot(tvec, pvec) * inv_det;
+				glm::vec3 const qvec = glm::cross(tvec, v0v1);
+				float const v = glm::dot(_ray.dir, qvec) * inv_det;
 
-				float const P_12_length = glm::length(P_12);
-				float const P_20_length = glm::length(P_20);
+				intersects |= !(v < 0.0f || u + v > 1.0f || u < 0.0f || u > 1.0f);
 
-				float const u = P_12_length * reciprocal_tri_normal_length;
-				float const v = P_20_length * reciprocal_tri_normal_length;
-
-				intersects |= (u >= 0.0f && v >= 0.0f && u + v <= 1.0f);
-
+			end_loop:
 				vtx_1 = vtx_2;
 			}
 
