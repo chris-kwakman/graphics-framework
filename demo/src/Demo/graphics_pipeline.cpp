@@ -302,11 +302,21 @@ namespace Sandbox
 						? material.m_pbr_metallic_roughness.m_texture_metallic_roughness
 						: s_texture_white;
 
+					glm::vec4 base_color_factor = material.m_pbr_metallic_roughness.m_base_color_factor;
+
+
+					if (s_debug_entity_base_color)
+					{
+						std::srand(renderable_entity.ID());
+						glm::vec3 const rgb_rand = glm::vec3( std::rand(), std::rand(), std::rand() ) / (float)RAND_MAX;
+						base_color_factor = glm::vec4(rgb_rand,1.0f);
+					}
+
 					// TODO: Implement metallic roughness color factors
 					activate_texture(use_base_color, LOC_SAMPLER_BASE_COLOR, 0);
 					activate_texture(use_metallic_roughness, LOC_SAMPLER_METALLIC, 1);
 					activate_texture(material.m_texture_normal, LOC_SAMPLER_NORMAL, 2);
-					res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, material.m_pbr_metallic_roughness.m_base_color_factor);
+					res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, base_color_factor);
 					/*activate_texture(material.m_texture_occlusion, 3, 3);
 					activate_texture(material.m_texture_emissive, 4, 4);*/
 

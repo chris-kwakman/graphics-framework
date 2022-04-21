@@ -46,6 +46,7 @@ namespace Sandbox
 	unsigned int	s_bloom_blur_count = 5;
 
 	// Editor Data
+	bool			s_debug_entity_base_color = false;
 	bool			s_render_infinite_grid = true;
 
 

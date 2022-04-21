@@ -544,6 +544,7 @@ namespace Sandbox
 
 		if (ImGui::Begin("Graphics"))
 		{
+			ImGui::Checkbox("Debug Entity Colors", &s_debug_entity_base_color);
 			ImGui::Checkbox("Render Infinite Grid", &s_render_infinite_grid);
 			ImGui::ColorEdit3("Clear Color", &s_clear_color.r);
 

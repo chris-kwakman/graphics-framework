@@ -79,6 +79,7 @@ namespace Sandbox
 	extern GfxAmbientOcclusion s_ambient_occlusion;
 
 	// Editor Data
+	extern bool s_debug_entity_base_color;
 	extern bool				s_render_infinite_grid;
 
 	struct ubo_camera_data
