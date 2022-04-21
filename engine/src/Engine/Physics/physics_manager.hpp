@@ -20,8 +20,8 @@ namespace Physics {
 		bool step = false;
 		unsigned int resolution_iterations_penetration = 8;
 		unsigned int resolution_iterations_friction = 8;
-		float		 beta = 0.5f;
-		float		 slop = 0.0f;
+		float		 beta = 0.2f;
+		float		 slop = 0.02f;
 		bool		 contact_caching = true;
 
 		bool render_contacts = false;
