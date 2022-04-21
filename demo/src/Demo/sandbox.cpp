@@ -600,7 +600,7 @@ namespace Sandbox
 			}
 		}
 		ImGui::End();
-		if (ImGui::Begin("Ambient Occlusion"))
+		/*if (ImGui::Begin("Ambient Occlusion"))
 		{
 			ImGui::DragFloat("Radius Scale", &s_ambient_occlusion.radius_scale, 0.01f, 0.0f, 10.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 			ImGui::SliderFloat("Angle Bias", &s_ambient_occlusion.angle_bias, 0.0f, glm::pi<float>() / 2.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
@@ -624,7 +624,7 @@ namespace Sandbox
 					current_render_mode = AORenderMode::eAO_Applied;
 			}
 		}
-		ImGui::End();
+		ImGui::End();*/
 
 		auto & transform_manager = Singleton<Component::TransformManager>();
 
