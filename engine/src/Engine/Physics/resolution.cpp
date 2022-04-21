@@ -79,7 +79,7 @@ namespace Physics {
 
 					float const rel_contact_velocity = glm::dot(c.normal, -vA - glm::cross(wA, rA) + vB + glm::cross(wB, rB));
 					float const restitution_bias = std::min(rbA.restitution, rbB.restitution) * rel_contact_velocity;
-					pcd.bias = restitution_bias + _beta * (-c.penetration / _dt);
+					pcd.bias = restitution_bias + (_beta - physics_mgr.slop) * (-c.penetration / _dt);
 
 					pcd.effective_mass_contact =
 						rbA.inv_mass + rbB.inv_mass +

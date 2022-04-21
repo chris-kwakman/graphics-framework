@@ -21,6 +21,7 @@ namespace Physics {
 		unsigned int resolution_iterations_penetration = 8;
 		unsigned int resolution_iterations_friction = 8;
 		float		 beta = 0.5f;
+		float		 slop = 0.0f;
 		bool		 contact_caching = true;
 
 		bool render_contacts = false;

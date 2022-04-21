@@ -75,6 +75,7 @@ namespace Physics {
 			if (ImGui::DragInt("Friction Constraint Iterations", &iters, 0.1f, 1, 128, "%d", ImGuiSliderFlags_AlwaysClamp))
 				resolution_iterations_friction = iters;
 			ImGui::SliderFloat("Constraint Solver Beta", &beta, 0.0f, 1.0f, "%.3f");
+			ImGui::DragFloat("Slop", &slop, 0.001f, 0.0f, 0.1f, "%.3f");
 			ImGui::Checkbox("Contact Caching", &contact_caching);
 
 			ImGui::Checkbox("Render Contacts", &render_contacts);
