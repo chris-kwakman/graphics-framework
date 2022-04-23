@@ -16,6 +16,11 @@ namespace Physics {
 	{
 		auto & rb_mgr = Singleton<Component::RigidBodyManager>();
 
+		// Set custom timestep if any valid timestep has been passed.
+		physics_simulation_parameters new_parameters = m_physics_parameters;
+		if(_dt > glm::epsilon<float>())
+			new_parameters.timestep = _dt;
+
 		nlohmann::json frame_json;
 		rb_mgr.Serialize(frame_json);
 
@@ -26,12 +31,9 @@ namespace Physics {
 
 		compute_resolution_gauss_seidel(
 			Singleton<Component::ColliderManager>().m_data.m_global_contact_data,
-			resolution_iterations_penetration,
-			resolution_iterations_friction,
-			_dt,
-			beta
+			new_parameters
 		);
-		rb_mgr.Integrate(_dt);
+		rb_mgr.Integrate(new_parameters.timestep);
 		rb_mgr.UpdateTransforms();
 	}
 
@@ -40,6 +42,8 @@ namespace Physics {
 		static int peek_frame;
 		if (ImGui::Begin("Physics Debug"))
 		{
+			auto& params = m_physics_parameters;
+
 			int frame_count = m_session_data.end - m_session_data.begin;
 			peek_frame = std::clamp(peek_frame, 0, std::max(frame_count - 1,0));
 			if (!paused)
@@ -67,16 +71,18 @@ namespace Physics {
 			}
 			ImGui::EndDisabled();
 
+			ImGui::SliderFloat("Timestep", &m_physics_parameters.timestep, 0.0001f, 1.0f, "%.4f", ImGuiSliderFlags_Logarithmic);
+			m_physics_parameters.timestep = std::clamp(m_physics_parameters.timestep, 0.0001f, 1.0f);
 			int iters = 0;
-			iters = resolution_iterations_penetration;
+			iters = params.resolution_iterations_penetration;
 			if (ImGui::DragInt("Penetration Iterations", &iters, 0.1f, 1, 128, "%d", ImGuiSliderFlags_AlwaysClamp))
-				resolution_iterations_penetration = iters;
-			iters = resolution_iterations_friction;
+				params.resolution_iterations_penetration = iters;
+			iters = params.resolution_iterations_friction;
 			if (ImGui::DragInt("Friction Iterations", &iters, 0.1f, 1, 128, "%d", ImGuiSliderFlags_AlwaysClamp))
-				resolution_iterations_friction = iters;
-			ImGui::SliderFloat("Baumgarte Coefficient", &beta, 0.0f, 1.0f, "%.3f");
-			ImGui::DragFloat("Slop", &slop, 0.001f, 0.0f, 0.1f, "%.3f");
-			ImGui::Checkbox("Contact Caching", &contact_caching);
+				params.resolution_iterations_friction = iters;
+			ImGui::SliderFloat("Baumgarte Coefficient", &params.baumgarte, 0.0f, 1.0f, "%.3f");
+			ImGui::DragFloat("Slop", &params.slop, 0.001f, 0.0f, 0.1f, "%.3f");
+			ImGui::Checkbox("Contact Caching", &params.contact_caching);
 
 			ImGui::Checkbox("Render Contacts", &render_contacts);
 			ImGui::Checkbox("Render Penetration Vectors", &render_penetration);

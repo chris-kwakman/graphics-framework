@@ -1,5 +1,6 @@
 #include <imgui.h>
 #include <nlohmann/json.hpp>
+#include "resolution.hpp"
 
 namespace Engine {
 namespace Physics {
@@ -18,11 +19,7 @@ namespace Physics {
 		session_data m_session_data;
 		bool paused = false;
 		bool step = false;
-		unsigned int resolution_iterations_penetration = 8;
-		unsigned int resolution_iterations_friction = 8;
-		float		 beta = 0.2f;
-		float		 slop = 0.02f;
-		bool		 contact_caching = true;
+		physics_simulation_parameters m_physics_parameters;
 
 		bool render_contacts = false;
 		bool render_penetration = false;
@@ -31,7 +28,7 @@ namespace Physics {
 		float scale_lambda_resolution_vectors = 10.0f;
 
 		void Reset();
-		void PhysicsStep(float _dt);
+		void PhysicsStep(float _dt = -1.0f);
 		void DisplayEditorWindow();
 	};
 

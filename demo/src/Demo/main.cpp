@@ -245,7 +245,7 @@ void update_loop()
 		if (!scene_physics_mgr.paused || scene_physics_mgr.step)
 		{
 			Singleton<Component::GravityComponentManager>().ApplyGravity();
-			scene_physics_mgr.PhysicsStep(TEMP_DT);
+			scene_physics_mgr.PhysicsStep();
 		}
 
 
