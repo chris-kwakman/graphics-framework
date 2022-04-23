@@ -743,9 +743,12 @@ namespace Sandbox
 		auto& input_mgr = Singleton<InputManager>();
 		auto& rb_mgr = Singleton<RigidBodyManager>();
 		auto& collider_mgr = Singleton<ColliderManager>();
-
+		auto& sdl_mgr = Singleton<Engine::sdl_manager>();
+		int width, height;
+		// Yeah don't rely on our sdl manager to do the right thing. It doesn't.
+		SDL_GetWindowSize(sdl_mgr.m_window, &width, &height);
 		glm::ivec2 const mouse_window_pos = input_mgr.GetMousePos();
-		glm::vec2 const normalized_mouse_pos = glm::vec2(mouse_window_pos) / glm::vec2(Singleton<Engine::sdl_manager>().get_window_size());
+		glm::vec2 const normalized_mouse_pos = glm::vec2(mouse_window_pos) / glm::vec2(width, height);
 		// Flip Y-axis since mouse window position starts in top-left rather than bottom-left.
 		glm::vec4 const mouse_ndc_pos = glm::vec4(
 			((2.0f * normalized_mouse_pos) - 1.0f) * glm::vec2(1.0f, -1.0f),
