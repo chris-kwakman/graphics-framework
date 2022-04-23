@@ -125,10 +125,8 @@ namespace Physics {
 					ImGui::Unindent();
 				}
 			}
-
-
-			ImGui::End();
 		}
+		ImGui::End();
 	}
 
 }

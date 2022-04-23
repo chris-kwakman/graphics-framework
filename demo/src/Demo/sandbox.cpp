@@ -783,9 +783,12 @@ namespace Sandbox
 		if (leftmouse_state == button_state::ePress)
 		{
 			auto [closest_entity, intersection_result] = PickEntityWithCollider(camera_ray);
-			auto & editor_scene_graph_data = Singleton<TransformManager>().GetEditorSceneGraphData();
-			editor_scene_graph_data.selected_entities.clear();
-			editor_scene_graph_data.selected_entities.insert(closest_entity);
+			if (closest_entity.Alive())
+			{
+				auto & editor_scene_graph_data = Singleton<TransformManager>().GetEditorSceneGraphData();
+				editor_scene_graph_data.selected_entities.clear();
+				editor_scene_graph_data.selected_entities.insert(closest_entity);
+			}
 		}
 
 		// Apply force on object with collider and rigidbody hovered by cursor.

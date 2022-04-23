@@ -35,7 +35,7 @@ struct gfx_pipeline_resources
 	static size_t const MAX_POINT_COUNT = MAX_LINE_SEGMENTS * 2;
 	mesh_handle line_point_mesh_handle = 0;
 	buffer_handle line_point_mesh_vbo_handle = 0;
-	void upload_line_point_data(glm::vec3 const* _points, size_t _count) const;
+	size_t upload_line_point_data(glm::vec3 const* _points, size_t _count) const;
 };
 
 static gfx_pipeline_resources s_pipeline_resources;
@@ -893,14 +893,24 @@ namespace Sandbox
 				if (!render_points.empty())
 				{
 					glPointSize(10.0f);
-					s_pipeline_resources.upload_line_point_data(render_points.data(), render_points.size());
-					glDrawArrays(GL_POINTS, 0, render_points.size());
+					size_t rendered_count = 0;
+					do
+					{
+						size_t delta = s_pipeline_resources.upload_line_point_data(render_points.data() + rendered_count, render_points.size() - rendered_count);
+						glDrawArrays(GL_POINTS, 0, delta);
+						rendered_count += delta;
+					} while (rendered_count < render_points.size());
 				}
 				if (!render_lines.empty())
 				{
 					glLineWidth(8.0f);
-					s_pipeline_resources.upload_line_point_data(render_lines.data(), render_lines.size());
-					glDrawArrays(GL_LINES, 0, render_lines.size());
+					size_t rendered_count = 0;
+					do
+					{
+						size_t delta = s_pipeline_resources.upload_line_point_data(render_lines.data() + rendered_count, render_lines.size() - rendered_count);
+						glDrawArrays(GL_LINES, 0, delta);
+						rendered_count += delta;
+					} while (rendered_count < render_lines.size());
 				}
 				glBindVertexArray(0);
 			}
@@ -930,8 +940,13 @@ namespace Sandbox
 						penetration_points.emplace_back(contact.contact.point + contact.contact.normal * contact.contact.penetration);
 					}
 					res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, glm::vec4(1.0f, 1.0f, 0.0f, 1.0f));
-					s_pipeline_resources.upload_line_point_data(penetration_points.data(), penetration_points.size());
-					glDrawArrays(GL_LINES, 0, penetration_points.size());
+					size_t rendered_count = 0;
+					do
+					{
+						size_t delta = s_pipeline_resources.upload_line_point_data(penetration_points.data() + rendered_count, penetration_points.size() - rendered_count);
+						glDrawArrays(GL_LINES, 0, delta);
+						rendered_count += delta;
+					} while (rendered_count < penetration_points.size());
 				}
 				if (physics_mgr.render_penetration_resolution)
 				{
@@ -942,8 +957,13 @@ namespace Sandbox
 						penetration_points.emplace_back(contact.contact.point + contact.contact.normal * contact.contact_lambdas.lambda_penetration * scale_lambda_normals);
 					}
 					res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
-					s_pipeline_resources.upload_line_point_data(penetration_points.data(), penetration_points.size());
-					glDrawArrays(GL_LINES, 0, penetration_points.size());
+					size_t rendered_count = 0;
+					do
+					{
+						size_t delta = s_pipeline_resources.upload_line_point_data(penetration_points.data() + rendered_count, penetration_points.size() - rendered_count);
+						glDrawArrays(GL_LINES, 0, delta);
+						rendered_count += delta;
+					} while (rendered_count < penetration_points.size());
 				}
 				if (physics_mgr.render_friction_resolution)
 				{
@@ -957,12 +977,22 @@ namespace Sandbox
 						v_points.emplace_back(contact.contact.point + contact.vec_v * contact.contact_lambdas.lambda_friction_v * scale_lambda_normals);
 
 						res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
-						s_pipeline_resources.upload_line_point_data(u_points.data(), v_points.size());
-						glDrawArrays(GL_LINES, 0, u_points.size());
+						size_t rendered_count = 0;
+						do
+						{
+							size_t delta = s_pipeline_resources.upload_line_point_data(u_points.data() + rendered_count, v_points.size() - rendered_count);
+							glDrawArrays(GL_LINES, 0, delta);
+							rendered_count += delta;
+						} while (rendered_count < u_points.size());
 
 						res_mgr.SetBoundProgramUniform(LOC_BASE_COLOR_FACTOR, glm::vec4(0.0f, 0.0f, 1.0f, 1.0f));
-						s_pipeline_resources.upload_line_point_data(v_points.data(), v_points.size());
-						glDrawArrays(GL_LINES, 0, v_points.size());
+						rendered_count = 0;
+						do
+						{
+							size_t delta = s_pipeline_resources.upload_line_point_data(v_points.data() + rendered_count, v_points.size() - rendered_count);
+							glDrawArrays(GL_LINES, 0, delta);
+							rendered_count += delta;
+						} while (rendered_count < v_points.size());
 					}
 
 
@@ -1260,14 +1290,16 @@ namespace Sandbox
 	}
 }
 
-void gfx_pipeline_resources::upload_line_point_data(glm::vec3 const* _points, size_t _count) const
+size_t gfx_pipeline_resources::upload_line_point_data(glm::vec3 const* _points, size_t _count) const
 {
 	using namespace Engine::Graphics;
 	using GraphicsManager = ResourceManager;
 	auto const& gfx_mgr = Singleton<GraphicsManager>();
 	
-	assert(_count <= MAX_POINT_COUNT);
+	size_t uploaded_point_count = std::min(_count, MAX_POINT_COUNT);
+	
 	GraphicsManager::buffer_info const & buf_info = gfx_mgr.GetBufferInfo(s_pipeline_resources.line_point_mesh_vbo_handle);
 	glBindBuffer(buf_info.m_target, buf_info.m_gl_id);
-	glBufferSubData(buf_info.m_target, (GLintptr)0, sizeof(glm::vec3) * _count, _points);
+	glBufferSubData(buf_info.m_target, (GLintptr)0, sizeof(glm::vec3) * uploaded_point_count, _points);
+	return uploaded_point_count;
 }
