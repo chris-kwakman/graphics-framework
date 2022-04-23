@@ -15,7 +15,7 @@ namespace Managers {
 	void InputManager::UpdateMouseState(bool _application_taking_mouse_input)
 	{
 		m_mouse_pos_prev = m_mouse_pos_curr;
-		Uint32 const sdl_mouse_state = SDL_GetMouseState(&m_mouse_pos_curr.x, &m_mouse_pos_curr.y);
+		uint32_t const sdl_mouse_state = SDL_GetMouseState(&m_mouse_pos_curr.x, &m_mouse_pos_curr.y);
 		if (!_application_taking_mouse_input)
 			m_mouse_pos_curr = m_mouse_pos_prev;
 		for (unsigned int i = 0; i < sizeof(m_mouse_state_arr) / sizeof(button_state); ++i)
