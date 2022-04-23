@@ -266,7 +266,7 @@ namespace Physics {
 		}
 
 		// Second pass for friction resolution
-		for (size_t iteration = 0; iteration < FRICTION_ITERATIONS; iteration++)
+		for (size_t iteration = 0; iteration < _friction_iterations; iteration++)
 		{
 			size_t contact_idx = 0;
 			size_t manifold_end_contact_idx = 0;
