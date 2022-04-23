@@ -10,6 +10,7 @@ namespace Physics {
 	struct physics_simulation_parameters
 	{
 		float		 timestep = 1.0f / 60.0f;
+		unsigned int subdivisions = 1;
 		unsigned int resolution_iterations_penetration = 8;
 		unsigned int resolution_iterations_friction = 8;
 		float		 baumgarte = 0.2f;

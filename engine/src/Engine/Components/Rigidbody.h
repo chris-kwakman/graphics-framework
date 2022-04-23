@@ -90,11 +90,13 @@ namespace Component
 
 		rigidbody_data_collection m_rigidbodies_data;
 		bool m_integration_enabled = true;
+		bool m_positions_updated = true;
 
 		// Inherited via TCompManager
 		virtual const char* GetComponentTypeName() const override;
 
 		void Integrate(float _dt);
+		void ClearForces();
 		void UpdateTransforms();
 
 		void EnableLinearIntegration(Entity const _entity, bool _state);

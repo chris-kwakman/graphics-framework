@@ -21,19 +21,24 @@ namespace Physics {
 		if(_dt > glm::epsilon<float>())
 			new_parameters.timestep = _dt;
 
-		nlohmann::json frame_json;
-		rb_mgr.Serialize(frame_json);
+		new_parameters.timestep /= new_parameters.subdivisions;
+		for (size_t i = 0; i < new_parameters.subdivisions; i++)
+		{
+			nlohmann::json frame_json;
+			rb_mgr.Serialize(frame_json);
 
-		m_session_data.rigidbody_frame_data[m_session_data.end % m_session_data.rigidbody_frame_data.max_size()] = std::move(frame_json);
-		m_session_data.end++;
-		if (m_session_data.end - m_session_data.begin > m_session_data.rigidbody_frame_data.max_size())
-			m_session_data.begin++;
+			m_session_data.rigidbody_frame_data[m_session_data.end % m_session_data.rigidbody_frame_data.max_size()] = std::move(frame_json);
+			m_session_data.end++;
+			if (m_session_data.end - m_session_data.begin > m_session_data.rigidbody_frame_data.max_size())
+				m_session_data.begin++;
 
-		compute_resolution_gauss_seidel(
-			Singleton<Component::ColliderManager>().m_data.m_global_contact_data,
-			new_parameters
-		);
-		rb_mgr.Integrate(new_parameters.timestep);
+			compute_resolution_gauss_seidel(
+				Singleton<Component::ColliderManager>().m_data.m_global_contact_data,
+				new_parameters
+			);
+			rb_mgr.Integrate(new_parameters.timestep);
+		}
+		rb_mgr.ClearForces();
 		rb_mgr.UpdateTransforms();
 	}
 
@@ -83,6 +88,9 @@ namespace Physics {
 			ImGui::SliderFloat("Baumgarte Coefficient", &params.baumgarte, 0.0f, 1.0f, "%.3f");
 			ImGui::DragFloat("Slop", &params.slop, 0.001f, 0.0f, 0.1f, "%.3f");
 			ImGui::Checkbox("Contact Caching", &params.contact_caching);
+			int timestep_subdivisions = params.subdivisions;
+			if(ImGui::SliderInt("Timestep Subdivisions", &timestep_subdivisions, 1, 32, "%d", ImGuiSliderFlags_AlwaysClamp))
+				params.subdivisions = timestep_subdivisions;
 
 			ImGui::Checkbox("Render Contacts", &render_contacts);
 			ImGui::Checkbox("Render Penetration Vectors", &render_penetration);

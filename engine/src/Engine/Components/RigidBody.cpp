@@ -28,13 +28,19 @@ namespace Component
 		if (!m_integration_enabled || rigidbody_count == 0)
 			return;
 
-		// Read transform position & rotation from each object
-		for (size_t i = 0; i < rigidbody_count; i++)
+		// If we're integrating multiple times per frame (i.e. timestep subdivisions)
+		// only copy transform positions in the first subdivision.
+		if (m_positions_updated)
 		{
-			Transform entity_transform_component = m_rigidbodies_data.m_index_entities[i].GetComponent<Transform>();
-			assert(entity_transform_component.GetParent() == Entity::InvalidEntity && "Rigidbody entities are assumed to have no parent.");
-			m_rigidbodies_data.m_positions[i] = entity_transform_component.GetLocalPosition();
-			m_rigidbodies_data.m_rotations[i] = entity_transform_component.GetLocalRotation();
+			m_positions_updated = false;
+			// Read transform position & rotation from each object
+			for (size_t i = 0; i < rigidbody_count; i++)
+			{
+				Transform entity_transform_component = m_rigidbodies_data.m_index_entities[i].GetComponent<Transform>();
+				assert(entity_transform_component.GetParent() == Entity::InvalidEntity && "Rigidbody entities are assumed to have no parent.");
+				m_rigidbodies_data.m_positions[i] = entity_transform_component.GetLocalPosition();
+				m_rigidbodies_data.m_rotations[i] = entity_transform_component.GetLocalRotation();
+			}
 		}
 
 		integrate_linear_euler(
@@ -54,8 +60,12 @@ namespace Component
 			&m_rigidbodies_data.m_inv_inertial_tensors.front(),
 			rigidbody_count
 		);
+	}
 
+	void RigidBodyManager::ClearForces()
+	{
 		// Reset forces
+		size_t const rigidbody_count = m_rigidbodies_data.size();
 		for (size_t i = 0; i < rigidbody_count; i++)
 		{
 			m_rigidbodies_data.m_force_accumulators[i] = glm::vec3(0.0f);
@@ -65,6 +75,7 @@ namespace Component
 
 	void RigidBodyManager::UpdateTransforms()
 	{
+		m_positions_updated = true;
 		size_t const rigidbody_count = m_rigidbodies_data.size();
 		for (size_t i = 0; i < rigidbody_count; i++)
 		{
