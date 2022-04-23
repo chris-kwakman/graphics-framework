@@ -103,7 +103,7 @@ namespace Component
 
 		void DisplaySceneGraph();
 
-		EditorSceneGraphData GetEditorSceneGraphData() const { return m_editor_scene_graph_data; }
+		EditorSceneGraphData & GetEditorSceneGraphData() { return m_editor_scene_graph_data; }
 
 	private:
 

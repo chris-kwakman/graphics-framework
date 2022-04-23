@@ -691,6 +691,41 @@ namespace Sandbox
 
 	}
 
+	std::pair<Entity, Engine::Physics::intersection_result> PickEntityWithCollider(Engine::Physics::ray _ray)
+	{
+		using namespace Component;
+		auto const & collider_mgr = Singleton<ColliderManager>();
+		auto& col_data = collider_mgr.m_data;
+
+		Entity closest_entity = Entity::InvalidEntity;
+		Engine::Physics::intersection_result closest_entity_ir;
+		closest_entity_ir.t = std::numeric_limits<float>::max();
+
+		for (auto& [entity, debug_render_instance] : col_data.m_entity_map)
+		{
+			using namespace Engine::Physics;
+
+			convex_hull_handle const ch_handle = debug_render_instance.m_collider_resource.Handle();
+
+			RigidBody const rb_comp = entity.GetComponent<RigidBody>();
+			Collider const collider_comp = entity.GetComponent<Collider>();
+			half_edge_data_structure const* collider_hds = collider_comp.GetConvexHull();
+			if (collider_comp.IsValid() && rb_comp.IsValid() && collider_hds)
+			{
+				Transform rb_transform = entity.GetComponent<Transform>();
+				Engine::Math::transform3D const rb_world_transform = rb_transform.ComputeWorldTransform();
+				intersection_result result = intersect_ray_convex_hull(_ray, *collider_hds, rb_world_transform);
+
+				if (result.t >= 0.0f && result.t < closest_entity_ir.t)
+				{
+					closest_entity = entity;
+					closest_entity_ir = result;
+				}
+			}
+		}
+		return { closest_entity, closest_entity_ir };
+	}
+
 	void GameplayLogic()
 	{
 		using namespace Engine::Managers;
@@ -709,74 +744,60 @@ namespace Sandbox
 		auto& rb_mgr = Singleton<RigidBodyManager>();
 		auto& collider_mgr = Singleton<ColliderManager>();
 
-		button_state mb_state = input_mgr.GetKeyboardButtonState(SDL_SCANCODE_F);
-		if (mb_state == button_state::eDown)
-			holddown_timer += DT;
-		else if (mb_state == button_state::eUnpressed)
+		glm::ivec2 const mouse_window_pos = input_mgr.GetMousePos();
+		glm::vec2 const normalized_mouse_pos = glm::vec2(mouse_window_pos) / glm::vec2(Singleton<Engine::sdl_manager>().get_window_size());
+		// Flip Y-axis since mouse window position starts in top-left rather than bottom-left.
+		glm::vec4 const mouse_ndc_pos = glm::vec4(
+			((2.0f * normalized_mouse_pos) - 1.0f) * glm::vec2(1.0f, -1.0f),
+			-1.0f,
+			1.0f
+		);
+
+		Engine::ECS::Entity camera_entity = Singleton<Engine::Editor::Editor>().EditorCameraEntity;
+		Camera camera_component = camera_entity.GetComponent<Camera>();
+		Transform camera_transform = camera_entity.GetComponent<Transform>();
+
+		Engine::Graphics::camera_data const cam_data = camera_component.GetCameraData();
+
+		glm::mat4 const perspective_mat = cam_data.get_perspective_matrix();
+		glm::mat4 const view_mat = camera_transform.ComputeWorldTransform().GetInverse().GetMatrix();
+		glm::mat4 const inv_vp = glm::inverse(perspective_mat * view_mat);
+
+		// Define start and end of ray
+
+		glm::mat2x4 const ray_ndc_points(
+			mouse_ndc_pos,
+			glm::vec4(mouse_ndc_pos.x, mouse_ndc_pos.y, 1.0f, 1.0f)
+		);
+		glm::mat2x4 const ray_world_points = inv_vp * ray_ndc_points;
+		glm::vec3 const& ray_world_start = ray_world_points[0] / ray_world_points[0].w;
+		glm::vec3 const& ray_world_end = ray_world_points[1] / ray_world_points[1].w;
+		glm::vec3 const& ray_direction = glm::normalize(ray_world_end - ray_world_start);
+
+		Engine::Physics::ray camera_ray;
+		camera_ray.origin = ray_world_start;
+		camera_ray.dir = glm::normalize(ray_world_end - ray_world_start);
+
+		// Pick collidable object and select it in editor.
+		button_state const leftmouse_state = input_mgr.GetMouseButtonState(0);
+		if (leftmouse_state == button_state::ePress)
 		{
-			glm::ivec2 const mouse_window_pos = input_mgr.GetMousePos();
-			glm::vec2 const normalized_mouse_pos = glm::vec2(mouse_window_pos) / glm::vec2(Singleton<Engine::sdl_manager>().get_window_size());
-			// Flip Y-axis since mouse window position starts in top-left rather than bottom-left.
-			glm::vec4 const mouse_ndc_pos = glm::vec4(
-				((2.0f * normalized_mouse_pos) - 1.0f) * glm::vec2(1.0f, -1.0f),
-				-1.0f,
-				1.0f
-			);
+			auto [closest_entity, intersection_result] = PickEntityWithCollider(camera_ray);
+			auto & editor_scene_graph_data = Singleton<TransformManager>().GetEditorSceneGraphData();
+			editor_scene_graph_data.selected_entities.clear();
+			editor_scene_graph_data.selected_entities.insert(closest_entity);
+		}
 
-			Engine::ECS::Entity camera_entity = Singleton<Engine::Editor::Editor>().EditorCameraEntity;
-			Camera camera_component = camera_entity.GetComponent<Camera>();
-			Transform camera_transform = camera_entity.GetComponent<Transform>();
-
-			Engine::Graphics::camera_data const cam_data = camera_component.GetCameraData();
-
-			glm::mat4 const perspective_mat = cam_data.get_perspective_matrix();
-			glm::mat4 const view_mat = camera_transform.ComputeWorldTransform().GetInverse().GetMatrix();
-			glm::mat4 const inv_vp = glm::inverse(perspective_mat * view_mat);
-
-			// Define start and end of ray
-
-			glm::mat2x4 const ray_ndc_points(
-				mouse_ndc_pos, 
-				glm::vec4(mouse_ndc_pos.x, mouse_ndc_pos.y, 1.0f, 1.0f)
-			);
-			glm::mat2x4 const ray_world_points = inv_vp* ray_ndc_points;
-			glm::vec3 const & ray_world_start = ray_world_points[0] / ray_world_points[0].w;
-			glm::vec3 const & ray_world_end = ray_world_points[1] / ray_world_points[1].w;
-			glm::vec3 const& ray_direction = glm::normalize(ray_world_end - ray_world_start);
-
-			Engine::Physics::ray camera_ray;
-			camera_ray.origin = ray_world_start;
-			camera_ray.dir = glm::normalize(ray_world_end - ray_world_start);
-
+		// Apply force on object with collider and rigidbody hovered by cursor.
+		button_state const force_key_state = input_mgr.GetKeyboardButtonState(SDL_SCANCODE_F);
+		if (force_key_state == button_state::eDown)
+			holddown_timer += DT;
+		else if (force_key_state == button_state::eUnpressed)
+		{
 			auto const & rb_data = rb_mgr.m_rigidbodies_data;
 			auto & col_data = collider_mgr.m_data;
 
-			Entity closest_entity = Entity::InvalidEntity;
-			Engine::Physics::intersection_result closest_entity_ir;
-			closest_entity_ir.t = std::numeric_limits<float>::max();
-
-			for (auto & [entity, debug_render_instance] : col_data.m_entity_map)
-			{
-				using namespace Engine::Physics;
-
-				convex_hull_handle const ch_handle = debug_render_instance.m_collider_resource.Handle();
-
-				RigidBody const rb_comp = entity.GetComponent<RigidBody>();
-				Collider const collider_comp = entity.GetComponent<Collider>();
-				half_edge_data_structure const* collider_hds = collider_comp.GetConvexHull();
-				if (collider_comp.IsValid() && rb_comp.IsValid() && collider_hds)
-				{
-					Transform rb_transform = entity.GetComponent<Transform>();
-					Engine::Math::transform3D const rb_world_transform = rb_transform.ComputeWorldTransform();
-					intersection_result result = intersect_ray_convex_hull(camera_ray, *collider_hds, rb_world_transform);
-
-					if (result.t >= 0.0f && result.t < closest_entity_ir.t)
-					{
-						closest_entity = entity;
-						closest_entity_ir = result;
-					}
-				}
-			}
+			auto [closest_entity, intersection_result] = PickEntityWithCollider(camera_ray);
 			if (closest_entity.Alive())
 			{
 				using namespace Engine::Physics;
@@ -784,9 +805,9 @@ namespace Sandbox
 				rb_mgr.ApplyForce(
 					closest_entity,
 					ray_direction * std::clamp(holddown_timer * 500.0f, 0.0f, 1000.0f),
-					(camera_ray.origin + closest_entity_ir.t * camera_ray.dir) - closest_entity_transform.ComputeWorldTransform().position
+					(camera_ray.origin + intersection_result.t * camera_ray.dir) - closest_entity_transform.ComputeWorldTransform().position
 				);
-				Singleton<ColliderManager>().m_data.m_entity_map[closest_entity].m_highlight_face_index = closest_entity_ir.face_index;
+				Singleton<ColliderManager>().m_data.m_entity_map[closest_entity].m_highlight_face_index = intersection_result.face_index;
 			}
 
 			holddown_timer = 0.0f;
