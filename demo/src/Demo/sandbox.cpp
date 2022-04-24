@@ -691,7 +691,7 @@ namespace Sandbox
 
 	}
 
-	std::pair<Entity, Engine::Physics::intersection_result> PickEntityWithCollider(Engine::Physics::ray _ray)
+	std::pair<Entity, Engine::Physics::intersection_result> PickEntityWithCollider(Engine::Math::ray _ray)
 	{
 		using namespace Component;
 		auto const & collider_mgr = Singleton<ColliderManager>();
@@ -777,7 +777,7 @@ namespace Sandbox
 		glm::vec3 const& ray_world_end = ray_world_points[1] / ray_world_points[1].w;
 		glm::vec3 const& ray_direction = glm::normalize(ray_world_end - ray_world_start);
 
-		Engine::Physics::ray camera_ray;
+		Engine::Math::ray camera_ray;
 		camera_ray.origin = ray_world_start;
 		camera_ray.dir = glm::normalize(ray_world_end - ray_world_start);
 

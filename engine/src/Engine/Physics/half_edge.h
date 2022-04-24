@@ -6,6 +6,8 @@
 #include <vector>
 #include <limits>
 
+#include <Engine/Math/geometry.hpp>
+
 namespace Engine {
 namespace Physics {
 
@@ -43,7 +45,9 @@ namespace Physics {
 		std::vector<glm::vec3>	m_vertices;
 		std::vector<half_edge>	m_edges;
 		std::vector<face>		m_faces;
+		Engine::Math::aabb		m_aabb_bounding_volume;
 
+		void recompute_bounding_volume();
 		glm::vec3 compute_face_normal(face_idx _face) const;
 		inline half_edge_idx	get_next_edge(half_edge_idx _edge_idx) const;
 		inline half_edge_idx	get_previous_edge(half_edge_idx _edge_idx) const;
@@ -58,6 +62,14 @@ namespace Physics {
 	* @return	glm::vec3	Projected point.
 	*/
 	glm::vec3 project_point_to_plane(glm::vec3 _plane_point, glm::vec3 _plane_normal, glm::vec3 _point);
+
+	/*
+	* @brief	Computes axis-aligned bounding box for vertex array.
+	* @param	glm::vec3[]		Array of vertices
+	* @param	size_t			Size of array
+	* @return	aabb			Axis-aligned bounding volume encapsulating vertices.
+	*/
+	Engine::Math::aabb compute_vertex_array_aabb(glm::vec3 const _vertices[], size_t _vertex_count);
 
 	/*
 	* @brief	Compute normal of face in array using given index

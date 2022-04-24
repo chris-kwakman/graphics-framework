@@ -19,7 +19,23 @@ namespace Physics {
 	glm::vec3 project_point_to_plane(glm::vec3 _plane_point, glm::vec3 _plane_normal, glm::vec3 _point)
 	{
 		return _point - (glm::dot(_plane_normal, _point - _plane_point) / glm::dot(_plane_normal, _plane_normal)) * _plane_normal;
-	};
+	}
+
+	Engine::Math::aabb compute_vertex_array_aabb(glm::vec3 const _vertices[], size_t _vertex_count)
+	{
+		glm::vec3 min(std::numeric_limits<float>::max());
+		glm::vec3 max = -min;
+		for (size_t i = 0; i < _vertex_count; i++)
+		{
+			min = glm::min(min, _vertices[i]);
+			max = glm::max(max, _vertices[i]);
+		}
+		glm::vec3 center = (max + min) * 0.5f;
+		return Engine::Math::aabb{
+			.center = center,
+			.extent = (max - center)
+		};
+	}
 
 	inline half_edge_data_structure::half_edge_idx half_edge_data_structure::get_previous_edge(half_edge_data_structure::half_edge_idx _idx) const
 	{
@@ -455,9 +471,19 @@ namespace Physics {
 			existing_faces
 		);
 
+		new_hull.recompute_bounding_volume();
+
 		return new_hull;
 	}
 
+	/*
+	* @brief	Recomputes internal AABB bounding volume variable.
+	*			Uses internal vertex array.
+	*/
+	void half_edge_data_structure::recompute_bounding_volume()
+	{
+		m_aabb_bounding_volume = compute_vertex_array_aabb(m_vertices.data(), m_vertices.size());
+	}
 
 	/*
 	* @brief	Compute the normal of a face belonging to this hull.

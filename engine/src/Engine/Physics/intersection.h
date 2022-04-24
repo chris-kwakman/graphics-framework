@@ -3,6 +3,7 @@
 #include <engine/Physics/convex_hull.h>
 #include <Engine/Math/Transform3D.h>
 #include <Engine/ECS/entity.h>
+#include <Engine/Math/geometry.hpp>
 
 namespace Engine {
 	using namespace Math;
@@ -13,12 +14,6 @@ namespace Physics {
 
 	struct contact;
 
-	struct ray
-	{
-		glm::vec3 origin;
-		glm::vec3 dir;
-	};
-
 	struct intersection_result
 	{
 		float t;
@@ -26,7 +21,7 @@ namespace Physics {
 		glm::vec3 normal;
 	};
 
-	intersection_result intersect_ray_convex_hull(ray _ray, half_edge_data_structure const & _hds, transform3D const& _hull_transform);
+	intersection_result intersect_ray_convex_hull(Math::ray _ray, half_edge_data_structure const & _hds, transform3D const& _hull_transform);
 
 
 	/*

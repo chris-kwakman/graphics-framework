@@ -494,6 +494,8 @@ namespace Physics {
 			existing_faces
 		);
 
+		hull.recompute_bounding_volume();
+
 		// Move vertices such that center of mass becomes origin of the half-edge data structure.
 		glm::vec3 out_cm;
 		inertialTensorConvexHull(&hull, nullptr, &out_cm);
