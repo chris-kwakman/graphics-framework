@@ -128,7 +128,7 @@ namespace Physics {
 
 		float minimum_separation = -std::numeric_limits<float>::max();
 		face_vertex_pair min_sep_face_pair;
-		edge_pair min_sep_edge_pair{ half_edge::INVALID_EDGE, half_edge::INVALID_EDGE };
+		edge_pair min_sep_edge_pair{ half_edge_data_structure::INVALID_EDGE, half_edge_data_structure::INVALID_EDGE };
 
 		// Compute face normals for both hulls.
 		// TODO: Precompute face normals?
@@ -142,8 +142,11 @@ namespace Physics {
 		for (face_idx h1_f_idx = 0; h1_f_idx < _hull1.m_faces.size(); h1_f_idx++)
 		{
 			glm::vec3 const face_normal = hull1_normals[h1_f_idx];
-			vertex_idx const sup_vtx_idx = get_hds_support_point_bruteforce(
-				hull2_vertices, -face_normal
+			vertex_idx const sup_vtx_idx = get_hds_support_point_hillclimbing(
+				hull2_vertices, 
+				_hull2.m_edges,
+				_hull2.m_vertices_outgoing_edge,
+				-face_normal
 			);
 			glm::vec3 const support_vertex = hull2_vertices[sup_vtx_idx];
 			glm::vec3 const proj_vertex = project_point_to_plane(
@@ -163,8 +166,11 @@ namespace Physics {
 		for (face_idx h2_f_idx = 0; h2_f_idx < _hull2.m_faces.size(); h2_f_idx++)
 		{
 			glm::vec3 const face_normal = hull2_normals[h2_f_idx];
-			vertex_idx const sup_vtx_idx = get_hds_support_point_bruteforce(
-				hull1_vertices, -face_normal
+			vertex_idx const sup_vtx_idx = get_hds_support_point_hillclimbing(
+				hull1_vertices, 
+				_hull1.m_edges,
+				_hull1.m_vertices_outgoing_edge,
+				-face_normal
 			);
 			glm::vec3 const support_vertex = hull1_vertices[sup_vtx_idx];
 			glm::vec3 const proj_vertex = project_point_to_plane(

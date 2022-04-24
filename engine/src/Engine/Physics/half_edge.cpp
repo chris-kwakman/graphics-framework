@@ -176,7 +176,7 @@ namespace Physics {
 			face_idx const curr_edge_face_index = current_edge.m_edge_face;
 
 			// Skip current iteration if edge has been deleted OR current edge has no twin edge.
-			if (!_existing_edges[edge_index] || current_edge.m_twin_edge == half_edge::INVALID_EDGE)
+			if (!_existing_edges[edge_index] || current_edge.m_twin_edge == half_edge_data_structure::INVALID_EDGE)
 				continue;
 
 			// Go over twin edge's closed loop.
@@ -209,7 +209,7 @@ namespace Physics {
 				// Traverse forwards along current edge's face.
 				half_edge_idx iterator_twin = get_twin_index(forward_edge_iterator);
 				while (
-					iterator_twin != half_edge::INVALID_EDGE &&
+					iterator_twin != half_edge_data_structure::INVALID_EDGE &&
 					get_face_index(iterator_twin) == current_twin_edge_face
 					)
 				{
@@ -220,7 +220,7 @@ namespace Physics {
 				// Traverse backwards along current twin edge's face.
 				iterator_twin = get_twin_index(backward_edge_iterator);
 				while (
-					iterator_twin != half_edge::INVALID_EDGE &&
+					iterator_twin != half_edge_data_structure::INVALID_EDGE &&
 					get_face_index(iterator_twin) == current_edge_face
 					) {
 					edges_sharing_face.emplace_front(iterator_twin);
@@ -286,8 +286,12 @@ namespace Physics {
 
 				half_edge_idx const twin_idx = get_twin_index(edge_idx);
 				half_edge_idx const next_twin_idx = get_twin_index(next_idx);
-				face_idx const twin_face = (twin_idx == half_edge::INVALID_EDGE) ? half_edge::INVALID_EDGE : get_face_index(twin_idx);
-				face_idx const next_twin_face = (next_twin_idx == half_edge::INVALID_EDGE) ? half_edge::INVALID_EDGE : get_face_index(next_twin_idx);
+				face_idx const twin_face = (twin_idx == half_edge_data_structure::INVALID_EDGE) 
+					? half_edge_data_structure::INVALID_EDGE 
+					: get_face_index(twin_idx);
+				face_idx const next_twin_face = (next_twin_idx == half_edge_data_structure::INVALID_EDGE)
+					? half_edge_data_structure::INVALID_EDGE
+					: get_face_index(next_twin_idx);
 
 				bool edges_share_face = get_face_index(edge_idx) == get_face_index(next_idx);
 				bool twin_edges_share_face = (twin_face == next_twin_face);
@@ -364,7 +368,7 @@ namespace Physics {
 				auto new_edge = _ch.m_edges[i];
 				new_edge.m_edge_face -= face_index_substraction_map[new_edge.m_edge_face];
 				new_edge.m_vertex -= vertex_index_substraction_map[new_edge.m_vertex];
-				if (new_edge.m_twin_edge != half_edge_data_structure::half_edge::INVALID_EDGE)
+				if (new_edge.m_twin_edge != half_edge_data_structure::INVALID_EDGE)
 					new_edge.m_twin_edge -= edge_index_substraction_map[new_edge.m_twin_edge];
 				new_edge.m_next_edge -= edge_index_substraction_map[new_edge.m_next_edge];
 				new_edges.emplace_back(new_edge);
@@ -427,7 +431,7 @@ namespace Physics {
 				new_edges[e].m_edge_face = face_index;
 				new_edges[e].m_next_edge = current_edge_count + (e + 1) % 3;
 				new_edges[e].m_vertex = current_face_indices[e];
-				new_edges[e].m_twin_edge = half_edge_data_structure::half_edge::INVALID_EDGE;
+				new_edges[e].m_twin_edge = half_edge_data_structure::INVALID_EDGE;
 			}
 			naive_edges.emplace_back(new_edges[0]);
 			naive_edges.emplace_back(new_edges[1]);
@@ -471,9 +475,35 @@ namespace Physics {
 			existing_faces
 		);
 
-		new_hull.recompute_bounding_volume();
+		new_hull.recompute_all();
 
 		return new_hull;
+	}
+
+	void half_edge_data_structure::recompute_all()
+	{
+		recompute_prev_half_edges();
+		recompute_vertices_outgoing_edge();
+		recompute_bounding_volume();
+	}
+
+	/*
+	* @brief	Creates implicit map of vertex indices to first outgoing edge from given vertex index.
+	*/
+	void half_edge_data_structure::recompute_vertices_outgoing_edge()
+	{
+		m_vertices_outgoing_edge.resize(m_vertices.size());
+		for(half_edge_idx i = 0; i < m_edges.size(); ++i)
+			m_vertices_outgoing_edge[m_edges[i].m_vertex] = i;
+	}
+
+	/*
+	* @brief	Sets the previous half-edge of each half-edge.
+	*/
+	void half_edge_data_structure::recompute_prev_half_edges()
+	{
+		for(half_edge_idx i = 0; i < m_edges.size(); ++i)
+			m_edges[m_edges[i].m_next_edge].m_prev_edge = i;
 	}
 
 	/*
@@ -527,6 +557,45 @@ namespace Physics {
 		}
 
 		return track_max_vertex;
+	}
+
+	half_edge_data_structure::vertex_idx get_hds_support_point_hillclimbing(
+		decltype(half_edge_data_structure::m_vertices) const& _vertices,
+		decltype(half_edge_data_structure::m_edges) const & _edges,
+		decltype(half_edge_data_structure::m_vertices_outgoing_edge) const & _vertices_outgoing_edge,
+		glm::vec3 const _direction, 
+		half_edge_data_structure::vertex_idx _hint
+	)
+	{
+		using vertex_idx = half_edge_data_structure::vertex_idx;
+		using edge_idx = half_edge_data_structure::half_edge_idx;
+		vertex_idx pivot_vertex = (_hint == half_edge_data_structure::INVALID_VERTEX)
+			? 0 
+			: _hint;
+
+		float max_dot = glm::dot(_vertices[pivot_vertex], _direction);
+		float prev_max;
+		do
+		{
+			prev_max = max_dot;
+			edge_idx starting_edge_idx = _vertices_outgoing_edge[pivot_vertex];
+			edge_idx iter_edge_idx = starting_edge_idx;
+			do
+			{
+				half_edge_data_structure::half_edge const& iter_edge = _edges[iter_edge_idx];
+				vertex_idx iter_edge_dest_vertex_idx = _edges[iter_edge.m_next_edge].m_vertex;
+				float const dot = glm::dot(_direction, _vertices[iter_edge_dest_vertex_idx]);
+				if (dot > max_dot)
+				{
+					max_dot = dot;
+					pivot_vertex = iter_edge_dest_vertex_idx;
+				}
+				iter_edge_idx = _edges[iter_edge.m_prev_edge].m_twin_edge;
+			} while (iter_edge_idx != starting_edge_idx);
+
+		} while (max_dot > prev_max);
+
+		return pivot_vertex;
 	}
 
 

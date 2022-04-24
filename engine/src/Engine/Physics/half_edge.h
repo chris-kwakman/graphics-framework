@@ -18,16 +18,18 @@ namespace Physics {
 	*/
 	struct half_edge_data_structure
 	{
-		typedef uint16_t half_edge_idx;
+		typedef uint32_t half_edge_idx;
 		typedef uint16_t vertex_idx;
 		typedef uint16_t face_idx;
 
+		static vertex_idx const INVALID_VERTEX = std::numeric_limits<vertex_idx>::max();
+		static half_edge_idx const INVALID_EDGE = std::numeric_limits<half_edge_idx>::max();
+
 		struct half_edge
 		{
-			static half_edge_idx const INVALID_EDGE = std::numeric_limits<half_edge_idx>::max();
-
 			half_edge_idx	m_next_edge;
 			half_edge_idx	m_twin_edge; // It is assumed only one twin edge exists.
+			half_edge_idx	m_prev_edge;
 			face_idx		m_edge_face;
 			vertex_idx		m_vertex;
 		};
@@ -42,11 +44,15 @@ namespace Physics {
 			std::vector<vertex_idx>	m_vertices;
 		};
 
-		std::vector<glm::vec3>	m_vertices;
-		std::vector<half_edge>	m_edges;
-		std::vector<face>		m_faces;
-		Engine::Math::aabb		m_aabb_bounding_volume;
+		std::vector<glm::vec3>		m_vertices;
+		std::vector<half_edge_idx>	m_vertices_outgoing_edge;
+		std::vector<half_edge>		m_edges;
+		std::vector<face>			m_faces;
+		Engine::Math::aabb			m_aabb_bounding_volume;
 
+		void recompute_all();
+		void recompute_vertices_outgoing_edge();
+		void recompute_prev_half_edges();
 		void recompute_bounding_volume();
 		glm::vec3 compute_face_normal(face_idx _face) const;
 		inline half_edge_idx	get_next_edge(half_edge_idx _edge_idx) const;
@@ -129,6 +135,14 @@ namespace Physics {
 	half_edge_data_structure::vertex_idx get_hds_support_point_bruteforce(
 		decltype(half_edge_data_structure::m_vertices) const& _vertices,
 		glm::vec3 const	_direction
+	);
+
+	half_edge_data_structure::vertex_idx get_hds_support_point_hillclimbing(
+		decltype(half_edge_data_structure::m_vertices) const& _vertices,
+		decltype(half_edge_data_structure::m_edges) const& _edges,
+		decltype(half_edge_data_structure::m_vertices_outgoing_edge) const& _vertices_outgoing_edge,
+		glm::vec3 const _direction,
+		half_edge_data_structure::vertex_idx _hint = half_edge_data_structure::INVALID_VERTEX
 	);
 
 	/*

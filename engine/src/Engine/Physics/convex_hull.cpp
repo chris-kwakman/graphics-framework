@@ -250,7 +250,7 @@ namespace Physics {
 				{
 					new_edges[e].m_edge_face = hull.m_faces.size();
 					new_edges[e].m_next_edge = edge_count + (e+1)%3;
-					new_edges[e].m_twin_edge = edge::INVALID_EDGE;
+					new_edges[e].m_twin_edge = half_edge_data_structure::INVALID_EDGE;
 					new_edges[e].m_vertex = new_face.m_vertices[e];
 					new_face.m_edges.emplace_back(hull.m_edges.size());
 					hull.m_edges.emplace_back(std::move(new_edges[e]));
@@ -315,7 +315,7 @@ namespace Physics {
 				edge_idx face_iter_edge;
 			};
 
-			edge_idx const INVALID_EDGE = half_edge_data_structure::half_edge::INVALID_EDGE;
+			edge_idx const INVALID_EDGE = half_edge_data_structure::INVALID_EDGE;
 
 			std::unordered_set<face_idx> visited_faces;
 			std::vector<face_frame> frame_stack;
@@ -494,7 +494,7 @@ namespace Physics {
 			existing_faces
 		);
 
-		hull.recompute_bounding_volume();
+		hull.recompute_all();
 
 		// Move vertices such that center of mass becomes origin of the half-edge data structure.
 		glm::vec3 out_cm;
