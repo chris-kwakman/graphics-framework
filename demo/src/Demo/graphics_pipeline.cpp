@@ -35,6 +35,7 @@ struct gfx_pipeline_resources
 	static size_t const MAX_POINT_COUNT = MAX_LINE_SEGMENTS * 2;
 	mesh_handle line_point_mesh_handle = 0;
 	buffer_handle line_point_mesh_vbo_handle = 0;
+	mesh_handle cube_mesh_handle = 0;
 	size_t upload_line_point_data(glm::vec3 const* _points, size_t _count) const;
 };
 
@@ -82,6 +83,11 @@ namespace Sandbox
 			GraphicsManager::mesh_primitive_list{ prim_data }, 
 			"Debug Line Point Mesh"
 		);
+
+		auto& engine_resource_manager = Singleton<Engine::Managers::ResourceManager>();
+		auto const mesh_type = engine_resource_manager.find_named_type("Mesh");
+		auto const resource = engine_resource_manager.load_resource("data/meshes/cube.obj", mesh_type);
+		s_pipeline_resources.cube_mesh_handle = engine_resource_manager.get_resource_handle(resource);
 	}
 	void ShutdownGraphicsPipelineRender()
 	{
@@ -1002,19 +1008,19 @@ namespace Sandbox
 			}
 
 			glLineWidth(2.0f);
-			for (auto [e, ch_handle] : collider_mgr.m_data.m_entity_map)
+			for (auto & [e, debug_render_instance] : collider_mgr.m_data.m_entity_map)
 			{
 				bool set_intersection_base_color = false;
 
 				Component::Transform transform = e.GetComponent<Component::Transform>();
 				Engine::Math::transform3D world_transform = transform.ComputeWorldTransform();
 
-
-				auto const& e_ch_debug_render_instance = collider_mgr.m_data.m_entity_map.at(e);
-				Engine::Managers::Resource const ch_collider_res = e_ch_debug_render_instance.m_collider_resource;
+				Engine::Managers::Resource const ch_collider_res = debug_render_instance.m_collider_resource;
 				convex_hull_handle const ch_handle = ch_collider_res.Handle();
 				if (ch_collider_res.ID() == 0 || ch_handle == 0)
 					continue;
+
+				auto const * ch_data = Singleton<ConvexHullManager>().GetConvexHullInfo(ch_handle);
 
 				auto it = collider_mgr.m_data.m_ch_debug_meshes.find(ch_collider_res);
 				if (it == collider_mgr.m_data.m_ch_debug_meshes.end())
@@ -1028,8 +1034,9 @@ namespace Sandbox
 				}
 
 				auto debug_render_data = it->second;
-				res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, matrix_vp * world_transform.GetMatrix());
-
+				glm::mat4x4 const mvp = matrix_vp * world_transform.GetMatrix();
+				res_mgr.SetBoundProgramUniform(LOC_MAT_MVP, mvp);
+				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 				if (collider_mgr.m_data.m_render_debug_face_mesh && debug_render_data.m_ch_face_mesh)
 				{
 					auto& primitive_list = res_mgr.GetMeshPrimitives(debug_render_data.m_ch_face_mesh);
@@ -1044,7 +1051,7 @@ namespace Sandbox
 							LOC_BASE_COLOR_FACTOR,
 							use_base_color
 						);
-						res_mgr.SetBoundProgramUniform(LOC_HIGHLIGHT_INDEX, e_ch_debug_render_instance.m_highlight_face_index);
+						res_mgr.SetBoundProgramUniform(LOC_HIGHLIGHT_INDEX, debug_render_instance.m_highlight_face_index);
 						render_primitive(primitive);
 					}
 				}
@@ -1057,14 +1064,33 @@ namespace Sandbox
 							LOC_BASE_COLOR_FACTOR,
 							res_mgr.GetMaterial(primitive.m_material_handle).m_pbr_metallic_roughness.m_base_color_factor
 						);
-						res_mgr.SetBoundProgramUniform(LOC_HIGHLIGHT_INDEX, e_ch_debug_render_instance.m_highlight_edge_index);
+						res_mgr.SetBoundProgramUniform(LOC_HIGHLIGHT_INDEX, debug_render_instance.m_highlight_edge_index);
 						render_primitive(primitive);
 					}
+				}
+				if (collider_mgr.m_data.m_render_debug_bounding_volume)
+				{
+					auto const & collider = e.GetComponent<Component::Collider>();
+					Engine::Math::aabb const collider_bv = collider.GetBoundingVolume();
+					Engine::Math::transform3D bv_transform;
+					bv_transform.scale = collider_bv.extent * 2.0f;
+					bv_transform.position = collider_bv.center;
+					res_mgr.SetBoundProgramUniform(
+						LOC_MAT_MVP, 
+						matrix_vp* bv_transform.GetMatrix()
+					);
+					res_mgr.SetBoundProgramUniform(
+						LOC_BASE_COLOR_FACTOR,
+						glm::vec4(0.0f,1.0f,1.0f,1.0f)
+					);
+					res_mgr.SetBoundProgramUniform(LOC_HIGHLIGHT_INDEX, -1);
+					glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+					render_primitive(res_mgr.GetMeshPrimitives(s_pipeline_resources.cube_mesh_handle).front());
 				}
 			}
 
 		}
-
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 		// # 
 		// # Cascading Shadow Map Rendering

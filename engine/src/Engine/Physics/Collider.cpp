@@ -25,6 +25,33 @@ namespace Component
 		GetManager().SetColliderResource(Owner(), _resource);
 	}
 
+	Engine::Managers::Resource Collider::GetColliderResource() const
+	{
+		return GetManager().m_data.m_entity_map.at(Owner()).m_collider_resource;
+	}
+
+	Engine::Math::aabb Collider::GetBoundingVolume() const
+	{
+		// Retrieve convex hull resource
+		auto const resource = GetColliderResource();
+		auto const & ch_info = Singleton<ConvexHullManager>().GetConvexHullInfo(resource.Handle());
+		Engine::Math::aabb const ch_aabb = ch_info->m_data.m_aabb_bounding_volume;
+		auto const world_transform = Owner().GetComponent<Transform>().ComputeWorldTransform();
+		Engine::Math::aabb bv_aabb;
+		// Create OBB with world transform.
+		bv_aabb.center = world_transform.TransformPoint(ch_aabb.center);
+		glm::vec3 transformed_extent = world_transform.TransformVector(ch_aabb.extent);
+		glm::quat inv_world_rot = world_transform.rotation;
+		inv_world_rot.w *= -1.0f;
+		bv_aabb.extent = inv_world_rot * transformed_extent;
+		
+		Engine::Math::obb bv_obb;
+		bv_obb.aabb = bv_aabb;
+		bv_obb.rotation = world_transform.rotation;
+
+		return Engine::Math::create_aabb_encapsulating_obb(bv_obb);
+	}
+
 	const char* ColliderManager::GetComponentTypeName() const
 	{
 		return "Collider";
@@ -104,8 +131,9 @@ namespace Component
 		}
 		ImGui::InputText("Collider Handle", &show_name, ImGuiInputTextFlags_ReadOnly);
 
-		ImGui::Checkbox("Enable Debug Face Rendering", &m_data.m_render_debug_face_mesh);
-		ImGui::Checkbox("Enable Debug Edge Rendering", &m_data.m_render_debug_edge_mesh);
+		ImGui::Checkbox("Debug Face Rendering", &m_data.m_render_debug_face_mesh);
+		ImGui::Checkbox("Debug Edge Rendering", &m_data.m_render_debug_edge_mesh);
+		ImGui::Checkbox("Debug BV Rendering", &m_data.m_render_debug_bounding_volume);
 
 		if (Engine::Managers::resource_dragdrop_target(current_resource, "Collider"))
 			SetColliderResource(_entity, current_resource);

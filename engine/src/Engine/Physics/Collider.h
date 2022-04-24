@@ -20,6 +20,8 @@ namespace Component
 
 		Engine::Physics::half_edge_data_structure const * GetConvexHull() const;
 		void SetColliderResource(Engine::Managers::Resource _resource);
+		Engine::Managers::Resource GetColliderResource() const;
+		Engine::Math::aabb GetBoundingVolume() const;
 	};
 
 	class ColliderManager : public TCompManager<Collider>
@@ -52,7 +54,9 @@ namespace Component
 			std::unordered_map<Entity, std::vector<Entity>, Entity::hash>	m_entity_intersections;
 			Engine::Physics::global_contact_data							m_global_contact_data;
 
-			bool m_render_debug_face_mesh = true, m_render_debug_edge_mesh = true;
+			bool m_render_debug_face_mesh = false; 
+			bool m_render_debug_edge_mesh = true;
+			bool m_render_debug_bounding_volume = false;
 
 			NLOHMANN_DEFINE_TYPE_INTRUSIVE(manager_data, m_entity_map, m_render_debug_face_mesh, m_render_debug_edge_mesh);
 		};
