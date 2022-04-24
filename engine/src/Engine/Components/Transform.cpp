@@ -354,6 +354,8 @@ namespace Component
 
 		if (ImGui::BeginChild("GraphDisplay", ImVec2(0, 0), true, ImGuiWindowFlags_AlwaysAutoResize))
 		{
+			ImGui::Text("Entity Count: %u", m_entity_indexer_map.size());
+
 			for (auto root_entity : root_nodes)
 				display_node_recursively(root_entity);
 
