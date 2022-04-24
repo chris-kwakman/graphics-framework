@@ -7,6 +7,8 @@
 #include <Engine/Physics/contact.h>
 #include <Engine/Physics/resolution.hpp>
 
+#include <Engine/Math/geometry_intersection.hpp>
+
 #include <Engine/Editor/editor.h>
 
 namespace Component
@@ -378,12 +380,32 @@ namespace Component
 			}
 			convex_hull_handle const ch_1 = it1->second.m_collider_resource.Handle();
 			auto chi_1 = Singleton<ConvexHullManager>().GetConvexHullInfo(ch_1);
+			auto rb_1 = it1->first.GetComponent<Component::RigidBody>();
 			auto it2 = it1;
 			Engine::Math::transform3D const tr_1 = it1->first.GetComponent<Component::Transform>().ComputeWorldTransform();
+			Engine::Math::aabb const bv1 = Component::Collider(it1->first).GetBoundingVolume();
 			it2++;
 			while (it2 != m_data.m_entity_map.end())
 			{
 				if (!it2->second.m_collider_resource.ID())
+				{
+					it2++;
+					continue;
+				}
+
+				// Broad-phase detection
+				Engine::Math::aabb const bv2 = Component::Collider(it2->first).GetBoundingVolume();
+				if (!Engine::Math::intersect_aabb_aabb(bv1, bv2))
+				{
+					it2++;
+					continue;
+				}
+
+				// Skip iteration if both objects have rigidbodies and both are static.
+				auto rb_2 = it2->first.GetComponent<Component::RigidBody>();
+				if (rb_1.IsValid() && rb_2.IsValid() &&
+					(rb_1.GetRigidBodyData().inv_mass == 0.0f && rb_2.GetRigidBodyData().inv_mass == 0.0f)
+					)
 				{
 					it2++;
 					continue;
