@@ -1,0 +1,1 @@
+./bin/Release/Demo.exe data//scenes/playground_destroy_wall.scene
