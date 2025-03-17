@@ -1,2 +1,2 @@
 cd ./demo/
-./bin/Release/Demo.exe data//scenes/playground.scene
+.//demo//bin//Release//Demo.exe data//scenes//playground.scene

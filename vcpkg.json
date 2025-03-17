@@ -1,20 +1,24 @@
 {
-  "name": "framework",
-  "version-string": "0.1",
-  "dependencies": [
-    "glew",
-    "glm",
-    "gtest",
-    "imgui",
-    {
-      "name": "imgui",
-      "features": [ "docking-experimental", "sdl2-binding", "opengl3-binding" ],
-      "platform": "windows"
-    },
-    "imguizmo",
-    "sdl2",
-    "nlohmann-json",
-    "stb",
-    "tinygltf"
-  ]
+	"builtin-baseline": "cf72b50294a4aa13e607a0c7b40280b933801698",
+	"name": "framework",
+	"version-string": "0.2",
+	"dependencies": [
+		"glew",
+		"glm",
+		"gtest",
+		{
+			"name": "imgui",
+			"version>=": "1.91",
+			"features": [ "docking-experimental", "sdl2-binding", "opengl3-binding" ],
+			"platform": "windows"
+		},
+		"imguizmo",
+		"sdl2",
+		"nlohmann-json",
+		"stb",
+		"tinygltf"
+	],
+	"overrides": [
+		{"name":"imgui", "version": "1.91.7"}
+	]
 }

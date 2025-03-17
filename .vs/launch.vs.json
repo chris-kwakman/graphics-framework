@@ -5,19 +5,17 @@
     {
       "type": "default",
       "project": "CMakeLists.txt",
-      "projectTarget": "Demo.exe (Install)",
-      "name": "Demo.exe (Install)",
-      "currentDir": "${workspaceRoot}//demo",
-      "args": [
-        
-      ]
+      "projectTarget": "test_engine.exe (Install)",
+      "name": "test_engine.exe (Install)",
+      "currentDir": "${workspaceRoot}"
     },
     {
       "type": "default",
       "project": "CMakeLists.txt",
-      "projectTarget": "test_engine.exe (Install)",
-      "name": "test_engine.exe (Install)",
-      "currentDir": "${workspaceRoot}//tests"
+      "projectTarget": "Demo.exe (framework_demo\\Demo.exe)",
+      "name": "Demo.exe (framework_demo\\Demo.exe)",
+      "currentDir": "${workspaceRoot}",
+      "args": []
     }
   ]
 }

@@ -38,7 +38,8 @@ target_include_directories(header_only_lib INTERFACE ${TINYGLTF_INCLUDE_DIRS} ${
 target_link_libraries(Engine 
 PUBLIC 
 	GLEW::GLEW
-	SDL2::SDL2 SDL2::SDL2main
+	$<TARGET_NAME_IF_EXISTS:SDL2::SDL2main>
+	$<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
 	glm::glm
 	imgui::imgui
 	imguizmo::imguizmo
@@ -53,8 +54,11 @@ target_compile_features(Engine PUBLIC cxx_std_20)
 set_target_properties(Engine PROPERTIES CXX_STANDARD_REQUIRED ON)
 set_target_properties(Engine PROPERTIES CXX_EXTENSIONS OFF)
 
-target_compile_definitions(Engine PUBLIC -DIMGUI_USER_CONFIG="${ENGINE_SRC_DIR}/Engine/Editor/my_imgui_config.h")
+target_compile_definitions(Engine PUBLIC 
+	-DIMGUI_USER_CONFIG="${ENGINE_SRC_DIR}/Engine/Editor/my_imgui_config.h"
+	-DGLM_ENABLE_EXPERIMENTAL
+)
 
 # Install Engine library
 
-install(TARGETS ${PROJECT_NAME} DESTINATION ${PROJECT_SOURCE_DIR}/bin/${CMAKE_BUILD_TYPE}/)
+install(TARGETS ${PROJECT_NAME} DESTINATION bin/${CMAKE_BUILD_TYPE}/)

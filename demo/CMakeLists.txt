@@ -21,7 +21,7 @@ target_link_libraries(${PROJECT_NAME}
 )
 target_include_directories(Demo PUBLIC "src/")
 
-install(TARGETS ${PROJECT_NAME} DESTINATION ${PROJECT_SOURCE_DIR}/bin/${CMAKE_BUILD_TYPE}/)
+install(TARGETS ${PROJECT_NAME} DESTINATION bin/${CMAKE_BUILD_TYPE})
 
 # Set proper C++ version
 

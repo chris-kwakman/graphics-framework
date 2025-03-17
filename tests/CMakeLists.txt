@@ -28,7 +28,7 @@ target_compile_features(test_engine PUBLIC cxx_std_20)
 set_target_properties(test_engine PROPERTIES CXX_STANDARD_REQUIRED ON)
 set_target_properties(test_engine PROPERTIES CXX_EXTENSIONS OFF)
 
-install(TARGETS test_engine DESTINATION ${PROJECT_SOURCE_DIR}/bin/${CMAKE_BUILD_TYPE}/)
+install(TARGETS test_engine DESTINATION bin/${CMAKE_BUILD_TYPE}/)
 
 include(GoogleTest)
 #gtest_add_tests(${PROJECT_NAME} ${TESTS_CPP})
