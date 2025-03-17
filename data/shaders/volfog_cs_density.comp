@@ -43,7 +43,7 @@ uniform ubo_shader_properties
 uniform image3D writeonly out_density;
 
 shared VolumetricFogInstance shared_volfog_instances[MAX_VOLFOG_INSTANCES];
-shared uint shared_volfog_instance_count = 0;
+shared uint shared_volfog_instance_count;
 
 vec3 get_normalized_thread_global_id()
 {
@@ -280,12 +280,14 @@ void main(void)
     // Cuboid: Test if local space position is within [-1,1] boundary on all axes.
 
     float write_fog_density = 0.0;
-    for(unsigned int i = 0; i < shared_volfog_instance_count; ++i)
+    for(uint i = 0; i < shared_volfog_instance_count; ++i)
     {
         VolumetricFogInstance instance = shared_volfog_instances[i];
         const vec4 fog_pos = instance.u_inv_m * world_pos;
         // Assume cuboid for now.
-        if(all(greaterThan(fog_pos.xyz, vec3(-1)) && lessThan(fog_pos.xyz, vec3(1))))
+        bvec3 fN = greaterThan(fog_pos.xyz, vec3(-1));
+        bvec3 fF = lessThan(fog_pos.xyz, vec3(1));
+        if(all(fN) && all(fF))
         {
             float fog_bottom = (inverse(instance.u_inv_m) * vec4(fog_pos.x,-1,fog_pos.z,1)).y;
             float height = max(world_pos.y - fog_bottom,0);

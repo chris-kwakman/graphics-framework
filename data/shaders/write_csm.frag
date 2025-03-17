@@ -58,7 +58,7 @@ vec4 get_texel_world_pos()
 	return world_pos;
 }
 
-float calculate_shadow_factor(unsigned int cascade_index, vec4 light_space_pos)
+float calculate_shadow_factor(uint cascade_index, vec4 light_space_pos)
 {
 	vec3 light_ndc = light_space_pos.xyz / light_space_pos.w;
 	float depth = light_ndc.z * 0.5 + 0.5; // Liu_near depth [0,1]
@@ -86,7 +86,7 @@ float get_world_pos_shadow_factor(vec4 world_pos)
 	vec4 light_space_pos[NUM_CASCADES];
 	
 	float ndc_z = get_uv_ndc_depth();
-	for(unsigned int cascade = 0; cascade < NUM_CASCADES; ++cascade)
+	for(uint cascade = 0; cascade < NUM_CASCADES; ++cascade)
 	{
 		light_space_pos[cascade] = u_csm_vp[cascade] * world_pos;
 	}
@@ -100,7 +100,7 @@ float get_world_pos_shadow_factor(vec4 world_pos)
 	float shadow_factor = 1;
 
 	// Find cascade that texel belongs to
-	for(unsigned int cascade = 0; cascade < NUM_CASCADES; ++cascade)
+	for(uint cascade = 0; cascade < NUM_CASCADES; ++cascade)
 	{
 		if(ndc_z <= u_csm_clipspace_end[cascade])
 		{
