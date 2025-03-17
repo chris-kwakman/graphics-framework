@@ -694,13 +694,16 @@ namespace Sandbox
 					res_mgr.SetBoundProgramUniform(LOC_MAT_MV_T_INV, matrix_t_inv_mv);
 
 					auto curve = curve_comp.GetPiecewiseCurve();
-					set_line_mesh(&curve.m_lut.m_points.front(), (unsigned int)curve.m_lut.m_points.size());
-					GfxCall(glDrawElements(
-						GL_LINE_STRIP,
-						(GLsizei)curve.m_lut.m_points.size(),
-						GL_UNSIGNED_INT,
-						(void*)0
-					));
+					if (!curve.m_nodes.empty())
+					{
+						set_line_mesh(&curve.m_lut.m_points.front(), (unsigned int)curve.m_lut.m_points.size());
+						GfxCall(glDrawElements(
+							GL_LINE_STRIP,
+							(GLsizei)curve.m_lut.m_points.size(),
+							GL_UNSIGNED_INT,
+							(void*)0
+						));
+					}
 				}
 			}
 

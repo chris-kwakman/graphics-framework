@@ -35,7 +35,7 @@ namespace Sandbox
 
 	// Lighting data
 	glm::vec4		s_clear_color{ 0.0f,0.0f,0.0f,0.0f };
-	glm::vec3		s_ambient_color = glm::vec3(0.005f);
+	glm::vec3		s_ambient_color = glm::vec3(1.0f);
 	float			s_exposure = 1.1f;
 	float			s_gamma_correction_factor = 1.8f;
 	float			s_shininess_mult_factor = 25.0f;
