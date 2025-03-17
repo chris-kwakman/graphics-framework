@@ -276,6 +276,7 @@ namespace Graphics {
 		{
 			GLuint						m_gl_program_object;
 			std::vector<shader_handle>	m_linked_shader_handles;
+			std::string                 m_name{ "Unnamed" };
 		};
 
 		struct shader_program_data

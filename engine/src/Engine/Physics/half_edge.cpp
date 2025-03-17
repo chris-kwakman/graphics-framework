@@ -607,7 +607,7 @@ namespace Physics {
 		ImGuiTableFlags const table_flags = ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_Hideable | ImGuiTableFlags_ScrollY;
 
 		if (ImGui::BeginTable("Edges", 6, table_flags,
-			glm::vec2(ImGui::GetWindowContentRegionWidth(), ImGui::GetTextLineHeightWithSpacing() * 10.0f)
+			glm::vec2(ImGui::GetContentRegionAvail().x, ImGui::GetTextLineHeightWithSpacing() * 10.0f)
 		))
 		{
 			ImGui::TableSetupColumn("Edge IDX", ImGuiTableColumnFlags_WidthFixed);
@@ -650,7 +650,7 @@ namespace Physics {
 			ImGui::EndTable();
 		}
 		if (ImGui::BeginTable("Faces", 3, table_flags,
-			glm::vec2(ImGui::GetWindowContentRegionWidth(), ImGui::GetTextLineHeightWithSpacing() * 10.0f)
+			glm::vec2(ImGui::GetContentRegionAvail().x, ImGui::GetTextLineHeightWithSpacing() * 10.0f)
 		))
 		{
 			ImGui::TableSetupColumn("Face IDX", ImGuiTableColumnFlags_WidthFixed);

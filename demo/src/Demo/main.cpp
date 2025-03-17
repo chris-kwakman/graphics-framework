@@ -147,8 +147,8 @@ void menu_bar()
 		ImGui::SetItemDefaultFocus();
 		if (pressed_enter)
 		{
-			fs::path const const scene_file_name = std::string(file_name_buffer) + ".scene";
-			fs::path const const scene_file_path = scene_directory / scene_file_name;
+			fs::path const scene_file_name = std::string(file_name_buffer) + ".scene";
+			fs::path const scene_file_path = scene_directory / scene_file_name;
 
 			std::ofstream scene_file(scene_file_path, std::ios::binary);
 			if (scene_file.is_open())

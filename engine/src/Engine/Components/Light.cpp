@@ -239,7 +239,7 @@ namespace Component
 
 			ImGui::Text("Size: %d", csm_tex_info.m_size.x);
 			ImGui::Image(
-				reinterpret_cast<ImTextureID>((size_t)csm_tex_info.m_gl_source_id), 
+				static_cast<ImTextureID>((size_t)csm_tex_info.m_gl_source_id), 
 				display_size, ImVec2(0, 1), ImVec2(1, 0)
 			);
 		}

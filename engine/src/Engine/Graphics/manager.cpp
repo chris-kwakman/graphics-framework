@@ -1370,6 +1370,7 @@ namespace Graphics {
 			GfxCallReturn(gl_shader_object, glCreateShader(shader_type));
 			Engine::Utils::assert_print_error(gl_shader_object != 0, "Failed to create shader object.");
 
+			Engine::Utils::print_debug("Compile shader \"%s\".", path_str.c_str());
 			bool compilation_success = compile_gl_shader(gl_shader_object, loaded_shader_data, shader_type);
 
 			shader_handle new_shader_handle = m_shader_handle_counter + new_shader_count;
@@ -1436,6 +1437,7 @@ namespace Graphics {
 		shader_program_info new_program_info;
 		new_program_info.m_gl_program_object = gl_shader_program_object;
 		new_program_info.m_linked_shader_handles = _shader_handles;
+		new_program_info.m_name = _program_name;
 
 		shader_program_data new_program_data;
 		new_program_data.refresh_cache(gl_shader_program_object);
@@ -1494,6 +1496,7 @@ namespace Graphics {
 		for (shader_program_handle program : relink_shader_programs)
 		{
 			auto const & program_info = m_shader_program_info_map.at(program);
+			Engine::Utils::print_info("Relinking shader program \"%s\".", program_info.m_name.c_str());
 			link_gl_program_shaders(program_info.m_gl_program_object);
 			m_shader_program_data_map.at(program).refresh_cache(program_info.m_gl_program_object);
 		}
@@ -1721,6 +1724,7 @@ namespace Graphics {
 	void ResourceManager::DeleteAllGraphicsResources()
 	{
 		auto collect_keys = [](auto const& map, auto& output) {
+			output.reserve(output.size() + map.size());
 			std::transform(
 				map.begin(), map.end(), std::back_inserter(output),
 				[](auto iter)->mesh_handle {return iter.first; }

@@ -1495,7 +1495,7 @@ void SkeletonAnimatorManager::window_edit_blendtree(std::unique_ptr<animation_tr
 
     glm::uvec2 const window_size = Singleton<Engine::sdl_manager>().get_window_size();
     ImVec2 const center = ImVec2((float)window_size.x / 2.0f,  (float)window_size.y / 2.0f);
-    if (open_savefile_popup | open_loadfile_popup | s_open_blendmask_edit_popup)
+    if (open_savefile_popup || open_loadfile_popup || s_open_blendmask_edit_popup)
     {
         ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5, 0.5));
     }
@@ -1670,7 +1670,7 @@ void SkeletonAnimatorManager::window_edit_blendtree(std::unique_ptr<animation_tr
     else
         s_p_edit_blend_mask = nullptr;
 
-    float window_width = ImGui::GetWindowContentRegionWidth();
+    float window_width = ImGui::GetContentRegionAvail().x;
     if(ImGui::BeginChild("Tree Viewer", ImVec2(window_width * 0.3f, -1.0f), true))
     {
         if (animator.m_blendtree_root_node)

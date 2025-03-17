@@ -3,6 +3,7 @@
 #include "half_edge.h"
 
 #include <unordered_map>
+#include <string>
 
 
 namespace Engine {

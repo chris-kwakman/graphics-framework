@@ -593,7 +593,7 @@ namespace Sandbox
 				float content_region_ar = content_region_avail.y / content_region_avail.x;
 
 				ImGui::Image(
-					reinterpret_cast<ImTextureID>((size_t)texture_info.m_gl_source_id),
+					static_cast<ImTextureID>((size_t)texture_info.m_gl_source_id),
 					ImVec2(content_region_avail.x, content_region_avail.x * image_ar),
 					ImVec2(0, 1), ImVec2(1, 0)
 				);

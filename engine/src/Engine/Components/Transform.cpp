@@ -352,7 +352,7 @@ namespace Component
 	{
 		auto root_nodes = Singleton<TransformManager>().GetRootEntities();
 
-		if (ImGui::BeginChild("GraphDisplay", ImVec2(0, 0), true, ImGuiWindowFlags_AlwaysAutoResize))
+		if (ImGui::BeginChild("GraphDisplay", ImVec2(0, 0), true))
 		{
 			ImGui::Text("Entity Count: %u", m_entity_indexer_map.size());
 
@@ -381,7 +381,7 @@ namespace Component
 		}
 		ImGui::EndChild();
 
-		if (ImGui::IsWindowFocused() && ImGui::IsKeyDown(SDL_SCANCODE_DELETE))
+		if (ImGui::IsWindowFocused() && ImGui::IsKeyDown(ImGuiKey::ImGuiKey_Delete))
 		{
 			for (auto entity : m_editor_scene_graph_data.selected_entities)
 				entity.DestroyEndOfFrame();
@@ -448,7 +448,7 @@ namespace Component
 
 		if (ImGui::IsItemFocused() && ImGui::IsItemHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
 		{
-			if (ImGui::IsKeyDown(SDL_SCANCODE_LCTRL))
+			if (ImGui::IsKeyDown(ImGuiKey::ImGuiKey_LeftCtrl))
 			{
 				if (selected_entities.find(_e) == selected_entities.end())
 					selected_entities.insert(_e);
